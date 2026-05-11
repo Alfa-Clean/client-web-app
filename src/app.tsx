@@ -1,16 +1,31 @@
 import WebApp from '@twa-dev/sdk'
 import { useEffect } from 'preact/hooks'
+import { loginWithTelegram } from './api/auth'
+import { getToken } from './api/client'
+import { useUser } from './hooks/useUser'
+import { RegistrationScreen } from './screens/RegistrationScreen'
+import { HomeScreen } from './screens/HomeScreen'
 
 export function App() {
+  const { user, saveUser } = useUser()
+
   useEffect(() => {
-    WebApp.ready()
-    WebApp.expand()
+    try {
+      WebApp.ready()
+      WebApp.expand()
+    } catch {
+      // вне Telegram — игнорируем
+    }
+
+    const initData = WebApp.initData
+    if (initData && !getToken()) {
+      loginWithTelegram(initData).catch(console.error)
+    }
   }, [])
 
-  return (
-    <div class="min-h-screen bg-white flex flex-col items-center justify-center p-4">
-      <h1 class="text-2xl font-semibold text-gray-900 mb-2">AlfaClean</h1>
-      <p class="text-gray-500 text-sm">Заказ уборки — скоро здесь</p>
-    </div>
-  )
+  if (user) {
+    return <HomeScreen user={user} />
+  }
+
+  return <RegistrationScreen onRegistered={saveUser} />
 }

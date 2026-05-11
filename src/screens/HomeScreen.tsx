@@ -4,19 +4,21 @@ import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
 import { useAddresses } from '../hooks/useAddresses'
 import { AddressFormScreen } from './AddressFormScreen'
+import { OrderScreen } from './OrderScreen'
 import { BottomBar } from '../components/BottomBar'
 import type { Tab } from '../components/BottomBar'
 
 type View =
   | { name: 'list' }
   | { name: 'form'; address?: Address }
+  | { name: 'new_order' }
 
 interface Props {
   user: User
 }
 
 export function HomeScreen({ user }: Props) {
-  const [tab, setTab] = useState<Tab>('addresses')
+  const [tab, setTab] = useState<Tab>('orders')
   const [view, setView] = useState<View>({ name: 'list' })
   const { state, reload } = useAddresses(user.telegram_id)
 
@@ -47,6 +49,10 @@ export function HomeScreen({ user }: Props) {
     )
   }
 
+  if (view.name === 'new_order') {
+    return <OrderScreen user={user} onBack={() => setView({ name: 'list' })} />
+  }
+
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <div class="bg-white px-4 py-5 border-b border-gray-100">
@@ -63,7 +69,7 @@ export function HomeScreen({ user }: Props) {
             onDelete={handleDelete}
           />
         )}
-        {tab === 'orders' && <OrdersTab />}
+        {tab === 'orders' && <OrdersTab onNewOrder={() => setView({ name: 'new_order' })} />}
         {tab === 'settings' && <SettingsTab user={user} />}
       </div>
 
@@ -157,10 +163,17 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
   )
 }
 
-function OrdersTab() {
+function OrdersTab({ onNewOrder }: { onNewOrder: () => void }) {
   return (
-    <div class="flex-1 flex flex-col items-center justify-center gap-2 py-24 text-center px-4">
-      <p class="text-gray-400 text-sm">Здесь будут ваши заказы</p>
+    <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center px-4">
+      <p class="text-gray-400 text-sm">У вас пока нет заказов</p>
+      <button
+        type="button"
+        onClick={onNewOrder}
+        class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition-colors text-sm"
+      >
+        Заказать уборку
+      </button>
     </div>
   )
 }

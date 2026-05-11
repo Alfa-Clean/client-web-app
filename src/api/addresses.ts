@@ -4,13 +4,16 @@ export interface Address {
   id: string
   telegram_id: number
   address: string
-  entrance?: string
-  floor?: string
-  apartment?: string
-  intercom?: string
-  notes?: string
-  rooms?: number
-  bathrooms?: number
+  entrance?: string | null
+  floor?: string | null
+  apartment?: string | null
+  intercom?: string | null
+  notes?: string | null
+  rooms?: number | null
+  bathrooms?: number | null
+  latitude?: number | null
+  longitude?: number | null
+  geo_address?: string | null
   created_at: string
 }
 

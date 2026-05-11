@@ -215,15 +215,14 @@ interface CounterFieldProps {
 }
 
 function CounterField({ label, value, min, max, onChange }: CounterFieldProps) {
-  const current = value ?? min
   return (
     <div class="flex items-center justify-between">
       <span class="text-xs font-medium text-gray-500">{label}</span>
       <div class="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => onChange(Math.max(min, current - 1))}
-          disabled={current <= min}
+          onClick={() => value != null && onChange(Math.max(min, value - 1))}
+          disabled={value == null || value <= min}
           class="w-9 h-9 rounded-xl bg-gray-100 text-gray-600 text-lg font-medium disabled:opacity-30 hover:bg-gray-200 transition-colors"
         >
           −
@@ -231,8 +230,8 @@ function CounterField({ label, value, min, max, onChange }: CounterFieldProps) {
         <span class="w-5 text-center text-sm font-semibold text-gray-900">{value ?? '—'}</span>
         <button
           type="button"
-          onClick={() => onChange(Math.min(max, current + 1))}
-          disabled={current >= max}
+          onClick={() => onChange(value == null ? min : Math.min(max, value + 1))}
+          disabled={value != null && value >= max}
           class="w-9 h-9 rounded-xl bg-gray-100 text-gray-600 text-lg font-medium disabled:opacity-30 hover:bg-gray-200 transition-colors"
         >
           +
