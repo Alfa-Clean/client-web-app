@@ -3,6 +3,8 @@ import type { User } from '../types'
 import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
 import { useAddresses } from '../hooks/useAddresses'
+import { useLocale } from '../i18n'
+import type { Lang } from '../i18n/locales'
 import { AddressFormScreen } from './AddressFormScreen'
 import { OrderScreen } from './OrderScreen'
 import { BottomBar } from '../components/BottomBar'
@@ -21,6 +23,7 @@ export function HomeScreen({ user }: Props) {
   const [tab, setTab] = useState<Tab>('orders')
   const [view, setView] = useState<View>({ name: 'list' })
   const { state, reload } = useAddresses(user.telegram_id)
+  const { t } = useLocale()
 
   async function handleCreate(data: AddressPayload) {
     await createAddress(user.telegram_id, data)
@@ -33,7 +36,7 @@ export function HomeScreen({ user }: Props) {
   }
 
   async function handleDelete(address: Address) {
-    if (!confirm(`Удалить адрес?\n${address.address}`)) return
+    if (!confirm(t('home_delete_confirm', { address: address.address }))) return
     await deleteAddress(user.telegram_id, address.id)
     reload()
   }
@@ -56,7 +59,7 @@ export function HomeScreen({ user }: Props) {
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <div class="bg-white px-4 py-5 border-b border-gray-100">
-        <p class="text-xs text-gray-400 mb-0.5">Добро пожаловать</p>
+        <p class="text-xs text-gray-400 mb-0.5">{t('home_welcome')}</p>
         <h1 class="text-lg font-semibold text-gray-900">{user.first_name}</h1>
       </div>
 
@@ -88,17 +91,18 @@ interface AddressesTabProps {
 }
 
 function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
+  const { t } = useLocale()
   return (
     <div class="px-4 py-5 flex flex-col">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-medium text-gray-500">Сохранённые адреса</h2>
+        <h2 class="text-sm font-medium text-gray-500">{t('home_saved_addresses')}</h2>
         <button type="button" onClick={onAdd} class="text-blue-600 text-sm font-medium">
-          + Добавить
+          {t('home_add_address')}
         </button>
       </div>
 
       {state.status === 'loading' && (
-        <p class="text-sm text-gray-400">Загрузка...</p>
+        <p class="text-sm text-gray-400">{t('btn_loading')}</p>
       )}
 
       {state.status === 'error' && (
@@ -107,9 +111,9 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
 
       {state.status === 'success' && state.data.length === 0 && (
         <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center py-16">
-          <p class="text-gray-400 text-sm">Нет сохранённых адресов</p>
+          <p class="text-gray-400 text-sm">{t('home_no_addresses')}</p>
           <button type="button" onClick={onAdd} class="text-blue-600 text-sm font-medium">
-            Добавить первый адрес
+            {t('home_add_first')}
           </button>
         </div>
       )}
@@ -122,20 +126,20 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
               {(addr.apartment || addr.floor || addr.entrance) && (
                 <p class="text-xs text-gray-400 mt-0.5">
                   {[
-                    addr.entrance && `подъезд ${addr.entrance}`,
-                    addr.floor && `эт. ${addr.floor}`,
-                    addr.apartment && `кв. ${addr.apartment}`,
+                    addr.entrance && t('home_entrance', { n: addr.entrance }),
+                    addr.floor && t('home_floor', { n: addr.floor }),
+                    addr.apartment && t('home_apt', { n: addr.apartment }),
                   ].filter(Boolean).join(', ')}
                 </p>
               )}
               {addr.intercom && (
-                <p class="text-xs text-gray-400">домофон: {addr.intercom}</p>
+                <p class="text-xs text-gray-400">{t('home_intercom', { n: addr.intercom })}</p>
               )}
               {(addr.rooms != null || addr.bathrooms != null) && (
                 <p class="text-xs text-gray-400 mt-0.5">
                   {[
-                    addr.rooms && `${addr.rooms} комн.`,
-                    addr.bathrooms && `${addr.bathrooms} санузл.`,
+                    addr.rooms && `${addr.rooms} ${t('home_rooms_short')}`,
+                    addr.bathrooms && `${addr.bathrooms} ${t('home_bathrooms_short')}`,
                   ].filter(Boolean).join(' · ')}
                 </p>
               )}
@@ -146,14 +150,14 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
                 onClick={() => onEdit(addr)}
                 class="text-xs text-blue-600 font-medium"
               >
-                Изменить
+                {t('btn_edit')}
               </button>
               <button
                 type="button"
                 onClick={() => onDelete(addr)}
                 class="text-xs text-red-500 font-medium"
               >
-                Удалить
+                {t('btn_delete')}
               </button>
             </div>
           </div>
@@ -164,26 +168,57 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
 }
 
 function OrdersTab({ onNewOrder }: { onNewOrder: () => void }) {
+  const { t } = useLocale()
   return (
     <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center px-4">
-      <p class="text-gray-400 text-sm">У вас пока нет заказов</p>
+      <p class="text-gray-400 text-sm">{t('home_no_orders')}</p>
       <button
         type="button"
         onClick={onNewOrder}
         class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition-colors text-sm"
       >
-        Заказать уборку
+        {t('home_order_now')}
       </button>
     </div>
   )
 }
 
+const LANGS: { id: Lang; flag: string }[] = [
+  { id: 'ru', flag: '🇷🇺' },
+  { id: 'uz', flag: '🇺🇿' },
+  { id: 'en', flag: '🇬🇧' },
+]
+
 function SettingsTab({ user }: { user: User }) {
+  const { t, lang, setLang } = useLocale()
   return (
-    <div class="px-4 py-5">
+    <div class="px-4 py-5 flex flex-col gap-4">
       <div class="bg-white rounded-xl p-4 border border-gray-100">
         <p class="text-sm font-medium text-gray-900">{user.first_name} {user.last_name}</p>
         {user.phone && <p class="text-xs text-gray-400 mt-0.5">{user.phone}</p>}
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-gray-100">
+        <p class="text-xs font-medium text-gray-500 mb-3">{t('settings_language')}</p>
+        <div class="flex gap-2">
+          {LANGS.map(({ id, flag }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setLang(id)}
+              class={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-colors ${
+                lang === id
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 bg-gray-50'
+              }`}
+            >
+              <span class="text-2xl leading-none">{flag}</span>
+              <span class={`text-xs font-medium ${lang === id ? 'text-blue-700' : 'text-gray-500'}`}>
+                {t(`lang_${id}`)}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

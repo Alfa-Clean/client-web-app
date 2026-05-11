@@ -1,3 +1,5 @@
+import { useLocale } from '../i18n'
+
 type Tab = 'orders' | 'addresses' | 'settings'
 
 interface Props {
@@ -5,16 +7,18 @@ interface Props {
   onChange: (tab: Tab) => void
 }
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'orders',    label: 'Заказы',    icon: '🧹' },
-  { id: 'addresses', label: 'Адреса',    icon: '📍' },
-  { id: 'settings',  label: 'Настройки', icon: '⚙️' },
-]
-
 export function BottomBar({ active, onChange }: Props) {
+  const { t } = useLocale()
+
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: 'orders',    label: t('tab_orders'),    icon: '🧹' },
+    { id: 'addresses', label: t('tab_addresses'), icon: '📍' },
+    { id: 'settings',  label: t('tab_settings'),  icon: '⚙️' },
+  ]
+
   return (
     <nav class="bg-white border-t border-gray-100 flex safe-bottom">
-      {TABS.map(tab => (
+      {tabs.map(tab => (
         <button
           key={tab.id}
           type="button"

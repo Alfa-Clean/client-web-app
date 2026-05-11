@@ -1,6 +1,7 @@
 import WebApp from '@twa-dev/sdk'
 import { useState } from 'preact/hooks'
 import type { User } from '../types'
+import { useLocale } from '../i18n'
 
 interface Props {
   onRegistered: (user: User) => void
@@ -11,6 +12,7 @@ type Status = 'idle' | 'loading' | 'error'
 export function RegistrationScreen({ onRegistered }: Props) {
   const [status, setStatus] = useState<Status>('idle')
   const tgUser = WebApp.initDataUnsafe?.user
+  const { t } = useLocale()
 
   function handleSharePhone() {
     setStatus('loading')
@@ -58,12 +60,12 @@ export function RegistrationScreen({ onRegistered }: Props) {
 
       {tgUser?.first_name && (
         <p class="text-gray-500 text-center mb-8">
-          Привет, {tgUser.first_name}!
+          {t('reg_hello', { name: tgUser.first_name })}
         </p>
       )}
 
       <p class="text-gray-500 text-sm text-center mb-8 leading-relaxed">
-        Для оформления заказа нам нужен ваш номер телефона
+        {t('reg_phone_request')}
       </p>
 
       <button
@@ -72,12 +74,12 @@ export function RegistrationScreen({ onRegistered }: Props) {
         disabled={status === 'loading'}
         class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 px-6 rounded-xl transition-colors"
       >
-        {status === 'loading' ? 'Подождите...' : 'Поделиться номером'}
+        {status === 'loading' ? t('reg_loading') : t('reg_share_phone')}
       </button>
 
       {status === 'error' && (
         <p class="text-red-500 text-sm text-center mt-4">
-          Не удалось получить номер. Попробуйте ещё раз.
+          {t('reg_phone_error')}
         </p>
       )}
     </div>

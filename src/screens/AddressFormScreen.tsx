@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks'
 import type { Address, AddressPayload } from '../api/addresses'
 import { reverseGeocode } from '../api/geocode'
 import { MapPicker } from '../components/MapPicker'
+import { useLocale } from '../i18n'
 
 interface Props {
   initial?: Address
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
+  const { t } = useLocale()
   const [form, setForm] = useState<AddressPayload>({
     address: initial?.address ?? '',
     entrance: initial?.entrance ?? '',
@@ -46,7 +48,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
   async function handleSubmit(e: Event) {
     e.preventDefault()
     if (!form.address.trim()) {
-      setError('Введите адрес')
+      setError(t('addr_required'))
       return
     }
     setLoading(true)
@@ -65,7 +67,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
       await onSubmit(payload)
       onBack()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка сохранения')
+      setError(err instanceof Error ? err.message : t('err_save'))
     } finally {
       setLoading(false)
     }
@@ -77,38 +79,38 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <div class="bg-white px-4 py-5 border-b border-gray-100 flex items-center gap-3">
         <button type="button" onClick={onBack} class="text-blue-600 text-sm font-medium">
-          ← Назад
+          {t('back')}
         </button>
         <h1 class="text-base font-semibold text-gray-900">
-          {isEdit ? 'Редактировать адрес' : 'Новый адрес'}
+          {isEdit ? t('addr_title_edit') : t('addr_title_new')}
         </h1>
       </div>
 
       <form onSubmit={handleSubmit} class="flex-1 flex flex-col px-4 py-5 gap-4">
         <div class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-gray-500">Укажите точку на карте</span>
+            <span class="text-xs font-medium text-gray-500">{t('addr_map_hint')}</span>
             <button
               type="button"
               onClick={() => setShowMap(v => !v)}
               class="text-xs text-blue-600 font-medium"
             >
-              {showMap ? 'Скрыть' : 'Показать карту'}
+              {showMap ? t('addr_map_hide') : t('addr_map_show')}
             </button>
           </div>
           {showMap && (
             <div class="flex flex-col gap-2">
               <MapPicker onLocationPick={handleLocationPick} />
               {geocoding && (
-                <p class="text-xs text-gray-400">Определяем адрес...</p>
+                <p class="text-xs text-gray-400">{t('addr_geocoding')}</p>
               )}
             </div>
           )}
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-gray-500">Адрес*</label>
+            <label class="text-xs font-medium text-gray-500">{t('addr_label')}</label>
             <input
               type="text"
-              placeholder="ул. Навои 5"
+              placeholder={t('addr_placeholder')}
               value={form.address}
               onInput={e => setField('address', (e.target as HTMLInputElement).value)}
               class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400"
@@ -117,28 +119,28 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
         </div>
         <div class="grid grid-cols-2 gap-3">
           <Field
-            label="Подъезд"
-            placeholder="3"
+            label={t('addr_entrance_label')}
+            placeholder={t('addr_entrance_placeholder')}
             value={form.entrance ?? ''}
             onChange={v => setField('entrance', v)}
           />
           <Field
-            label="Этаж"
-            placeholder="7"
+            label={t('addr_floor_label')}
+            placeholder={t('addr_floor_placeholder')}
             value={form.floor ?? ''}
             onChange={v => setField('floor', v)}
           />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <Field
-            label="Квартира"
-            placeholder="12"
+            label={t('addr_apt_label')}
+            placeholder={t('addr_apt_placeholder')}
             value={form.apartment ?? ''}
             onChange={v => setField('apartment', v)}
           />
           <Field
-            label="Домофон"
-            placeholder="1247"
+            label={t('addr_intercom_label')}
+            placeholder={t('addr_intercom_placeholder')}
             value={form.intercom ?? ''}
             onChange={v => setField('intercom', v)}
           />
@@ -146,14 +148,14 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
 
         <div class="flex flex-col gap-3">
           <CounterField
-            label="Комнат"
+            label={t('addr_rooms_label')}
             value={form.rooms ?? null}
             min={1}
             max={10}
             onChange={v => setCount('rooms', v)}
           />
           <CounterField
-            label="Санузлов"
+            label={t('addr_bathrooms_label')}
             value={form.bathrooms ?? null}
             min={1}
             max={5}
@@ -162,8 +164,8 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
         </div>
 
         <Field
-          label="Доп. информация"
-          placeholder="Ключ у консьержа, собака во дворе..."
+          label={t('addr_notes_label')}
+          placeholder={t('addr_notes_placeholder')}
           value={form.notes ?? ''}
           onChange={v => setField('notes', v)}
         />
@@ -176,7 +178,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
             disabled={loading}
             class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 rounded-xl transition-colors"
           >
-            {loading ? 'Сохранение...' : isEdit ? 'Сохранить' : 'Добавить'}
+            {loading ? t('btn_saving') : isEdit ? t('btn_save') : t('btn_add')}
           </button>
         </div>
       </form>

@@ -5,6 +5,7 @@ import type { Addon } from '../api/addons'
 import { getAddons } from '../api/addons'
 import { getAddresses } from '../api/addresses'
 import { createOrder } from '../api/orders'
+import { useLocale } from '../i18n'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,18 +41,6 @@ interface Draft {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const TZ_OFFSET = 5 // Asia/Tashkent = UTC+5
-
-const SERVICE_LABELS: Record<ServiceType, string> = {
-  standard: 'Стандартная уборка',
-  general: 'Генеральная уборка',
-  afterrepair: 'После ремонта',
-}
-
-const SERVICE_DESCRIPTIONS: Record<ServiceType, string> = {
-  standard: 'Регулярная поддерживающая уборка',
-  general: 'Глубокая уборка с мытьём окон и техники',
-  afterrepair: 'Уборка после ремонта и строительства',
-}
 
 // ─── Pricing ─────────────────────────────────────────────────────────────────
 
@@ -116,9 +105,13 @@ function availableSlots(isoDate: string): string[] {
   return slots
 }
 
-function next14Days(): Array<{ iso: string; label: string }> {
+type TFn = (key: string, params?: Record<string, string | number>) => string
+
+function next14Days(t: TFn): Array<{ iso: string; label: string }> {
   const tz = nowInTashkent()
   const result: Array<{ iso: string; label: string }> = []
+  const days = t('days').split(',')
+  const months = t('months').split(',')
 
   for (let i = 0; i < 14; i++) {
     const d = new Date(tz)
@@ -127,34 +120,33 @@ function next14Days(): Array<{ iso: string; label: string }> {
     if (availableSlots(iso).length === 0) continue
 
     let label: string
-    if (i === 0) label = 'Сегодня'
-    else if (i === 1) label = 'Завтра'
-    else {
-      const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-      const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
-      label = `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`
-    }
+    if (i === 0) label = t('today')
+    else if (i === 1) label = t('tomorrow')
+    else label = `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`
+
     result.push({ iso, label })
   }
   return result
 }
 
-function formatDateLabel(iso: string): string {
-  const days = next14Days()
+function formatDateLabel(iso: string, t: TFn): string {
+  const days = next14Days(t)
   return days.find(d => d.iso === iso)?.label ?? iso
 }
 
 // ─── Navigation helpers ───────────────────────────────────────────────────────
 
-const STEP_TITLES: Partial<Record<Step, string>> = {
-  service_type: 'Тип уборки',
-  housing_type: 'Тип помещения',
-  address: 'Адрес',
-  rooms: 'Количество комнат',
-  bathrooms: 'Количество санузлов',
-  date: 'Дата и время',
-  addons: 'Дополнительно',
-  confirm: 'Подтверждение',
+function stepTitles(t: TFn): Partial<Record<Step, string>> {
+  return {
+    service_type: t('step_service_type'),
+    housing_type: t('step_housing_type'),
+    address:      t('step_address'),
+    rooms:        t('step_rooms'),
+    bathrooms:    t('step_bathrooms'),
+    date:         t('step_datetime'),
+    addons:       t('step_addons'),
+    confirm:      t('step_confirm'),
+  }
 }
 
 function prevStep(step: Step, draft: Draft): Step | null {
@@ -213,6 +205,7 @@ interface Props {
 }
 
 export function OrderScreen({ user, onBack }: Props) {
+  const { t } = useLocale()
   const saved = loadSavedDraft()
   const [step, setStep] = useState<Step>(saved?.step ?? 'service_type')
   const [draft, setDraft] = useState<Draft>(saved?.draft ?? EMPTY_DRAFT)
@@ -269,17 +262,17 @@ export function OrderScreen({ user, onBack }: Props) {
       clearDraft()
       setStep('done')
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Ошибка оформления')
+      setSubmitError(e instanceof Error ? e.message : t('confirm_error'))
     } finally {
       setSubmitting(false)
     }
   }
 
   if (step === 'done') {
-    return <DoneScreen onBack={onBack} />
+    return <DoneScreen onBack={onBack} t={t} />
   }
 
-  const title = STEP_TITLES[step] ?? ''
+  const title = stepTitles(t)[step] ?? ''
   const price = draft.rooms && draft.bathrooms
     ? calcPrice(draft.serviceType, draft.rooms, draft.bathrooms, addons, draft.addons)
     : null
@@ -289,7 +282,7 @@ export function OrderScreen({ user, onBack }: Props) {
       {/* Header */}
       <div class="bg-white px-4 py-4 border-b border-gray-100 flex items-center gap-3">
         <button type="button" onClick={goBack} class="text-blue-600 text-sm font-medium shrink-0">
-          ← Назад
+          {t('back')}
         </button>
         <h1 class="text-base font-semibold text-gray-900 flex-1 truncate">{title}</h1>
         {price != null && step !== 'confirm' && (
@@ -302,12 +295,14 @@ export function OrderScreen({ user, onBack }: Props) {
         {step === 'service_type' && (
           <StepServiceType
             value={draft.serviceType}
+            t={t}
             onChange={v => { patch({ serviceType: v }); goTo('housing_type') }}
           />
         )}
         {step === 'housing_type' && (
           <StepHousingType
             value={draft.housingType}
+            t={t}
             onChange={v => { patch({ housingType: v }); goTo('address') }}
           />
         )}
@@ -316,6 +311,7 @@ export function OrderScreen({ user, onBack }: Props) {
             saved={savedAddresses}
             value={draft.address}
             details={draft.addressDetails}
+            t={t}
             onChange={(address, details, totalRooms, totalBathrooms) => {
               patch({ address, addressDetails: details, totalRooms, totalBathrooms })
               goTo(draft.housingType === 'apt' ? 'rooms' : 'date')
@@ -324,28 +320,33 @@ export function OrderScreen({ user, onBack }: Props) {
         )}
         {step === 'rooms' && (
           <StepCounter
-            label="Сколько комнат уберём в заказе?"
+            label={t('rooms_question')}
             value={draft.rooms}
             min={1}
             max={draft.totalRooms ?? 10}
             total={draft.totalRooms}
+            totalLabel={t('of_total', { n: draft.totalRooms ?? 10 })}
             onNext={v => { patch({ rooms: v }); goTo('bathrooms') }}
+            btnLabel={t('btn_continue')}
           />
         )}
         {step === 'bathrooms' && (
           <StepCounter
-            label="Сколько санузлов уберём в заказе?"
+            label={t('bathrooms_question')}
             value={draft.bathrooms}
             min={1}
             max={draft.totalBathrooms ?? 5}
             total={draft.totalBathrooms}
+            totalLabel={t('of_total', { n: draft.totalBathrooms ?? 5 })}
             onNext={v => { patch({ bathrooms: v }); goTo('date') }}
+            btnLabel={t('btn_continue')}
           />
         )}
         {step === 'date' && (
           <StepDateSlot
             dateValue={draft.orderDate}
             slotValue={draft.orderSlot}
+            t={t}
             onNext={(iso, slot) => {
               patch({ orderDate: iso, orderSlot: slot })
               goTo(draft.housingType === 'apt' ? 'addons' : 'confirm')
@@ -356,6 +357,7 @@ export function OrderScreen({ user, onBack }: Props) {
           <StepAddons
             addons={addons}
             selected={draft.addons}
+            t={t}
             onChange={ids => patch({ addons: ids })}
             onNext={() => goTo('confirm')}
           />
@@ -367,6 +369,7 @@ export function OrderScreen({ user, onBack }: Props) {
             price={calcPrice(draft.serviceType, draft.rooms, draft.bathrooms, addons, draft.addons)}
             submitting={submitting}
             error={submitError}
+            t={t}
             onSubmit={handleSubmit}
           />
         )}
@@ -380,26 +383,28 @@ export function OrderScreen({ user, onBack }: Props) {
 function StepServiceType({
   value,
   onChange,
+  t,
 }: {
   value: ServiceType
   onChange: (v: ServiceType) => void
+  t: TFn
 }) {
   const types: ServiceType[] = ['standard', 'general', 'afterrepair']
   return (
     <div class="px-4 py-5 flex flex-col gap-3">
-      {types.map(t => (
+      {types.map(type => (
         <button
-          key={t}
+          key={type}
           type="button"
-          onClick={() => onChange(t)}
+          onClick={() => onChange(type)}
           class={`w-full text-left p-4 rounded-2xl border-2 transition-colors ${
-            value === t ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+            value === type ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
           }`}
         >
-          <p class={`text-sm font-semibold ${value === t ? 'text-blue-700' : 'text-gray-900'}`}>
-            {SERVICE_LABELS[t]}
+          <p class={`text-sm font-semibold ${value === type ? 'text-blue-700' : 'text-gray-900'}`}>
+            {t(`svc_${type}`)}
           </p>
-          <p class="text-xs text-gray-400 mt-0.5">{SERVICE_DESCRIPTIONS[t]}</p>
+          <p class="text-xs text-gray-400 mt-0.5">{t(`svc_${type}_desc`)}</p>
         </button>
       ))}
     </div>
@@ -411,36 +416,30 @@ function StepServiceType({
 function StepHousingType({
   value,
   onChange,
+  t,
 }: {
   value: HousingType
   onChange: (v: HousingType) => void
+  t: TFn
 }) {
+  const types: { id: HousingType }[] = [{ id: 'apt' }, { id: 'house' }]
   return (
     <div class="px-4 py-5 flex flex-col gap-3">
-      <button
-        type="button"
-        onClick={() => onChange('apt')}
-        class={`w-full text-left p-4 rounded-2xl border-2 transition-colors ${
-          value === 'apt' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-        }`}
-      >
-        <p class={`text-sm font-semibold ${value === 'apt' ? 'text-blue-700' : 'text-gray-900'}`}>
-          Квартира
-        </p>
-        <p class="text-xs text-gray-400 mt-0.5">Апартаменты, студия, комната</p>
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('house')}
-        class={`w-full text-left p-4 rounded-2xl border-2 transition-colors ${
-          value === 'house' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-        }`}
-      >
-        <p class={`text-sm font-semibold ${value === 'house' ? 'text-blue-700' : 'text-gray-900'}`}>
-          Частный дом
-        </p>
-        <p class="text-xs text-gray-400 mt-0.5">Расчёт стоимости по часам</p>
-      </button>
+      {types.map(({ id }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(id)}
+          class={`w-full text-left p-4 rounded-2xl border-2 transition-colors ${
+            value === id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+          }`}
+        >
+          <p class={`text-sm font-semibold ${value === id ? 'text-blue-700' : 'text-gray-900'}`}>
+            {t(`housing_${id}`)}
+          </p>
+          <p class="text-xs text-gray-400 mt-0.5">{t(`housing_${id}_desc`)}</p>
+        </button>
+      ))}
     </div>
   )
 }
@@ -452,11 +451,13 @@ function StepAddress({
   value,
   details,
   onChange,
+  t,
 }: {
   saved: Address[]
   value: string
   details: string
   onChange: (address: string, details: string, totalRooms?: number, totalBathrooms?: number) => void
+  t: TFn
 }) {
   const [manualMode, setManualMode] = useState(saved.length === 0)
   const [text, setText] = useState(value)
@@ -471,7 +472,7 @@ function StepAddress({
     <div class="px-4 py-5 flex flex-col gap-4">
       {saved.length > 0 && !manualMode && (
         <>
-          <p class="text-xs font-medium text-gray-500">Сохранённые адреса</p>
+          <p class="text-xs font-medium text-gray-500">{t('order_saved_addresses')}</p>
           {saved.slice(0, 5).map(addr => (
             <button
               key={addr.id}
@@ -483,17 +484,17 @@ function StepAddress({
               {(addr.entrance || addr.floor || addr.apartment) && (
                 <p class="text-xs text-gray-400 mt-0.5">
                   {[
-                    addr.entrance && `подъезд ${addr.entrance}`,
-                    addr.floor && `эт. ${addr.floor}`,
-                    addr.apartment && `кв. ${addr.apartment}`,
+                    addr.entrance && t('home_entrance', { n: addr.entrance }),
+                    addr.floor && t('home_floor', { n: addr.floor }),
+                    addr.apartment && t('home_apt', { n: addr.apartment }),
                   ].filter(Boolean).join(', ')}
                 </p>
               )}
               {(addr.rooms != null || addr.bathrooms != null) && (
                 <p class="text-xs text-blue-500 mt-1">
                   {[
-                    addr.rooms != null && `${addr.rooms} комн.`,
-                    addr.bathrooms != null && `${addr.bathrooms} санузл.`,
+                    addr.rooms != null && `${addr.rooms} ${t('home_rooms_short')}`,
+                    addr.bathrooms != null && `${addr.bathrooms} ${t('home_bathrooms_short')}`,
                   ].filter(Boolean).join(' · ')}
                 </p>
               )}
@@ -504,7 +505,7 @@ function StepAddress({
             onClick={() => setManualMode(true)}
             class="text-blue-600 text-sm font-medium text-center py-2"
           >
-            + Ввести другой адрес
+            {t('order_add_other')}
           </button>
         </>
       )}
@@ -512,20 +513,20 @@ function StepAddress({
       {manualMode && (
         <>
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-gray-500">Адрес*</label>
+            <label class="text-xs font-medium text-gray-500">{t('addr_label')}</label>
             <input
               type="text"
-              placeholder="ул. Навои 5"
+              placeholder={t('addr_placeholder')}
               value={text}
               onInput={e => setText((e.target as HTMLInputElement).value)}
               class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400"
             />
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-gray-500">Подъезд, этаж, квартира (необязательно)</label>
+            <label class="text-xs font-medium text-gray-500">{t('addr_entrance_label')}, {t('addr_floor_label')}, {t('addr_apt_label')}</label>
             <input
               type="text"
-              placeholder="подъезд 3, эт. 5, кв. 12"
+              placeholder={t('order_details_placeholder')}
               value={det}
               onInput={e => setDet((e.target as HTMLInputElement).value)}
               class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400"
@@ -537,7 +538,7 @@ function StepAddress({
               onClick={() => setManualMode(false)}
               class="text-gray-400 text-sm font-medium text-center py-1"
             >
-              ← К сохранённым адресам
+              {t('order_back_to_saved')}
             </button>
           )}
           <div class="mt-2">
@@ -547,7 +548,7 @@ function StepAddress({
               disabled={!text.trim()}
               class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-3.5 rounded-xl transition-colors"
             >
-              Продолжить
+              {t('btn_continue')}
             </button>
           </div>
         </>
@@ -564,14 +565,18 @@ function StepCounter({
   min,
   max,
   total,
+  totalLabel,
   onNext,
+  btnLabel,
 }: {
   label: string
   value: number
   min: number
   max: number
   total?: number
+  totalLabel?: string
   onNext: (v: number) => void
+  btnLabel: string
 }) {
   const [count, setCount] = useState(value)
   return (
@@ -588,8 +593,8 @@ function StepCounter({
         </button>
         <div class="flex flex-col items-center">
           <span class="text-4xl font-semibold text-gray-900 leading-none">{count}</span>
-          {total != null && (
-            <span class="text-sm text-gray-400 mt-1">из {total}</span>
+          {total != null && totalLabel && (
+            <span class="text-sm text-gray-400 mt-1">{totalLabel}</span>
           )}
         </div>
         <button
@@ -606,7 +611,7 @@ function StepCounter({
         onClick={() => onNext(count)}
         class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 rounded-xl transition-colors"
       >
-        Продолжить
+        {btnLabel}
       </button>
     </div>
   )
@@ -618,19 +623,21 @@ function StepDateSlot({
   dateValue,
   slotValue,
   onNext,
+  t,
 }: {
   dateValue: string
   slotValue: string
   onNext: (date: string, slot: string) => void
+  t: TFn
 }) {
   const [selectedDate, setSelectedDate] = useState(dateValue || '')
-  const days = next14Days()
+  const days = next14Days(t)
   const slots = selectedDate ? availableSlots(selectedDate) : []
 
   return (
     <div class="flex flex-col gap-6 py-5">
       <div class="flex flex-col gap-3">
-        <p class="text-xs font-medium text-gray-500 px-4">Выберите дату</p>
+        <p class="text-xs font-medium text-gray-500 px-4">{t('choose_date')}</p>
         <div
           class="flex gap-2 overflow-x-auto px-4 pb-1"
           style="scrollbar-width:none;-ms-overflow-style:none"
@@ -654,9 +661,9 @@ function StepDateSlot({
 
       {selectedDate && (
         <div class="flex flex-col gap-3">
-          <p class="text-xs font-medium text-gray-500 px-4">Выберите время</p>
+          <p class="text-xs font-medium text-gray-500 px-4">{t('choose_time')}</p>
           {slots.length === 0 ? (
-            <p class="text-sm text-gray-400 px-4">Нет доступных слотов на этот день</p>
+            <p class="text-sm text-gray-400 px-4">{t('no_slots')}</p>
           ) : (
             <div
               class="flex gap-2 overflow-x-auto px-4 pb-1"
@@ -691,11 +698,13 @@ function StepAddons({
   selected,
   onChange,
   onNext,
+  t,
 }: {
   addons: Addon[]
   selected: string[]
   onChange: (ids: string[]) => void
   onNext: () => void
+  t: TFn
 }) {
   function toggle(id: string) {
     onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
@@ -703,7 +712,7 @@ function StepAddons({
   return (
     <div class="px-4 py-5 flex flex-col gap-3">
       {addons.length === 0 && (
-        <p class="text-xs text-gray-400 text-center py-4">Дополнительные услуги недоступны</p>
+        <p class="text-xs text-gray-400 text-center py-4">{t('no_addons')}</p>
       )}
       {addons.map(addon => {
         const on = selected.includes(addon.id)
@@ -731,7 +740,7 @@ function StepAddons({
           onClick={onNext}
           class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 rounded-xl transition-colors"
         >
-          {selected.length > 0 ? `Продолжить (${selected.length} выбрано)` : 'Пропустить'}
+          {selected.length > 0 ? t('addons_selected', { n: selected.length }) : t('addons_skip')}
         </button>
       </div>
     </div>
@@ -747,6 +756,7 @@ function StepConfirm({
   submitting,
   error,
   onSubmit,
+  t,
 }: {
   draft: Draft
   addons: Addon[]
@@ -754,6 +764,7 @@ function StepConfirm({
   submitting: boolean
   error: string | null
   onSubmit: () => void
+  t: TFn
 }) {
   const selectedAddons = addons.filter(a => draft.addons.includes(a.id))
   const address = draft.addressDetails
@@ -763,17 +774,17 @@ function StepConfirm({
   return (
     <div class="px-4 py-5 flex flex-col gap-3">
       <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <Row label="Услуга" value={SERVICE_LABELS[draft.serviceType]} />
-        <Row label="Адрес" value={address} />
-        <Row label="Комнат" value={String(draft.rooms)} />
-        <Row label="Санузлов" value={String(draft.bathrooms)} />
-        <Row label="Дата" value={formatDateLabel(draft.orderDate)} />
-        <Row label="Время" value={draft.orderSlot} />
+        <Row label={t('confirm_service')} value={t(`svc_${draft.serviceType}`)} />
+        <Row label={t('confirm_address')} value={address} />
+        <Row label={t('confirm_rooms')} value={String(draft.rooms)} />
+        <Row label={t('confirm_bathrooms')} value={String(draft.bathrooms)} />
+        <Row label={t('confirm_date')} value={formatDateLabel(draft.orderDate, t)} />
+        <Row label={t('confirm_time')} value={draft.orderSlot} />
         {selectedAddons.length > 0 && (
-          <Row label="Доп. услуги" value={selectedAddons.map(a => a.name_ru).join(', ')} />
+          <Row label={t('confirm_addons')} value={selectedAddons.map(a => a.name_ru).join(', ')} />
         )}
         <div class="px-4 py-3 flex items-center justify-between border-t border-gray-100">
-          <span class="text-sm font-semibold text-gray-900">Итого</span>
+          <span class="text-sm font-semibold text-gray-900">{t('confirm_total')}</span>
           <span class="text-base font-bold text-blue-600">{fmtPrice(price)}</span>
         </div>
       </div>
@@ -786,7 +797,7 @@ function StepConfirm({
         disabled={submitting}
         class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-4 rounded-xl transition-colors mt-2"
       >
-        {submitting ? 'Оформляем...' : 'Подтвердить заказ'}
+        {submitting ? t('confirm_submitting') : t('confirm_submit')}
       </button>
     </div>
   )
@@ -803,22 +814,22 @@ function Row({ label, value }: { label: string; value: string }) {
 
 // ─── Done screen ──────────────────────────────────────────────────────────────
 
-function DoneScreen({ onBack }: { onBack: () => void }) {
+function DoneScreen({ onBack, t }: { onBack: () => void; t: TFn }) {
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center gap-5">
       <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-3xl">
         ✓
       </div>
       <div>
-        <h2 class="text-lg font-semibold text-gray-900 mb-1">Заказ оформлен!</h2>
-        <p class="text-sm text-gray-400">Мы свяжемся с вами для подтверждения</p>
+        <h2 class="text-lg font-semibold text-gray-900 mb-1">{t('done_title')}</h2>
+        <p class="text-sm text-gray-400">{t('done_subtitle')}</p>
       </div>
       <button
         type="button"
         onClick={onBack}
         class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 rounded-xl transition-colors"
       >
-        На главную
+        {t('done_home')}
       </button>
     </div>
   )
