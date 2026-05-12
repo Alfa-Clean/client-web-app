@@ -17,16 +17,6 @@ export function RegistrationScreen({ onRegistered }: Props) {
   function handleSharePhone() {
     setStatus('loading')
 
-    // TODO: УДАЛИТЬ ЗАГЛУШКУ ПЕРЕД КОММИТОМ
-    if (!WebApp.initData) {
-      onRegistered({
-        telegram_id: 515588435, // TODO: УДАЛИТЬ ЗАГЛУШКУ ПЕРЕД КОММИТОМ
-        first_name: 'Тест',
-        phone: '+998901234567',
-      })
-      return
-    }
-
     WebApp.requestContact((granted, response) => {
       if (!granted || !response || response.status !== 'sent') {
         setStatus('error')

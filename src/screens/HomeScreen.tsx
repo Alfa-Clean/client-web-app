@@ -7,7 +7,7 @@ import type { Order } from '../api/orders'
 import { cancelOrder, getUserOrders } from '../api/orders'
 import { useAddresses } from '../hooks/useAddresses'
 import { useLocale } from '../i18n'
-import type { Lang } from '../i18n/locales'
+import type { Lang, Strings } from '../i18n/locales'
 import { getTheme, setTheme } from '../hooks/useTheme'
 import { AddressFormScreen } from './AddressFormScreen'
 import { ExecutorScreen } from './ExecutorScreen'
@@ -184,12 +184,16 @@ const ACTIVE_STATUSES = new Set(['new', 'assigned', 'on_the_way', 'arrived', 'in
 
 const STATUS_TIMELINE = ['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', 'completed']
 
-function timeAgo(isoStr: string): string {
+const LOCALE_MAP: Record<Lang, string> = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-US' }
+
+type TFn = (key: keyof Strings, params?: Record<string, string>) => string
+
+function timeAgo(isoStr: string, t: TFn): string {
   const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000)
-  if (diff < 60) return `${diff} сек. назад`
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин. назад`
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч. назад`
-  return `${Math.floor(diff / 86400)} дн. назад`
+  if (diff < 60) return t('time_ago_sec', { n: String(diff) })
+  if (diff < 3600) return t('time_ago_min', { n: String(Math.floor(diff / 60)) })
+  if (diff < 86400) return t('time_ago_hour', { n: String(Math.floor(diff / 3600)) })
+  return t('time_ago_day', { n: String(Math.floor(diff / 86400)) })
 }
 
 const STATUS_ICON: Record<string, string> = {
@@ -203,7 +207,7 @@ const STATUS_ICON: Record<string, string> = {
 }
 
 function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void }) {
-  const { t } = useLocale()
+  const { t, lang } = useLocale()
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
   const [pendingCancel, setPendingCancel] = useState<Order | null>(null)
   const [countdown, setCountdown] = useState(10)
@@ -293,7 +297,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
             <p class="text-blue-200 text-xs font-medium">
               {t('history_order', { num: String(activeOrder.order_num) })}
             </p>
-            <p class="text-blue-300 text-xs">{timeAgo(activeOrder.created_at)}</p>
+            <p class="text-blue-300 text-xs">{timeAgo(activeOrder.created_at, t)}</p>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-4xl leading-none">{STATUS_ICON[activeOrder.status] ?? '🧹'}</span>
@@ -347,7 +351,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
           <div class="flex items-center gap-3 px-5 py-3">
             <span class="text-base leading-none">📅</span>
             <p class="text-sm text-gray-700">
-              {new Date(activeOrder.order_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+              {new Date(activeOrder.order_date).toLocaleDateString(LOCALE_MAP[lang], { day: 'numeric', month: 'long' })}
               {activeOrder.order_slot ? `, ${activeOrder.order_slot}` : ''}
             </p>
           </div>
@@ -356,7 +360,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
               <span class="text-base leading-none">💰</span>
               <p class="text-sm text-gray-700">{t('confirm_total')}</p>
             </div>
-            <p class="text-sm font-semibold text-gray-900">{activeOrder.price.toLocaleString()} сум</p>
+            <p class="text-sm font-semibold text-gray-900">{activeOrder.price.toLocaleString()} {t('currency')}</p>
           </div>
         </div>
       </div>
@@ -376,7 +380,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
           onClick={() => handleCancel(activeOrder)}
           class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-red-50"
         >
-          Отменить заказ
+          {t('home_cancel_order')}
         </button>
       </div>
     </div>
@@ -418,13 +422,13 @@ function statusColor(s: string): string {
   return 'bg-gray-100 text-gray-600'
 }
 
-function formatOrderDate(dateStr: string): string {
+function formatOrderDate(dateStr: string, lang: Lang): string {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+  return d.toLocaleDateString(LOCALE_MAP[lang], { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function HistoryTab({ telegramId }: { telegramId: number }) {
-  const { t } = useLocale()
+  const { t, lang } = useLocale()
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -484,10 +488,10 @@ function HistoryTab({ telegramId }: { telegramId: number }) {
 
           <div class="flex items-center justify-between">
             <p class="text-xs text-gray-400">
-              {formatOrderDate(order.order_date)}{order.order_slot ? `, ${order.order_slot}` : ''}
+              {formatOrderDate(order.order_date, lang)}{order.order_slot ? `, ${order.order_slot}` : ''}
             </p>
             <p class="text-sm font-semibold text-gray-900">
-              {order.price.toLocaleString()} сум
+              {order.price.toLocaleString()} {t('currency')}
             </p>
           </div>
         </div>

@@ -155,6 +155,13 @@ const ru: Strings = {
   status_disputed: 'Спор',
 
   // Settings
+  home_cancel_order: 'Отменить заказ',
+  time_ago_sec: '{n} сек. назад',
+  time_ago_min: '{n} мин. назад',
+  time_ago_hour: '{n} ч. назад',
+  time_ago_day: '{n} дн. назад',
+  currency: 'сум',
+
   settings_language: 'Язык',
   lang_ru: 'Русский',
   lang_uz: "O'zbekcha",
@@ -299,6 +306,13 @@ const uz: Strings = {
   status_cancelled: 'Bekor qilindi',
   status_disputed: 'Nizo',
 
+  home_cancel_order: 'Buyurtmani bekor qilish',
+  time_ago_sec: '{n} sek. oldin',
+  time_ago_min: '{n} daq. oldin',
+  time_ago_hour: '{n} soat oldin',
+  time_ago_day: '{n} kun oldin',
+  currency: "so'm",
+
   settings_language: 'Til',
   lang_ru: 'Русский',
   lang_uz: "O'zbekcha",
@@ -442,6 +456,13 @@ const en: Strings = {
   status_completed: 'Completed',
   status_cancelled: 'Cancelled',
   status_disputed: 'Disputed',
+
+  home_cancel_order: 'Cancel order',
+  time_ago_sec: '{n}s ago',
+  time_ago_min: '{n}m ago',
+  time_ago_hour: '{n}h ago',
+  time_ago_day: '{n}d ago',
+  currency: 'UZS',
 
   settings_language: 'Language',
   lang_ru: 'Русский',

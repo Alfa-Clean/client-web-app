@@ -5,8 +5,10 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
+  const apiTarget = env.API_URL ?? 'https://dev.tusamaker.uz'
+
   const devProxy = {
-    target: 'http://localhost:8000',
+    target: apiTarget,
     changeOrigin: true,
     headers: { 'X-Service-Key': env.SERVICE_KEY ?? '' },
   }
@@ -20,7 +22,7 @@ export default defineConfig(({ mode }) => {
         '/addons': devProxy,
         '/executors': devProxy,
         '/addresses': devProxy,
-        '/auth': { target: 'http://localhost:8000', changeOrigin: true },
+        '/auth': { target: apiTarget, changeOrigin: true },
         '/geocode': devProxy,
       },
     },
