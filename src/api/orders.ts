@@ -13,6 +13,8 @@ export interface Order {
   order_slot: string
   addons: string[]
   created_at: string
+  executor_id?: string | null
+  executor_name?: string | null
 }
 
 export interface OrderPayload {

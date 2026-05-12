@@ -10,6 +10,7 @@ import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { getTheme, setTheme } from '../hooks/useTheme'
 import { AddressFormScreen } from './AddressFormScreen'
+import { ExecutorScreen } from './ExecutorScreen'
 import { OrderScreen } from './OrderScreen'
 import { BottomBar } from '../components/BottomBar'
 import type { Tab } from '../components/BottomBar'
@@ -18,6 +19,7 @@ type View =
   | { name: 'list' }
   | { name: 'form'; address?: Address }
   | { name: 'new_order' }
+  | { name: 'executor'; executorId: string }
 
 interface Props {
   user: User
@@ -60,6 +62,10 @@ export function HomeScreen({ user }: Props) {
     return <OrderScreen user={user} onBack={() => setView({ name: 'list' })} />
   }
 
+  if (view.name === 'executor') {
+    return <ExecutorScreen executorId={view.executorId} onBack={() => setView({ name: 'list' })} />
+  }
+
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <div class="flex-1 overflow-y-auto">
@@ -71,7 +77,13 @@ export function HomeScreen({ user }: Props) {
             onDelete={handleDelete}
           />
         )}
-        {tab === 'orders' && <OrdersTab telegramId={user.telegram_id} onNewOrder={() => setView({ name: 'new_order' })} />}
+        {tab === 'orders' && (
+          <OrdersTab
+            telegramId={user.telegram_id}
+            onNewOrder={() => setView({ name: 'new_order' })}
+            onExecutorClick={id => setView({ name: 'executor', executorId: id })}
+          />
+        )}
         {tab === 'history' && <HistoryTab telegramId={user.telegram_id} />}
         {tab === 'settings' && <SettingsTab user={user} />}
       </div>
@@ -190,7 +202,7 @@ const STATUS_ICON: Record<string, string> = {
   completed: '🎉',
 }
 
-function OrdersTab({ telegramId, onNewOrder }: { telegramId: number; onNewOrder: () => void }) {
+function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void }) {
   const { t } = useLocale()
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
   const [pendingCancel, setPendingCancel] = useState<Order | null>(null)
@@ -286,6 +298,15 @@ function OrdersTab({ telegramId, onNewOrder }: { telegramId: number; onNewOrder:
               <p class="text-blue-200 text-xs mt-0.5">
                 {t(`svc_${activeOrder.service_type}`) || activeOrder.service_type}
               </p>
+              {activeOrder.executor_name && activeOrder.executor_id && (
+                <button
+                  type="button"
+                  onClick={() => onExecutorClick(activeOrder.executor_id!)}
+                  class="text-blue-100 text-xs mt-1 font-medium underline underline-offset-2 text-left"
+                >
+                  👤 {activeOrder.executor_name} →
+                </button>
+              )}
             </div>
           </div>
         </div>

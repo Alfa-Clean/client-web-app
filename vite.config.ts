@@ -18,6 +18,8 @@ export default defineConfig(({ mode }) => {
         '/users': devProxy,
         '/orders': devProxy,
         '/addons': devProxy,
+        '/executors': devProxy,
+        '/addresses': devProxy,
         '/auth': { target: 'http://localhost:8000', changeOrigin: true },
         '/geocode': devProxy,
       },
