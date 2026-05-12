@@ -36,6 +36,10 @@ export function createOrder(data: OrderPayload): Promise<Order> {
   })
 }
 
+export function cancelOrder(orderId: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/cancel`, { method: 'POST' })
+}
+
 export function getUserOrders(telegramId: number): Promise<{ items: Order[]; total: number }> {
   return apiFetch<{ items: Order[]; total: number }>(
     `/orders?telegram_id=${telegramId}&limit=20&offset=0`,

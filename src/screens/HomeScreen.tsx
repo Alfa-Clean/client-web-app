@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Theme } from '../hooks/useTheme'
 import type { User } from '../types'
 import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
 import type { Order } from '../api/orders'
-import { getUserOrders } from '../api/orders'
+import { cancelOrder, getUserOrders } from '../api/orders'
 import { useAddresses } from '../hooks/useAddresses'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
@@ -71,7 +71,7 @@ export function HomeScreen({ user }: Props) {
             onDelete={handleDelete}
           />
         )}
-        {tab === 'orders' && <OrdersTab onNewOrder={() => setView({ name: 'new_order' })} />}
+        {tab === 'orders' && <OrdersTab telegramId={user.telegram_id} onNewOrder={() => setView({ name: 'new_order' })} />}
         {tab === 'history' && <HistoryTab telegramId={user.telegram_id} />}
         {tab === 'settings' && <SettingsTab user={user} />}
       </div>
@@ -168,18 +168,210 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
   )
 }
 
-function OrdersTab({ onNewOrder }: { onNewOrder: () => void }) {
+const ACTIVE_STATUSES = new Set(['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
+
+const STATUS_TIMELINE = ['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', 'completed']
+
+function timeAgo(isoStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000)
+  if (diff < 60) return `${diff} сек. назад`
+  if (diff < 3600) return `${Math.floor(diff / 60)} мин. назад`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ч. назад`
+  return `${Math.floor(diff / 86400)} дн. назад`
+}
+
+const STATUS_ICON: Record<string, string> = {
+  new: '🕐',
+  assigned: '👤',
+  on_the_way: '🚗',
+  arrived: '🚪',
+  in_progress: '🧹',
+  awaiting_confirmation: '✅',
+  completed: '🎉',
+}
+
+function OrdersTab({ telegramId, onNewOrder }: { telegramId: number; onNewOrder: () => void }) {
   const { t } = useLocale()
+  const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
+  const [pendingCancel, setPendingCancel] = useState<Order | null>(null)
+  const [countdown, setCountdown] = useState(10)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    getUserOrders(telegramId)
+      .then(res => {
+        const active = res.items.find(o => ACTIVE_STATUSES.has(o.status)) ?? null
+        setActiveOrder(active)
+      })
+      .catch(() => setActiveOrder(null))
+  }, [telegramId])
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (intervalRef.current) clearInterval(intervalRef.current)
+  }, [])
+
+  function handleCancel(order: Order) {
+    setActiveOrder(null)
+    setPendingCancel(order)
+    setCountdown(10)
+
+    intervalRef.current = setInterval(() => {
+      setCountdown(c => c - 1)
+    }, 1000)
+
+    timerRef.current = setTimeout(async () => {
+      clearInterval(intervalRef.current!)
+      setPendingCancel(null)
+      await cancelOrder(order.id).catch(() => {})
+    }, 10000)
+  }
+
+  function handleUndo() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    setActiveOrder(pendingCancel)
+    setPendingCancel(null)
+  }
+
+  if (activeOrder === 'loading') {
+    return (
+      <div class="flex-1 flex items-center justify-center py-24">
+        <p class="text-sm text-gray-400">{t('btn_loading')}</p>
+      </div>
+    )
+  }
+
+  if (!activeOrder) {
+    return (
+      <>
+        <div class="flex-1 flex flex-col items-center justify-center gap-6 py-16 text-center">
+          <img src="/cleaning-placeholder.webp" alt="" class="w-full max-w-[1000px] object-contain" />
+          <div class="px-6 flex flex-col items-center gap-4 w-full">
+            <p class="text-gray-400 text-sm">{t('home_no_orders')}</p>
+            <button
+              type="button"
+              onClick={onNewOrder}
+              class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3.5 rounded-xl transition-colors text-sm"
+            >
+              {t('home_order_now')}
+            </button>
+          </div>
+        </div>
+        {pendingCancel && <CancelToast countdown={countdown} onUndo={handleUndo} />}
+      </>
+    )
+  }
+
+  const statusIdx = STATUS_TIMELINE.indexOf(activeOrder.status)
+
   return (
-    <div class="flex-1 flex flex-col items-center justify-center gap-4 py-24 text-center px-4">
-      <p class="text-gray-400 text-sm">{t('home_no_orders')}</p>
+    <div class="px-4 py-5 flex flex-col gap-4">
+      {/* Status hero */}
+      <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="bg-blue-600 px-5 pt-6 pb-5">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-blue-200 text-xs font-medium">
+              {t('history_order', { num: String(activeOrder.order_num) })}
+            </p>
+            <p class="text-blue-300 text-xs">{timeAgo(activeOrder.created_at)}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-4xl leading-none">{STATUS_ICON[activeOrder.status] ?? '🧹'}</span>
+            <div>
+              <p class="text-white text-lg font-semibold leading-tight">
+                {t(statusKey(activeOrder.status)) || activeOrder.status}
+              </p>
+              <p class="text-blue-200 text-xs mt-0.5">
+                {t(`svc_${activeOrder.service_type}`) || activeOrder.service_type}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress timeline */}
+        <div class="px-5 py-4">
+          <div class="flex items-center justify-between">
+            {STATUS_TIMELINE.map((s, i) => {
+              const done = i < statusIdx
+              const current = i === statusIdx
+              return (
+                <div key={s} class="flex-1 flex items-center">
+                  <div class={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    current ? 'bg-blue-600 ring-4 ring-blue-100' :
+                    done ? 'bg-blue-400' : 'bg-gray-200'
+                  }`} />
+                  {i < STATUS_TIMELINE.length - 1 && (
+                    <div class={`flex-1 h-0.5 mx-0.5 ${i < statusIdx ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Order details */}
+        <div class="border-t border-gray-100 divide-y divide-gray-50">
+          <div class="flex items-start gap-3 px-5 py-3">
+            <span class="text-base leading-none mt-0.5">📍</span>
+            <p class="text-sm text-gray-700 flex-1">{activeOrder.address}</p>
+          </div>
+          <div class="flex items-center gap-3 px-5 py-3">
+            <span class="text-base leading-none">📅</span>
+            <p class="text-sm text-gray-700">
+              {new Date(activeOrder.order_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+              {activeOrder.order_slot ? `, ${activeOrder.order_slot}` : ''}
+            </p>
+          </div>
+          <div class="flex items-center justify-between px-5 py-3">
+            <div class="flex items-center gap-3">
+              <span class="text-base leading-none">💰</span>
+              <p class="text-sm text-gray-700">{t('confirm_total')}</p>
+            </div>
+            <p class="text-sm font-semibold text-gray-900">{activeOrder.price.toLocaleString()} сум</p>
+          </div>
+        </div>
+      </div>
+
       <button
         type="button"
         onClick={onNewOrder}
-        class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition-colors text-sm"
+        class="w-full border-2 border-blue-600 text-blue-600 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-blue-50"
       >
         {t('home_order_now')}
       </button>
+
+      <button
+        type="button"
+        onClick={() => handleCancel(activeOrder)}
+        class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-red-50"
+      >
+        Отменить заказ
+      </button>
+    </div>
+  )
+}
+
+function CancelToast({ countdown, onUndo }: { countdown: number; onUndo: () => void }) {
+  return (
+    <div class="fixed bottom-20 left-4 right-4 z-50 bg-gray-900 text-white rounded-2xl px-4 py-3 shadow-xl flex flex-col gap-2">
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-sm">Заказ отменён. Вернуть?</p>
+        <button
+          type="button"
+          onClick={onUndo}
+          class="shrink-0 text-sm font-semibold text-blue-400 hover:text-blue-300"
+        >
+          Вернуть ({countdown})
+        </button>
+      </div>
+      <div class="h-1 bg-gray-700 rounded-full overflow-hidden">
+        <div
+          class="h-full bg-blue-500 rounded-full transition-all duration-1000"
+          style={`width:${countdown * 10}%`}
+        />
+      </div>
     </div>
   )
 }
@@ -265,7 +457,7 @@ function HistoryTab({ telegramId }: { telegramId: number }) {
               {formatOrderDate(order.order_date)}{order.order_slot ? `, ${order.order_slot}` : ''}
             </p>
             <p class="text-sm font-semibold text-gray-900">
-              {order.price.toLocaleString()} ₸
+              {order.price.toLocaleString()} сум
             </p>
           </div>
         </div>
