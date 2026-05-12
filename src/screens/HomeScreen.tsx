@@ -1,8 +1,10 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import type { Theme } from '../hooks/useTheme'
 import type { User } from '../types'
 import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
+import type { Order } from '../api/orders'
+import { getUserOrders } from '../api/orders'
 import { useAddresses } from '../hooks/useAddresses'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
@@ -70,6 +72,7 @@ export function HomeScreen({ user }: Props) {
           />
         )}
         {tab === 'orders' && <OrdersTab onNewOrder={() => setView({ name: 'new_order' })} />}
+        {tab === 'history' && <HistoryTab telegramId={user.telegram_id} />}
         {tab === 'settings' && <SettingsTab user={user} />}
       </div>
 
@@ -177,6 +180,96 @@ function OrdersTab({ onNewOrder }: { onNewOrder: () => void }) {
       >
         {t('home_order_now')}
       </button>
+    </div>
+  )
+}
+
+function statusKey(s: string): string {
+  return `status_${s.replace(/-/g, '_')}` as string
+}
+
+function statusColor(s: string): string {
+  if (s === 'completed') return 'bg-green-100 text-green-700'
+  if (s === 'cancelled' || s === 'disputed') return 'bg-red-100 text-red-600'
+  if (s === 'in_progress' || s === 'arrived') return 'bg-orange-100 text-orange-700'
+  if (s === 'assigned' || s === 'on_the_way') return 'bg-blue-100 text-blue-700'
+  return 'bg-gray-100 text-gray-600'
+}
+
+function formatOrderDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function HistoryTab({ telegramId }: { telegramId: number }) {
+  const { t } = useLocale()
+  const [orders, setOrders] = useState<Order[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getUserOrders(telegramId)
+      .then(res => setOrders(res.items))
+      .catch(err => setError(err?.message ?? 'Error'))
+  }, [telegramId])
+
+  if (error) {
+    return (
+      <div class="flex-1 flex items-center justify-center py-24 px-4">
+        <p class="text-sm text-red-500 text-center">{error}</p>
+      </div>
+    )
+  }
+
+  if (orders === null) {
+    return (
+      <div class="flex-1 flex items-center justify-center py-24">
+        <p class="text-sm text-gray-400">{t('history_loading')}</p>
+      </div>
+    )
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div class="flex-1 flex items-center justify-center py-24 px-4">
+        <p class="text-sm text-gray-400 text-center">{t('history_empty')}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div class="px-4 py-5 flex flex-col gap-2">
+      <h2 class="text-sm font-medium text-gray-500 mb-1">{t('tab_history')}</h2>
+      {orders.map(order => (
+        <div key={order.id} class="bg-white rounded-xl p-4 border border-gray-100">
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <p class="text-sm font-semibold text-gray-900">
+              {t('history_order', { num: String(order.order_num) })}
+            </p>
+            <span class={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${statusColor(order.status)}`}>
+              {t(statusKey(order.status)) || order.status}
+            </span>
+          </div>
+
+          <p class="text-xs text-gray-700 mb-1">
+            {t(`svc_${order.service_type}`) || order.service_type}
+            {' · '}
+            {t('history_rooms', { n: String(order.rooms) })}
+            {' · '}
+            {t('history_bathrooms', { n: String(order.bathrooms) })}
+          </p>
+
+          <p class="text-xs text-gray-500 truncate mb-1">{order.address}</p>
+
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-gray-400">
+              {formatOrderDate(order.order_date)}{order.order_slot ? `, ${order.order_slot}` : ''}
+            </p>
+            <p class="text-sm font-semibold text-gray-900">
+              {order.price.toLocaleString()} ₸
+            </p>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useLocale } from '../i18n'
 
-type Tab = 'orders' | 'addresses' | 'settings'
+type Tab = 'orders' | 'history' | 'addresses' | 'settings'
 
 interface Props {
   active: Tab
@@ -12,6 +12,7 @@ export function BottomBar({ active, onChange }: Props) {
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'orders',    label: t('tab_orders'),    icon: '🧹' },
+    { id: 'history',   label: t('tab_history'),   icon: '📋' },
     { id: 'addresses', label: t('tab_addresses'), icon: '📍' },
     { id: 'settings',  label: t('tab_settings'),  icon: '⚙️' },
   ]
