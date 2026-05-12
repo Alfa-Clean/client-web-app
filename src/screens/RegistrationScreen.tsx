@@ -1,7 +1,8 @@
-import WebApp from '@twa-dev/sdk'
 import { useState } from 'preact/hooks'
 import type { User } from '../types'
 import { useLocale } from '../i18n'
+
+const tg = (window as any).Telegram?.WebApp
 
 interface Props {
   onRegistered: (user: User) => void
@@ -11,11 +12,12 @@ type Status = 'idle' | 'loading' | 'error'
 
 export function RegistrationScreen({ onRegistered }: Props) {
   const [status, setStatus] = useState<Status>('idle')
+  const [tgMajor, tgMinor] = ((tg?.version ?? '0.0') as string).split('.').map(Number)
+  const canRequestContact = tgMajor > 6 || (tgMajor === 6 && tgMinor >= 9)
+  const [showManual, setShowManual] = useState(!canRequestContact)
   const [manualPhone, setManualPhone] = useState('')
-  const tgUser = WebApp.initDataUnsafe?.user
+  const tgUser = tg?.initDataUnsafe?.user
   const { t } = useLocale()
-
-  const canRequestContact = typeof WebApp.requestContact === 'function'
 
   function buildUser(phone: string): User {
     return {
@@ -29,15 +31,20 @@ export function RegistrationScreen({ onRegistered }: Props) {
   }
 
   function handleSharePhone() {
-    setStatus('loading')
-
-    WebApp.requestContact((granted, response) => {
-      if (!granted || !response || response.status !== 'sent') {
-        setStatus('error')
-        return
-      }
-      onRegistered(buildUser(response.responseUnsafe.contact.phone_number))
-    })
+    try {
+      setStatus('loading')
+      tg?.requestContact((granted: boolean, response: any) => {
+        if (!granted || !response || response.status !== 'sent') {
+          setStatus('idle')
+          setShowManual(true)
+          return
+        }
+        onRegistered(buildUser(response.responseUnsafe.contact.phone_number))
+      })
+    } catch {
+      setStatus('idle')
+      setShowManual(true)
+    }
   }
 
   function handleManualSubmit() {
@@ -47,34 +54,37 @@ export function RegistrationScreen({ onRegistered }: Props) {
   }
 
   return (
-    <div class="min-h-screen bg-white flex flex-col items-center justify-center px-6">
-      <div class="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-6">
-        <span class="text-3xl">🧹</span>
+    <div class="h-screen bg-white flex flex-col items-center justify-center px-6">
+      <div class="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center mb-6">
+        <span class="text-4xl">🧹</span>
       </div>
 
-      <h1 class="text-2xl font-semibold text-gray-900 text-center mb-2">
+      <h1 class="text-2xl font-bold text-gray-900 text-center mb-2">
         AlfaClean
       </h1>
 
       {tgUser?.first_name && (
-        <p class="text-gray-500 text-center mb-8">
+        <p class="text-lg font-medium text-gray-800 text-center mb-1">
           {t('reg_hello', { name: tgUser.first_name })}
         </p>
       )}
 
-      <p class="text-gray-500 text-sm text-center mb-8 leading-relaxed">
+      <p class="text-gray-500 text-sm text-center mb-10 leading-relaxed">
         {t('reg_phone_request')}
       </p>
 
-      {canRequestContact ? (
-        <button
-          type="button"
-          onClick={handleSharePhone}
-          disabled={status === 'loading'}
-          class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 px-6 rounded-xl transition-colors"
-        >
-          {status === 'loading' ? t('reg_loading') : t('reg_share_phone')}
-        </button>
+      {!showManual ? (
+        <>
+          <button
+            type="button"
+            onClick={handleSharePhone}
+            disabled={status === 'loading'}
+            class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-4 px-6 rounded-2xl transition-colors text-base"
+          >
+            {status === 'loading' ? t('reg_loading') : `📱 ${t('reg_share_phone')}`}
+          </button>
+
+        </>
       ) : (
         <div class="w-full max-w-xs flex flex-col gap-3">
           <input
@@ -88,9 +98,16 @@ export function RegistrationScreen({ onRegistered }: Props) {
             type="button"
             onClick={handleManualSubmit}
             disabled={!manualPhone.trim()}
-            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 px-6 rounded-xl transition-colors"
+            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-4 px-6 rounded-2xl transition-colors"
           >
             {t('btn_continue')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowManual(false)}
+            class="text-sm text-gray-400 hover:text-gray-600 text-center transition-colors"
+          >
+            ← {t('reg_share_phone')}
           </button>
         </div>
       )}
