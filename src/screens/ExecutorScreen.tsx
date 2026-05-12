@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Executor, ExecutorRatings } from '../api/executors'
 import { getExecutor, getExecutorRatings } from '../api/executors'
+import { useExitBack } from '../hooks/useExitBack'
 
 interface Props {
   executorId: string
@@ -25,6 +26,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
   const [executor, setExecutor] = useState<Executor | null>(null)
   const [ratings, setRatings] = useState<ExecutorRatings | null>(null)
   const [loading, setLoading] = useState(true)
+  const { exiting, handleBack } = useExitBack(onBack)
 
   useEffect(() => {
     Promise.all([getExecutor(executorId), getExecutorRatings(executorId)])
@@ -33,10 +35,10 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
   }, [executorId])
 
   return (
-    <div class="min-h-screen bg-gray-50 flex flex-col">
+    <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
       {/* Header */}
       <div class="bg-white px-4 py-4 border-b border-gray-100 flex items-center gap-3">
-        <button type="button" onClick={onBack} class="text-blue-600 text-sm font-medium shrink-0">
+        <button type="button" onClick={handleBack} class="text-blue-600 text-sm font-medium shrink-0">
           ← Назад
         </button>
         <h1 class="text-base font-semibold text-gray-900 flex-1 truncate">Клинер</h1>

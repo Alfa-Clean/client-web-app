@@ -16,12 +16,15 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [tailwindcss(), preact()],
     server: {
+      port: 3000,
+      allowedHosts: true,
       proxy: {
         '/users': devProxy,
         '/orders': devProxy,
         '/addons': devProxy,
         '/executors': devProxy,
         '/addresses': devProxy,
+        '/clients': devProxy,
         '/auth': { target: apiTarget, changeOrigin: true },
         '/geocode': devProxy,
       },

@@ -6,6 +6,8 @@ import { getAddons } from '../api/addons'
 import { getAddresses } from '../api/addresses'
 import { createOrder } from '../api/orders'
 import { useLocale } from '../i18n'
+import type { Lang } from '../i18n/locales'
+import { CalendarPicker } from '../components/CalendarPicker'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -82,20 +84,23 @@ function nowInTashkent(): Date {
   return new Date(utc + TZ_OFFSET * 3600000)
 }
 
+const FIXED_SLOTS: Array<{ start: number; label: string }> = [
+  { start: 9,  label: '09:00–12:00' },
+  { start: 12, label: '12:00–15:00' },
+  { start: 15, label: '15:00–18:00' },
+]
+
 function availableSlots(isoDate: string): string[] {
   const tz = nowInTashkent()
   const cutoff = new Date(tz.getTime() + 3 * 3600000)
-
   const [y, m, d] = isoDate.split('-').map(Number)
-  const slots: string[] = []
 
-  for (let h = 8; h < 20; h++) {
-    const slotAbs = Date.UTC(y, m - 1, d, h - TZ_OFFSET, 0, 0)
-    if (slotAbs >= cutoff.getTime() - TZ_OFFSET * 3600000) {
-      slots.push(`${String(h).padStart(2, '0')}:00–${String(h + 1).padStart(2, '0')}:00`)
-    }
-  }
-  return slots
+  return FIXED_SLOTS
+    .filter(({ start }) => {
+      const slotAbs = Date.UTC(y, m - 1, d, start - TZ_OFFSET, 0, 0)
+      return slotAbs >= cutoff.getTime() - TZ_OFFSET * 3600000
+    })
+    .map(({ label }) => label)
 }
 
 type TFn = (key: string, params?: Record<string, string | number>) => string
@@ -125,6 +130,17 @@ function next14Days(t: TFn): Array<{ iso: string; label: string }> {
 function formatDateLabel(iso: string, t: TFn): string {
   const days = next14Days(t)
   return days.find(d => d.iso === iso)?.label ?? iso
+}
+
+const LOCALE_MAP: Record<Lang, string> = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-US' }
+
+function toISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function formatShortDate(iso: string, lang: Lang): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Intl.DateTimeFormat(LOCALE_MAP[lang], { day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d))
 }
 
 // ─── Navigation helpers ───────────────────────────────────────────────────────
@@ -305,13 +321,15 @@ export function OrderScreen({ user, onBack }: Props) {
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div class="bg-white px-4 py-4 border-b border-gray-100 flex items-center gap-3">
+      <div class="relative bg-white px-4 py-4 border-b border-gray-100 flex items-center">
         <button type="button" onClick={goBack} class="text-blue-600 text-sm font-medium shrink-0">
           {t('back')}
         </button>
-        <h1 class="text-base font-semibold text-gray-900 flex-1 truncate">{title}</h1>
+        <h1 class="absolute inset-x-0 text-center text-base font-semibold text-gray-900 pointer-events-none px-16 truncate">
+          {title}
+        </h1>
         {price != null && step !== 'confirm' && (
-          <span class="text-sm font-semibold text-blue-600 shrink-0">{fmtPrice(price)}</span>
+          <span class="ml-auto text-sm font-semibold text-blue-600 shrink-0">{fmtPrice(price)}</span>
         )}
       </div>
 
@@ -595,31 +613,74 @@ function StepDateSlot({
   onChange: (date: string, slot: string) => void
   t: TFn
 }) {
+  const { lang } = useLocale()
+  const [showCalendar, setShowCalendar] = useState(false)
+
   const days = next14Days(t)
+  const availableSet = new Set(days.map(d => d.iso))
   const slots = dateValue ? availableSlots(dateValue) : []
+
+  const tz = nowInTashkent()
+  const todayIso = toISO(tz)
+  const tomorrowIso = toISO(new Date(tz.getTime() + 86400000))
+
+  const todayAvailable = availableSet.has(todayIso)
+  const tomorrowAvailable = availableSet.has(tomorrowIso)
+  const isOtherDate = !!dateValue && dateValue !== todayIso && dateValue !== tomorrowIso
 
   return (
     <div class="flex flex-col gap-6 py-5">
+      {showCalendar && (
+        <CalendarPicker
+          availableDates={availableSet}
+          value={dateValue}
+          lang={lang}
+          cancelLabel={t('dialog_cancel')}
+          onSelect={iso => onChange(iso, '')}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
+
       <div class="flex flex-col gap-3">
         <p class="text-xs font-medium text-gray-500 px-4">{t('choose_date')}</p>
-        <div
-          class="flex gap-2 overflow-x-auto px-4 pb-1"
-          style="scrollbar-width:none;-ms-overflow-style:none"
-        >
-          {days.map(({ iso, label }) => (
+        <div class="flex gap-2 px-4">
+          {todayAvailable && (
             <button
-              key={iso}
               type="button"
-              onClick={() => onChange(iso, '')}
-              class={`shrink-0 px-4 py-2.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-                dateValue === iso
+              onClick={() => onChange(todayIso, '')}
+              class={`flex-1 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                dateValue === todayIso
                   ? 'bg-blue-600 text-white'
                   : 'bg-white border border-gray-200 text-gray-700'
               }`}
             >
-              {label}
+              {t('today')}
             </button>
-          ))}
+          )}
+          {tomorrowAvailable && (
+            <button
+              type="button"
+              onClick={() => onChange(tomorrowIso, '')}
+              class={`flex-1 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                dateValue === tomorrowIso
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-700'
+              }`}
+            >
+              {t('tomorrow')}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowCalendar(true)}
+            class={`flex-1 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              isOtherDate
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-gray-200 text-gray-700'
+            }`}
+          >
+            {isOtherDate ? formatShortDate(dateValue, lang) : t('date_pick_other')}
+          </button>
         </div>
       </div>
 

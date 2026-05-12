@@ -6,7 +6,8 @@ const STORAGE_KEY = 'alfaclean_user'
 function getStoredUser(): User | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as User) : null
+    const u = raw ? (JSON.parse(raw) as User) : null
+    return u?.telegram_id ? u : null
   } catch {
     return null
   }

@@ -29,6 +29,10 @@ export function setToken(token: string, expiresInSeconds = 86400) {
   )
 }
 
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
 

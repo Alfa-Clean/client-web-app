@@ -1,5 +1,11 @@
 import { apiFetch } from './client'
 
+export interface OrderRating {
+  score: number
+  comment: string | null
+  created_at: string
+}
+
 export interface Order {
   id: string
   order_num: number
@@ -15,6 +21,8 @@ export interface Order {
   created_at: string
   executor_id?: string | null
   executor_name?: string | null
+  comment?: string | null
+  rating?: OrderRating | null
 }
 
 export interface OrderPayload {
@@ -40,6 +48,17 @@ export function createOrder(data: OrderPayload): Promise<Order> {
 
 export function cancelOrder(orderId: string): Promise<Order> {
   return apiFetch<Order>(`/orders/${orderId}/cancel`, { method: 'POST' })
+}
+
+export function acceptOrder(orderId: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/client-confirm`, { method: 'POST' })
+}
+
+export function rateOrder(orderId: string, score: number, comment?: string): Promise<void> {
+  return apiFetch<void>(`/orders/${orderId}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ score, comment: comment || null }),
+  })
 }
 
 export function getUserOrders(telegramId: number): Promise<{ items: Order[]; total: number }> {
