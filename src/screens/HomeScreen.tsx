@@ -68,7 +68,7 @@ export function HomeScreen({ user }: Props) {
 
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto flex flex-col">
         {tab === 'addresses' && (
           <AddressesTab
             state={state}
@@ -225,6 +225,9 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
   }, [])
 
   function handleCancel(order: Order) {
+    if (order.status === 'assigned') {
+      if (!window.confirm('Вы точно хотите отменить заказ? Клинер уже выехал к вам. Отмена будет платной')) return
+    }
     setActiveOrder(null)
     setPendingCancel(order)
     setCountdown(10)
@@ -258,14 +261,16 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
   if (!activeOrder) {
     return (
       <>
-        <div class="flex-1 flex flex-col items-center justify-center gap-6 py-16 text-center">
-          <img src="/cleaning-placeholder.webp" alt="" class="w-full max-w-[1000px] object-contain" />
-          <div class="px-6 flex flex-col items-center gap-4 w-full">
+        <div class="flex-1 flex flex-col">
+          <div class="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+            <img src="/cleaning-placeholder.webp" alt="" class="w-full max-w-[1000px] object-contain" />
             <p class="text-gray-400 text-sm">{t('home_no_orders')}</p>
+          </div>
+          <div class="px-6 pb-6">
             <button
               type="button"
               onClick={onNewOrder}
-              class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3.5 rounded-xl transition-colors text-sm"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3.5 rounded-xl transition-colors text-sm"
             >
               {t('home_order_now')}
             </button>
@@ -279,7 +284,8 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
   const statusIdx = STATUS_TIMELINE.indexOf(activeOrder.status)
 
   return (
-    <div class="px-4 py-5 flex flex-col gap-4">
+    <div class="flex-1 flex flex-col">
+      <div class="flex-1 px-4 py-5 flex flex-col gap-4">
       {/* Status hero */}
       <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <div class="bg-blue-600 px-5 pt-6 pb-5">
@@ -354,22 +360,25 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
           </div>
         </div>
       </div>
+      </div>
 
-      <button
-        type="button"
-        onClick={onNewOrder}
-        class="w-full border-2 border-blue-600 text-blue-600 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-blue-50"
-      >
-        {t('home_order_now')}
-      </button>
+      <div class="px-4 pb-6 flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={onNewOrder}
+          class="w-full border-2 border-blue-600 text-blue-600 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-blue-50"
+        >
+          {t('home_order_now')}
+        </button>
 
-      <button
-        type="button"
-        onClick={() => handleCancel(activeOrder)}
-        class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-red-50"
-      >
-        Отменить заказ
-      </button>
+        <button
+          type="button"
+          onClick={() => handleCancel(activeOrder)}
+          class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-red-50"
+        >
+          Отменить заказ
+        </button>
+      </div>
     </div>
   )
 }
