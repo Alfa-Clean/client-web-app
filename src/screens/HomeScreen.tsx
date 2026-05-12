@@ -263,13 +263,44 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { confirm, dialogProps } = useConfirm()
 
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  function startPolling() {
+    if (pollRef.current) return
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await getUserOrders(telegramId)
+        const active = res.items.find(o => ACTIVE_STATUSES.has(o.status)) ?? null
+        setActiveOrder(prev => {
+          if (prev === 'loading') return active
+          if (!active) {
+            stopPolling()
+            return active
+          }
+          return active
+        })
+      } catch {
+        // keep previous state on network error
+      }
+    }, 12000)
+  }
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
   useEffect(() => {
     getUserOrders(telegramId)
       .then(res => {
         const active = res.items.find(o => ACTIVE_STATUSES.has(o.status)) ?? null
         setActiveOrder(active)
+        if (active) startPolling()
       })
       .catch(() => setActiveOrder(null))
+    return stopPolling
   }, [telegramId])
 
   useEffect(() => () => {
@@ -284,6 +315,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
     })
     if (!ok) return
     await acceptOrder(order.id).catch(() => {})
+    stopPolling()
     setRatingOrderId(order.id)
     setActiveOrder(null)
   }
@@ -305,6 +337,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
       })
       if (!ok) return
     }
+    stopPolling()
     setActiveOrder(null)
     setPendingCancel(order)
     setCountdown(10)
@@ -324,6 +357,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
     if (timerRef.current) clearTimeout(timerRef.current)
     if (intervalRef.current) clearInterval(intervalRef.current)
     setActiveOrder(pendingCancel)
+    if (pendingCancel) startPolling()
     setPendingCancel(null)
   }
 
