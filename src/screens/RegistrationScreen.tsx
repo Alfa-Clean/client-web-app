@@ -11,8 +11,22 @@ type Status = 'idle' | 'loading' | 'error'
 
 export function RegistrationScreen({ onRegistered }: Props) {
   const [status, setStatus] = useState<Status>('idle')
+  const [manualPhone, setManualPhone] = useState('')
   const tgUser = WebApp.initDataUnsafe?.user
   const { t } = useLocale()
+
+  const canRequestContact = typeof WebApp.requestContact === 'function'
+
+  function buildUser(phone: string): User {
+    return {
+      telegram_id: tgUser?.id ?? 0,
+      first_name: tgUser?.first_name ?? '',
+      last_name: tgUser?.last_name,
+      username: tgUser?.username,
+      phone,
+      language_code: tgUser?.language_code,
+    }
+  }
 
   function handleSharePhone() {
     setStatus('loading')
@@ -22,20 +36,14 @@ export function RegistrationScreen({ onRegistered }: Props) {
         setStatus('error')
         return
       }
-
-      const contact = response.responseUnsafe.contact
-
-      const user: User = {
-        telegram_id: tgUser?.id ?? 0,
-        first_name: tgUser?.first_name ?? contact.first_name ?? '',
-        last_name: tgUser?.last_name,
-        username: tgUser?.username,
-        phone: contact.phone_number,
-        language_code: tgUser?.language_code,
-      }
-
-      onRegistered(user)
+      onRegistered(buildUser(response.responseUnsafe.contact.phone_number))
     })
+  }
+
+  function handleManualSubmit() {
+    const phone = manualPhone.trim()
+    if (!phone) return
+    onRegistered(buildUser(phone))
   }
 
   return (
@@ -58,14 +66,34 @@ export function RegistrationScreen({ onRegistered }: Props) {
         {t('reg_phone_request')}
       </p>
 
-      <button
-        type="button"
-        onClick={handleSharePhone}
-        disabled={status === 'loading'}
-        class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 px-6 rounded-xl transition-colors"
-      >
-        {status === 'loading' ? t('reg_loading') : t('reg_share_phone')}
-      </button>
+      {canRequestContact ? (
+        <button
+          type="button"
+          onClick={handleSharePhone}
+          disabled={status === 'loading'}
+          class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 px-6 rounded-xl transition-colors"
+        >
+          {status === 'loading' ? t('reg_loading') : t('reg_share_phone')}
+        </button>
+      ) : (
+        <div class="w-full max-w-xs flex flex-col gap-3">
+          <input
+            type="tel"
+            value={manualPhone}
+            onInput={e => setManualPhone((e.target as HTMLInputElement).value)}
+            placeholder="+998 90 123 45 67"
+            class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+          />
+          <button
+            type="button"
+            onClick={handleManualSubmit}
+            disabled={!manualPhone.trim()}
+            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 px-6 rounded-xl transition-colors"
+          >
+            {t('btn_continue')}
+          </button>
+        </div>
+      )}
 
       {status === 'error' && (
         <p class="text-red-500 text-sm text-center mt-4">
