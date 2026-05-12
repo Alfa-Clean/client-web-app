@@ -24,7 +24,7 @@ type View =
   | { name: 'new_order' }
   | { name: 'executor'; executorId: string }
   | { name: 'order_detail'; order: Order }
-  | { name: 'chat'; orderId: string; executorName: string; senderId: string; readonly: boolean }
+  | { name: 'chat'; orderId: string; executorId: string | null; executorName: string; senderId: string; readonly: boolean }
 
 interface Props {
   user: User
@@ -78,8 +78,8 @@ export function HomeScreen({ user }: Props) {
       <OrderDetailScreen
         order={view.order}
         onBack={() => setView({ name: 'list' })}
-        onChatClick={(orderId, executorName) =>
-          setView({ name: 'chat', orderId, executorName, senderId: String(user.telegram_id), readonly: true })
+        onChatClick={(orderId, executorId, executorName) =>
+          setView({ name: 'chat', orderId, executorId, executorName, senderId: String(user.telegram_id), readonly: true })
         }
       />
     )
@@ -89,6 +89,7 @@ export function HomeScreen({ user }: Props) {
     return (
       <ChatScreen
         orderId={view.orderId}
+        executorId={view.executorId}
         executorName={view.executorName}
         senderId={view.senderId}
         readonly={view.readonly}
@@ -118,8 +119,8 @@ export function HomeScreen({ user }: Props) {
             telegramId={user.telegram_id}
             onNewOrder={() => setView({ name: 'new_order' })}
             onExecutorClick={id => setView({ name: 'executor', executorId: id })}
-            onChatClick={(orderId, executorName) =>
-              setView({ name: 'chat', orderId, executorName, senderId: String(user.telegram_id), readonly: false })
+            onChatClick={(orderId, executorId, executorName) =>
+              setView({ name: 'chat', orderId, executorId, executorName, senderId: String(user.telegram_id), readonly: false })
             }
           />
         )}
@@ -252,7 +253,7 @@ const STATUS_ICON: Record<string, string> = {
 
 const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
 
-function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void; onChatClick: (orderId: string, executorName: string) => void }) {
+function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void; onChatClick: (orderId: string, executorId: string | null, executorName: string) => void }) {
   const { t, lang } = useLocale()
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
   const [ratingOrderId, setRatingOrderId] = useState<string | null>(null)
@@ -494,7 +495,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
         {CHAT_STATUSES.has(activeOrder.status) && activeOrder.executor_id && activeOrder.executor_name && (
           <button
             type="button"
-            onClick={() => onChatClick(activeOrder.id, activeOrder.executor_name!)}
+            onClick={() => onChatClick(activeOrder.id, activeOrder.executor_id ?? null, activeOrder.executor_name!)}
             class="w-full border-t border-gray-100 py-3.5 text-sm font-medium text-blue-600 flex items-center justify-center gap-2 hover:bg-blue-50 active:bg-blue-100 transition-colors"
           >
             💬 {t('chat_contact_cleaner')}
@@ -632,7 +633,7 @@ function RatingSheet({ orderId: _orderId, onDone }: { orderId: string; onDone: (
   )
 }
 
-function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBack: () => void; onChatClick: (orderId: string, executorName: string) => void }) {
+function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBack: () => void; onChatClick: (orderId: string, executorId: string | null, executorName: string) => void }) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
 
@@ -710,7 +711,7 @@ function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBac
         {order.executor_name && (
           <button
             type="button"
-            onClick={() => onChatClick(order.id, order.executor_name!)}
+            onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name!)}
             class="w-full bg-white rounded-2xl border border-gray-100 px-4 py-3.5 flex items-center gap-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
           >
             <span class="text-xl leading-none">💬</span>

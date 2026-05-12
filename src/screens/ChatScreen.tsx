@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ChatMessage } from '../api/chat'
 import { getMessages, sendMessage } from '../api/chat'
+import { getExecutor } from '../api/executors'
 import { useLocale } from '../i18n'
 import { useExitBack } from '../hooks/useExitBack'
 
 interface Props {
   orderId: string
+  executorId: string | null
   executorName: string
   senderId: string
   readonly?: boolean
@@ -14,21 +16,32 @@ interface Props {
 
 const LOCALE_MAP: Record<string, string> = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-US' }
 
-export function ChatScreen({ orderId, executorName, senderId, readonly = false, onBack }: Props) {
+export function ChatScreen({ orderId, executorId, executorName, senderId, readonly = false, onBack }: Props) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isReadonly, setIsReadonly] = useState(readonly)
   const bottomRef = useRef<HTMLDivElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const totalRef = useRef(0)
+  const firstLoad = useRef(true)
 
-  async function load() {
+  async function load(fetchAll = false) {
     try {
-      const res = await getMessages(orderId)
-      setMessages(res.items)
+      const offset = fetchAll ? 0 : totalRef.current
+      const res = await getMessages(orderId, 50, offset)
+      if (fetchAll || offset === 0) {
+        setMessages(res.items)
+        totalRef.current = res.total
+      } else if (res.items.length > 0) {
+        setMessages(prev => [...prev, ...res.items])
+        totalRef.current = res.total
+      }
       setError(null)
     } catch {
       setError(t('chat_load_error'))
@@ -38,9 +51,14 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
   }
 
   useEffect(() => {
-    load()
+    load(true)
+    if (executorId) {
+      getExecutor(executorId)
+        .then(e => setAvatarUrl(e.avatar_url))
+        .catch(() => {})
+    }
     if (!readonly) {
-      pollRef.current = setInterval(load, 5000)
+      pollRef.current = setInterval(() => load(false), 4000)
     }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
@@ -48,6 +66,11 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
   }, [orderId])
 
   useEffect(() => {
+    if (firstLoad.current && messages.length > 0) {
+      firstLoad.current = false
+      bottomRef.current?.scrollIntoView()
+      return
+    }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
@@ -59,9 +82,16 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
     try {
       const msg = await sendMessage(orderId, trimmed, senderId)
       setMessages(prev => [...prev, msg])
-    } catch {
+      totalRef.current += 1
+    } catch (err: unknown) {
       setText(trimmed)
-      setError(t('chat_send_error'))
+      const status = (err as { status?: number })?.status
+      if (status === 403) {
+        setIsReadonly(true)
+        setError(t('chat_closed_error'))
+      } else {
+        setError(t('chat_send_error'))
+      }
     } finally {
       setSending(false)
     }
@@ -79,10 +109,12 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
     const now = new Date()
     const locale = LOCALE_MAP[lang] ?? 'ru-RU'
     const sameDay = d.toDateString() === now.toDateString()
-    if (sameDay) {
-      return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-    }
+    if (sameDay) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     return d.toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
+
+  function getInitials(name: string): string {
+    return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   }
 
   return (
@@ -96,13 +128,18 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
         >
           ‹
         </button>
+        <div class="w-9 h-9 rounded-full bg-blue-100 shrink-0 overflow-hidden flex items-center justify-center">
+          {avatarUrl
+            ? <img src={avatarUrl} alt="" class="w-full h-full object-cover" />
+            : <span class="text-xs font-semibold text-blue-600">{getInitials(executorName)}</span>
+          }
+        </div>
         <div class="flex-1 min-w-0">
           <p class="text-base font-semibold text-gray-900 truncate">{executorName}</p>
           <p class="text-xs text-gray-400">
-            {readonly ? t('chat_readonly_hint') : t('chat_active_hint')}
+            {isReadonly ? t('chat_readonly_hint') : t('chat_active_hint')}
           </p>
         </div>
-        <span class="text-2xl leading-none">🧹</span>
       </div>
 
       {/* Messages */}
@@ -121,9 +158,10 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
         )}
 
         {messages.map((msg, i) => {
-          const isClient = msg.sender_type === 'client'
           const prevMsg = messages[i - 1]
           const showDate = !prevMsg || new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString()
+          const isClient = msg.sender_type === 'client'
+          const isSystem = msg.sender_type === 'system'
 
           return (
             <div key={msg.id}>
@@ -134,30 +172,47 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
                   </span>
                 </div>
               )}
-              <div class={`flex ${isClient ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  class={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
-                    isClient
-                      ? 'bg-blue-600 text-white rounded-br-sm'
-                      : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm'
-                  }`}
-                >
-                  {msg.media_url && (
-                    <img
-                      src={msg.media_url}
-                      alt=""
-                      class="rounded-xl max-w-full mb-1"
-                      loading="lazy"
-                    />
-                  )}
-                  {msg.content && (
-                    <p class="text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.content}</p>
-                  )}
-                  <p class={`text-[10px] mt-1 text-right ${isClient ? 'text-blue-200' : 'text-gray-400'}`}>
-                    {formatTime(msg.created_at)}
-                  </p>
+
+              {isSystem ? (
+                <div class="flex justify-center my-1">
+                  <span class="text-[11px] text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full text-center max-w-[80%]">
+                    {msg.content}
+                  </span>
                 </div>
-              </div>
+              ) : (
+                <div class={`flex items-end gap-2 ${isClient ? 'justify-end' : 'justify-start'}`}>
+                  {!isClient && (
+                    <div class="w-7 h-7 rounded-full bg-blue-100 shrink-0 overflow-hidden flex items-center justify-center mb-0.5">
+                      {avatarUrl
+                        ? <img src={avatarUrl} alt="" class="w-full h-full object-cover" />
+                        : <span class="text-[10px] font-semibold text-blue-600">{getInitials(executorName)}</span>
+                      }
+                    </div>
+                  )}
+                  <div
+                    class={`max-w-[72%] px-4 py-2.5 rounded-2xl ${
+                      isClient
+                        ? 'bg-blue-600 text-white rounded-br-sm'
+                        : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm'
+                    }`}
+                  >
+                    {msg.media_url && (
+                      <img
+                        src={msg.media_url}
+                        alt=""
+                        class="rounded-xl max-w-full mb-1"
+                        loading="lazy"
+                      />
+                    )}
+                    {msg.content && (
+                      <p class="text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                    <p class={`text-[10px] mt-1 text-right ${isClient ? 'text-blue-200' : 'text-gray-400'}`}>
+                      {formatTime(msg.created_at)}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )
         })}
@@ -170,7 +225,7 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
       </div>
 
       {/* Input */}
-      {!readonly && (
+      {!isReadonly && (
         <div class="bg-white border-t border-gray-100 px-4 py-3 flex items-end gap-3 shrink-0">
           <textarea
             class="flex-1 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm text-gray-800 resize-none outline-none focus:border-blue-400 transition-colors bg-gray-50 max-h-32"
@@ -194,7 +249,7 @@ export function ChatScreen({ orderId, executorName, senderId, readonly = false, 
         </div>
       )}
 
-      {readonly && (
+      {isReadonly && (
         <div class="bg-gray-100 px-4 py-3 text-center shrink-0">
           <p class="text-xs text-gray-400">{t('chat_readonly_hint')}</p>
         </div>

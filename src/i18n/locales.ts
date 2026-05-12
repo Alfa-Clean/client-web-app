@@ -198,6 +198,7 @@ const ru: Strings = {
   chat_input_placeholder: 'Написать сообщение...',
   chat_load_error: 'Не удалось загрузить сообщения',
   chat_send_error: 'Не удалось отправить сообщение',
+  chat_closed_error: 'Чат закрыт — заказ завершён',
 }
 
 const uz: Strings = {
@@ -381,6 +382,7 @@ const uz: Strings = {
   chat_input_placeholder: 'Xabar yozing...',
   chat_load_error: 'Xabarlarni yuklab bo\'lmadi',
   chat_send_error: 'Xabar yuborib bo\'lmadi',
+  chat_closed_error: 'Chat yopiq — buyurtma yakunlandi',
 }
 
 const en: Strings = {
@@ -564,6 +566,7 @@ const en: Strings = {
   chat_input_placeholder: 'Write a message...',
   chat_load_error: 'Failed to load messages',
   chat_send_error: 'Failed to send message',
+  chat_closed_error: 'Chat closed — order is complete',
 }
 
 export const locales: Record<Lang, Strings> = { ru, uz, en }

@@ -3,7 +3,7 @@ import { apiFetch } from './client'
 export interface ChatMessage {
   id: string
   order_id: string
-  sender_type: 'client' | 'executor'
+  sender_type: 'client' | 'executor' | 'system'
   sender_id: string
   content: string | null
   media_url: string | null
