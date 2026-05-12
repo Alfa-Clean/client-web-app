@@ -9,6 +9,7 @@ const ru: Strings = {
   reg_share_phone: 'Поделиться номером',
   reg_loading: 'Подождите...',
   reg_phone_error: 'Не удалось получить номер. Попробуйте ещё раз.',
+  reg_enter_manually: 'Ввести номер вручную',
 
   // BottomBar
   tab_orders: 'Заказы',
@@ -111,6 +112,7 @@ const ru: Strings = {
   no_slots: 'Нет доступных слотов на этот день',
   today: 'Сегодня',
   tomorrow: 'Завтра',
+  date_pick_other: 'Другой день',
   days: 'Вс,Пн,Вт,Ср,Чт,Пт,Сб',
   months: 'янв,фев,мар,апр,май,июн,июл,авг,сен,окт,ноя,дек',
 
@@ -144,6 +146,12 @@ const ru: Strings = {
   history_order: 'Заказ №{num}',
   history_rooms: '{n} комн.',
   history_bathrooms: '{n} санузл.',
+  history_executor: 'Исполнитель',
+  history_comment_label: 'Комментарий',
+  history_rating_label: 'Оценка',
+  addon_windows: 'Мытьё окон',
+  addon_oven: 'Чистка духовки',
+  addon_balcony: 'Уборка балкона',
   status_new: 'Ищем клинера',
   status_assigned: 'Назначен',
   status_on_the_way: 'Едет',
@@ -155,7 +163,20 @@ const ru: Strings = {
   status_disputed: 'Спор',
 
   // Settings
+  home_accept_work: 'Принять работу',
+  confirm_accept_work_title: 'Подтверждение выполнения',
+  confirm_accept_work: 'Клинер завершил уборку. Подтвердите, что работа выполнена.',
+  rating_title: 'Как прошла уборка?',
+  rating_subtitle: 'Ваш отзыв поможет нам стать лучше',
+  rating_comment_placeholder: 'Оставить комментарий (необязательно)',
+  rating_submit: 'Отправить',
+  rating_skip: 'Пропустить',
+  rating_thanks: 'Спасибо за оценку!',
   home_cancel_order: 'Отменить заказ',
+  confirm_cancel_order_title: 'Отмена заказа',
+  confirm_cancel_order: 'Вы точно хотите отменить заказ? Клинер уже выехал к вам. Отмена будет платной.',
+  dialog_ok: 'Подтвердить',
+  dialog_cancel: 'Отмена',
   time_ago_sec: '{n} сек. назад',
   time_ago_min: '{n} мин. назад',
   time_ago_hour: '{n} ч. назад',
@@ -166,6 +187,17 @@ const ru: Strings = {
   lang_ru: 'Русский',
   lang_uz: "O'zbekcha",
   lang_en: 'English',
+
+  // Chat
+  chat_contact_cleaner: 'Связаться с клинером',
+  chat_history_section: 'Переписка с клинером',
+  chat_history_hint: 'История сообщений этого заказа',
+  chat_active_hint: 'Активный чат',
+  chat_readonly_hint: 'Переписка завершена',
+  chat_empty: 'Сообщений пока нет',
+  chat_input_placeholder: 'Написать сообщение...',
+  chat_load_error: 'Не удалось загрузить сообщения',
+  chat_send_error: 'Не удалось отправить сообщение',
 }
 
 const uz: Strings = {
@@ -174,6 +206,7 @@ const uz: Strings = {
   reg_share_phone: 'Telefon raqamini ulashing',
   reg_loading: 'Iltimos kuting...',
   reg_phone_error: 'Raqam olinmadi. Qayta urinib ko\'ring.',
+  reg_enter_manually: 'Raqamni qo\'lda kiriting',
 
   tab_orders: 'Buyurtmalar',
   tab_addresses: 'Manzillar',
@@ -266,6 +299,7 @@ const uz: Strings = {
   no_slots: 'Bu kun uchun bo\'sh vaqt yo\'q',
   today: 'Bugun',
   tomorrow: 'Ertaga',
+  date_pick_other: 'Boshqa kun',
   days: 'Yak,Dsh,Ssh,Cho,Pay,Jum,Sha',
   months: 'yan,fev,mar,apr,may,iyn,iyl,avg,sen,okt,noy,dek',
 
@@ -296,6 +330,12 @@ const uz: Strings = {
   history_order: '№{num} buyurtma',
   history_rooms: '{n} xona',
   history_bathrooms: '{n} h/x',
+  history_executor: 'Ijrochi',
+  history_comment_label: 'Izoh',
+  history_rating_label: 'Baho',
+  addon_windows: 'Derazalarni yuvish',
+  addon_oven: 'Pechni tozalash',
+  addon_balcony: 'Balkoni tozalash',
   status_new: 'Klinerni qidiramiz',
   status_assigned: 'Tayinlangan',
   status_on_the_way: 'Yo\'lda',
@@ -306,7 +346,20 @@ const uz: Strings = {
   status_cancelled: 'Bekor qilindi',
   status_disputed: 'Nizo',
 
+  home_accept_work: 'Ishni qabul qilish',
+  confirm_accept_work_title: 'Bajarilishini tasdiqlash',
+  confirm_accept_work: 'Kliner tozalashni tugatdi. Ish bajarilganligini tasdiqlang.',
+  rating_title: 'Tozalash qanday o\'tdi?',
+  rating_subtitle: 'Fikringiz bizni yaxshilashga yordam beradi',
+  rating_comment_placeholder: 'Izoh qoldiring (ixtiyoriy)',
+  rating_submit: 'Yuborish',
+  rating_skip: 'O\'tkazib yuborish',
+  rating_thanks: 'Baholaginiz uchun rahmat!',
   home_cancel_order: 'Buyurtmani bekor qilish',
+  confirm_cancel_order_title: 'Buyurtmani bekor qilish',
+  confirm_cancel_order: 'Buyurtmani bekor qilmoqchimisiz? Kliner allaqachon yo\'lga chiqdi. Bekor qilish pullik bo\'ladi.',
+  dialog_ok: 'Tasdiqlash',
+  dialog_cancel: 'Bekor qilish',
   time_ago_sec: '{n} sek. oldin',
   time_ago_min: '{n} daq. oldin',
   time_ago_hour: '{n} soat oldin',
@@ -317,6 +370,17 @@ const uz: Strings = {
   lang_ru: 'Русский',
   lang_uz: "O'zbekcha",
   lang_en: 'English',
+
+  // Chat
+  chat_contact_cleaner: 'Kliner bilan bog\'lanish',
+  chat_history_section: 'Kliner bilan yozishmalar',
+  chat_history_hint: 'Ushbu buyurtma xabarlari tarixi',
+  chat_active_hint: 'Faol chat',
+  chat_readonly_hint: 'Yozishmalar tugallandi',
+  chat_empty: 'Hali xabarlar yo\'q',
+  chat_input_placeholder: 'Xabar yozing...',
+  chat_load_error: 'Xabarlarni yuklab bo\'lmadi',
+  chat_send_error: 'Xabar yuborib bo\'lmadi',
 }
 
 const en: Strings = {
@@ -325,6 +389,7 @@ const en: Strings = {
   reg_share_phone: 'Share phone number',
   reg_loading: 'Please wait...',
   reg_phone_error: 'Could not get phone number. Please try again.',
+  reg_enter_manually: 'Enter number manually',
 
   tab_orders: 'Orders',
   tab_addresses: 'Addresses',
@@ -417,6 +482,7 @@ const en: Strings = {
   no_slots: 'No available slots for this day',
   today: 'Today',
   tomorrow: 'Tomorrow',
+  date_pick_other: 'Other day',
   days: 'Su,Mo,Tu,We,Th,Fr,Sa',
   months: 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec',
 
@@ -447,6 +513,12 @@ const en: Strings = {
   history_order: 'Order #{num}',
   history_rooms: '{n} rooms',
   history_bathrooms: '{n} bath',
+  history_executor: 'Executor',
+  history_comment_label: 'Comment',
+  history_rating_label: 'Rating',
+  addon_windows: 'Window washing',
+  addon_oven: 'Oven cleaning',
+  addon_balcony: 'Balcony cleaning',
   status_new: 'Finding cleaner',
   status_assigned: 'Assigned',
   status_on_the_way: 'On the way',
@@ -457,7 +529,20 @@ const en: Strings = {
   status_cancelled: 'Cancelled',
   status_disputed: 'Disputed',
 
+  home_accept_work: 'Accept work',
+  confirm_accept_work_title: 'Confirm completion',
+  confirm_accept_work: 'The cleaner has finished cleaning. Please confirm the work is complete.',
+  rating_title: 'How was the cleaning?',
+  rating_subtitle: 'Your feedback helps us improve',
+  rating_comment_placeholder: 'Leave a comment (optional)',
+  rating_submit: 'Submit',
+  rating_skip: 'Skip',
+  rating_thanks: 'Thanks for your feedback!',
   home_cancel_order: 'Cancel order',
+  confirm_cancel_order_title: 'Cancel order',
+  confirm_cancel_order: 'Are you sure you want to cancel? The cleaner is already on the way. A cancellation fee may apply.',
+  dialog_ok: 'Confirm',
+  dialog_cancel: 'Cancel',
   time_ago_sec: '{n}s ago',
   time_ago_min: '{n}m ago',
   time_ago_hour: '{n}h ago',
@@ -468,6 +553,17 @@ const en: Strings = {
   lang_ru: 'Русский',
   lang_uz: "O'zbekcha",
   lang_en: 'English',
+
+  // Chat
+  chat_contact_cleaner: 'Contact cleaner',
+  chat_history_section: 'Chat with cleaner',
+  chat_history_hint: 'Message history for this order',
+  chat_active_hint: 'Active chat',
+  chat_readonly_hint: 'Conversation ended',
+  chat_empty: 'No messages yet',
+  chat_input_placeholder: 'Write a message...',
+  chat_load_error: 'Failed to load messages',
+  chat_send_error: 'Failed to send message',
 }
 
 export const locales: Record<Lang, Strings> = { ru, uz, en }

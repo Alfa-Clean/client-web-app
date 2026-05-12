@@ -3,22 +3,28 @@ import type { User } from '../types'
 import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
 import type { Order } from '../api/orders'
-import { cancelOrder, getUserOrders } from '../api/orders'
+import { acceptOrder, cancelOrder, getUserOrders, rateOrder } from '../api/orders'
 import { useAddresses } from '../hooks/useAddresses'
 import { useLocale } from '../i18n'
 import type { Lang, Strings } from '../i18n/locales'
 import { getTheme, setTheme } from '../hooks/useTheme'
+import { useExitBack } from '../hooks/useExitBack'
 import { AddressFormScreen } from './AddressFormScreen'
 import { ExecutorScreen } from './ExecutorScreen'
 import { OrderScreen } from './OrderScreen'
+import { ChatScreen } from './ChatScreen'
 import { BottomBar } from '../components/BottomBar'
 import type { Tab } from '../components/BottomBar'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useConfirm } from '../hooks/useConfirm'
 
 type View =
   | { name: 'list' }
   | { name: 'form'; address?: Address }
   | { name: 'new_order' }
   | { name: 'executor'; executorId: string }
+  | { name: 'order_detail'; order: Order }
+  | { name: 'chat'; orderId: string; executorName: string; senderId: string; readonly: boolean }
 
 interface Props {
   user: User
@@ -29,6 +35,7 @@ export function HomeScreen({ user }: Props) {
   const [view, setView] = useState<View>({ name: 'list' })
   const { state, reload } = useAddresses(user.telegram_id)
   const { t } = useLocale()
+  const { confirm, dialogProps } = useConfirm()
 
   async function handleCreate(data: AddressPayload) {
     await createAddress(user.telegram_id, data)
@@ -41,7 +48,8 @@ export function HomeScreen({ user }: Props) {
   }
 
   async function handleDelete(address: Address) {
-    if (!confirm(t('home_delete_confirm', { address: address.address }))) return
+    const ok = await confirm(t('home_delete_confirm', { address: address.address }), { confirmVariant: 'danger' })
+    if (!ok) return
     await deleteAddress(user.telegram_id, address.id)
     reload()
   }
@@ -65,8 +73,37 @@ export function HomeScreen({ user }: Props) {
     return <ExecutorScreen executorId={view.executorId} onBack={() => setView({ name: 'list' })} />
   }
 
+  if (view.name === 'order_detail') {
+    return (
+      <OrderDetailScreen
+        order={view.order}
+        onBack={() => setView({ name: 'list' })}
+        onChatClick={(orderId, executorName) =>
+          setView({ name: 'chat', orderId, executorName, senderId: String(user.telegram_id), readonly: true })
+        }
+      />
+    )
+  }
+
+  if (view.name === 'chat') {
+    return (
+      <ChatScreen
+        orderId={view.orderId}
+        executorName={view.executorName}
+        senderId={view.senderId}
+        readonly={view.readonly}
+        onBack={() => setView({ name: 'list' })}
+      />
+    )
+  }
+
   return (
-    <div class="min-h-screen bg-gray-50 flex flex-col">
+    <div class="h-screen bg-gray-50 flex flex-col">
+      <ConfirmDialog
+        {...dialogProps}
+        confirmLabel={t('dialog_ok')}
+        cancelLabel={t('dialog_cancel')}
+      />
       <div class="flex-1 overflow-y-auto flex flex-col">
         {tab === 'addresses' && (
           <AddressesTab
@@ -81,9 +118,17 @@ export function HomeScreen({ user }: Props) {
             telegramId={user.telegram_id}
             onNewOrder={() => setView({ name: 'new_order' })}
             onExecutorClick={id => setView({ name: 'executor', executorId: id })}
+            onChatClick={(orderId, executorName) =>
+              setView({ name: 'chat', orderId, executorName, senderId: String(user.telegram_id), readonly: false })
+            }
           />
         )}
-        {tab === 'history' && <HistoryTab telegramId={user.telegram_id} />}
+        {tab === 'history' && (
+          <HistoryTab
+            telegramId={user.telegram_id}
+            onOrderClick={order => setView({ name: 'order_detail', order })}
+          />
+        )}
         {tab === 'settings' && <SettingsTab user={user} />}
       </div>
 
@@ -205,13 +250,18 @@ const STATUS_ICON: Record<string, string> = {
   completed: '🎉',
 }
 
-function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void }) {
+const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
+
+function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void; onChatClick: (orderId: string, executorName: string) => void }) {
   const { t, lang } = useLocale()
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
+  const [ratingOrderId, setRatingOrderId] = useState<string | null>(null)
+  const [showRatingToast, setShowRatingToast] = useState(false)
   const [pendingCancel, setPendingCancel] = useState<Order | null>(null)
   const [countdown, setCountdown] = useState(10)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const { confirm, dialogProps } = useConfirm()
 
   useEffect(() => {
     getUserOrders(telegramId)
@@ -227,9 +277,33 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
     if (intervalRef.current) clearInterval(intervalRef.current)
   }, [])
 
-  function handleCancel(order: Order) {
+  async function handleAccept(order: Order) {
+    const ok = await confirm(t('confirm_accept_work'), {
+      title: t('confirm_accept_work_title'),
+      confirmVariant: 'primary',
+    })
+    if (!ok) return
+    await acceptOrder(order.id).catch(() => {})
+    setRatingOrderId(order.id)
+    setActiveOrder(null)
+  }
+
+  async function handleRatingDone(orderId: string, score: number, comment: string) {
+    if (score > 0) {
+      await rateOrder(orderId, score, comment || undefined).catch(() => {})
+      setShowRatingToast(true)
+      setTimeout(() => setShowRatingToast(false), 3000)
+    }
+    setRatingOrderId(null)
+  }
+
+  async function handleCancel(order: Order) {
     if (order.status === 'assigned') {
-      if (!window.confirm('Вы точно хотите отменить заказ? Клинер уже выехал к вам. Отмена будет платной')) return
+      const ok = await confirm(t('confirm_cancel_order'), {
+        title: t('confirm_cancel_order_title'),
+        confirmVariant: 'danger',
+      })
+      if (!ok) return
     }
     setActiveOrder(null)
     setPendingCancel(order)
@@ -264,6 +338,11 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
   if (!activeOrder) {
     return (
       <>
+        <ConfirmDialog
+          {...dialogProps}
+          confirmLabel={t('dialog_ok')}
+          cancelLabel={t('dialog_cancel')}
+        />
         <div class="flex-1 flex flex-col">
           <div class="flex-1 flex flex-col items-center justify-center gap-4 text-center">
             <img src="/cleaning-placeholder.webp" alt="" class="w-full max-w-[1000px] object-contain" />
@@ -280,6 +359,13 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
           </div>
         </div>
         {pendingCancel && <CancelToast countdown={countdown} onUndo={handleUndo} />}
+        {showRatingToast && <TopToast message={t('rating_thanks')} />}
+        {ratingOrderId && (
+          <RatingSheet
+            orderId={ratingOrderId}
+            onDone={(score, comment) => handleRatingDone(ratingOrderId, score, comment)}
+          />
+        )}
       </>
     )
   }
@@ -288,6 +374,11 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
 
   return (
     <div class="flex-1 flex flex-col">
+      <ConfirmDialog
+        {...dialogProps}
+        confirmLabel={t('dialog_ok')}
+        cancelLabel={t('dialog_cancel')}
+      />
       <div class="flex-1 px-4 py-5 flex flex-col gap-4">
       {/* Status hero */}
       <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -322,20 +413,23 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
 
         {/* Progress timeline */}
         <div class="px-5 py-4">
-          <div class="flex items-center justify-between">
+          <div class="relative flex items-center justify-between">
+            <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-gray-200" />
+            <div
+              class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-blue-400"
+              style={`width:${statusIdx / (STATUS_TIMELINE.length - 1) * 100}%`}
+            />
             {STATUS_TIMELINE.map((s, i) => {
               const done = i < statusIdx
               const current = i === statusIdx
               return (
-                <div key={s} class="flex-1 flex items-center">
-                  <div class={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                <div
+                  key={s}
+                  class={`relative z-10 w-2.5 h-2.5 rounded-full shrink-0 ${
                     current ? 'bg-blue-600 ring-4 ring-blue-100' :
                     done ? 'bg-blue-400' : 'bg-gray-200'
-                  }`} />
-                  {i < STATUS_TIMELINE.length - 1 && (
-                    <div class={`flex-1 h-0.5 mx-0.5 ${i < statusIdx ? 'bg-blue-400' : 'bg-gray-200'}`} />
-                  )}
-                </div>
+                  }`}
+                />
               )
             })}
           </div>
@@ -362,25 +456,59 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
             <p class="text-sm font-semibold text-gray-900">{activeOrder.price.toLocaleString()} {t('currency')}</p>
           </div>
         </div>
+
+        {CHAT_STATUSES.has(activeOrder.status) && activeOrder.executor_id && activeOrder.executor_name && (
+          <button
+            type="button"
+            onClick={() => onChatClick(activeOrder.id, activeOrder.executor_name!)}
+            class="w-full border-t border-gray-100 py-3.5 text-sm font-medium text-blue-600 flex items-center justify-center gap-2 hover:bg-blue-50 active:bg-blue-100 transition-colors"
+          >
+            💬 {t('chat_contact_cleaner')}
+          </button>
+        )}
+
+        {activeOrder.status === 'awaiting_confirmation' && (
+          <button
+            type="button"
+            onClick={() => handleAccept(activeOrder)}
+            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 transition-all active:scale-95 text-sm"
+          >
+            {t('home_accept_work')}
+          </button>
+        )}
       </div>
       </div>
 
       <div class="px-4 pb-6 flex flex-col gap-3">
+
         <button
           type="button"
           onClick={onNewOrder}
-          class="w-full border-2 border-blue-600 text-blue-600 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-blue-50"
+          class="w-full border-2 border-blue-600 text-blue-600 font-medium py-3.5 rounded-xl transition-all active:scale-95 text-sm hover:bg-blue-50"
         >
           {t('home_order_now')}
         </button>
 
-        <button
-          type="button"
-          onClick={() => handleCancel(activeOrder)}
-          class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-xl transition-colors text-sm hover:bg-red-50"
-        >
-          {t('home_cancel_order')}
-        </button>
+        {!['in_progress', 'awaiting_confirmation'].includes(activeOrder.status) && (
+          <button
+            type="button"
+            onClick={() => handleCancel(activeOrder)}
+            class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-xl transition-all active:scale-95 text-sm hover:bg-red-50"
+          >
+            {t('home_cancel_order')}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function TopToast({ message }: { message: string }) {
+  return (
+    <div class="fixed top-4 left-4 right-4 z-50 flex justify-center pointer-events-none animate-toast-top-in">
+      <div class="bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
+        <span>✅</span>
+        <span>{message}</span>
       </div>
     </div>
   )
@@ -388,7 +516,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick }: { telegramId: nu
 
 function CancelToast({ countdown, onUndo }: { countdown: number; onUndo: () => void }) {
   return (
-    <div class="fixed bottom-20 left-4 right-4 z-50 bg-gray-900 text-white rounded-2xl px-4 py-3 shadow-xl flex flex-col gap-2">
+    <div class="fixed bottom-20 left-4 right-4 z-50 bg-gray-900 text-white rounded-2xl px-4 py-3 shadow-xl flex flex-col gap-2 animate-toast-in">
       <div class="flex items-center justify-between gap-3">
         <p class="text-sm">Заказ отменён. Вернуть?</p>
         <button
@@ -404,6 +532,188 @@ function CancelToast({ countdown, onUndo }: { countdown: number; onUndo: () => v
           class="h-full bg-blue-500 rounded-full transition-all duration-1000"
           style={`width:${countdown * 10}%`}
         />
+      </div>
+    </div>
+  )
+}
+
+function RatingSheet({ orderId: _orderId, onDone }: { orderId: string; onDone: (score: number, comment: string) => void }) {
+  const { t } = useLocale()
+  const [score, setScore] = useState(0)
+  const [hovered, setHovered] = useState(0)
+  const [comment, setComment] = useState('')
+
+  return (
+    <div class="fixed inset-0 z-50 flex items-end">
+      <div class="absolute inset-0 bg-black/40 animate-fade-in" />
+      <div class="relative w-full bg-white rounded-t-3xl px-6 pt-6 pb-10 flex flex-col gap-5 animate-slide-up">
+        <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+        <div class="text-center">
+          <p class="text-lg font-semibold text-gray-900">{t('rating_title')}</p>
+          <p class="text-sm text-gray-400 mt-1">{t('rating_subtitle')}</p>
+        </div>
+        <div class="flex justify-center gap-3">
+          {[1, 2, 3, 4, 5].map(n => {
+            const active = n <= (hovered || score)
+            const justSelected = n === score
+            return (
+              <button
+                key={justSelected ? `sel-${n}` : n}
+                type="button"
+                onClick={() => setScore(n)}
+                onMouseEnter={() => setHovered(n)}
+                onMouseLeave={() => setHovered(0)}
+                class={`text-4xl leading-none transition-colors active:scale-90 ${justSelected ? 'animate-star-pop' : ''}`}
+                style={{ color: active ? '#f59e0b' : '#d1d5db' }}
+              >
+                ★
+              </button>
+            )
+          })}
+        </div>
+        <textarea
+          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 resize-none outline-none focus:border-blue-400 transition-colors bg-gray-50"
+          rows={3}
+          placeholder={t('rating_comment_placeholder')}
+          value={comment}
+          onInput={e => setComment((e.target as HTMLTextAreaElement).value)}
+        />
+        <button
+          type="button"
+          disabled={score === 0}
+          onClick={() => onDone(score, comment)}
+          class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-3.5 rounded-xl transition-all active:scale-95 text-sm"
+        >
+          {t('rating_submit')}
+        </button>
+        <button
+          type="button"
+          onClick={() => onDone(0, '')}
+          class="text-sm text-gray-400 hover:text-gray-600 active:scale-95 transition-all text-center -mt-2"
+        >
+          {t('rating_skip')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBack: () => void; onChatClick: (orderId: string, executorName: string) => void }) {
+  const { t, lang } = useLocale()
+  const { exiting, handleBack } = useExitBack(onBack)
+
+  const addonNames = order.addons
+    .map(id => t(`addon_${id}` as keyof Strings) || id)
+    .filter(Boolean)
+
+  const createdAt = new Date(order.created_at)
+  const createdLabel = createdAt.toLocaleString(LOCALE_MAP[lang], {
+    day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+  })
+
+  return (
+    <div class={`h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+      {/* Header */}
+      <div class="bg-white border-b border-gray-100 px-4 pt-4 pb-3 flex items-center gap-3 shrink-0">
+        <button
+          type="button"
+          onClick={handleBack}
+          class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-700 text-xl"
+        >
+          ‹
+        </button>
+        <div class="flex-1 min-w-0">
+          <p class="text-base font-semibold text-gray-900">
+            {t('history_order', { num: String(order.order_num) })}
+          </p>
+          <p class="text-xs text-gray-400">{createdLabel}</p>
+        </div>
+        <span class={`text-[11px] font-medium px-2.5 py-1 rounded-full shrink-0 ${statusColor(order.status)}`}>
+          {t(statusKey(order.status)) || order.status}
+        </span>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3">
+        {/* Service summary */}
+        <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+          <DetailRow icon="🧹" label={t('confirm_service')} value={t(`svc_${order.service_type}`) || order.service_type} />
+          <DetailRow icon="📍" label={t('confirm_address')} value={order.address} />
+          <DetailRow
+            icon="📅"
+            label={t('confirm_date')}
+            value={`${formatOrderDate(order.order_date, lang)}${order.order_slot ? `, ${order.order_slot}` : ''}`}
+          />
+          <DetailRow
+            icon="🏠"
+            label={t('confirm_rooms')}
+            value={`${t('history_rooms', { n: String(order.rooms) })} · ${t('history_bathrooms', { n: String(order.bathrooms) })}`}
+          />
+          <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center gap-3">
+              <span class="text-base leading-none">💰</span>
+              <p class="text-sm text-gray-500">{t('confirm_total')}</p>
+            </div>
+            <p class="text-sm font-semibold text-gray-900">{order.price.toLocaleString()} {t('currency')}</p>
+          </div>
+        </div>
+
+        {/* Executor / addons / comment */}
+        {(order.executor_name || addonNames.length > 0 || order.comment) && (
+          <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+            {order.executor_name && (
+              <DetailRow icon="👤" label={t('history_executor')} value={order.executor_name} />
+            )}
+            {addonNames.length > 0 && (
+              <DetailRow icon="✨" label={t('confirm_addons')} value={addonNames.join(', ')} />
+            )}
+            {order.comment && (
+              <DetailRow icon="💬" label={t('history_comment_label')} value={order.comment} />
+            )}
+          </div>
+        )}
+
+        {/* Chat history */}
+        {order.executor_name && (
+          <button
+            type="button"
+            onClick={() => onChatClick(order.id, order.executor_name!)}
+            class="w-full bg-white rounded-2xl border border-gray-100 px-4 py-3.5 flex items-center gap-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
+          >
+            <span class="text-xl leading-none">💬</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900">{t('chat_history_section')}</p>
+              <p class="text-xs text-gray-400">{t('chat_history_hint')}</p>
+            </div>
+            <span class="text-gray-300 text-lg leading-none">›</span>
+          </button>
+        )}
+
+        {/* Rating */}
+        {order.rating && (
+          <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3">
+            <p class="text-xs text-gray-400 mb-2">{t('history_rating_label')}</p>
+            <div class="flex gap-1 mb-2">
+              {[1,2,3,4,5].map(n => (
+                <span key={n} style={{ color: n <= order.rating!.score ? '#f59e0b' : '#e5e7eb' }} class="text-2xl leading-none">★</span>
+              ))}
+            </div>
+            {order.rating.comment && (
+              <p class="text-sm text-gray-600 italic">"{order.rating.comment}"</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div class="flex items-start gap-3 px-4 py-3">
+      <span class="text-base leading-none mt-0.5">{icon}</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs text-gray-400 mb-0.5">{label}</p>
+        <p class="text-sm text-gray-800 break-words">{value}</p>
       </div>
     </div>
   )
@@ -426,7 +736,7 @@ function formatOrderDate(dateStr: string, lang: Lang): string {
   return d.toLocaleDateString(LOCALE_MAP[lang], { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function HistoryTab({ telegramId }: { telegramId: number }) {
+function HistoryTab({ telegramId, onOrderClick }: { telegramId: number; onOrderClick: (o: Order) => void }) {
   const { t, lang } = useLocale()
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -465,25 +775,31 @@ function HistoryTab({ telegramId }: { telegramId: number }) {
     <div class="px-4 py-5 flex flex-col gap-2">
       <h2 class="text-sm font-medium text-gray-500 mb-1">{t('tab_history')}</h2>
       {orders.map(order => (
-        <div key={order.id} class="bg-white rounded-xl p-4 border border-gray-100">
+        <button
+          key={order.id}
+          type="button"
+          class="w-full text-left bg-white rounded-xl p-4 border border-gray-100 active:bg-gray-50 transition-colors"
+          onClick={() => onOrderClick(order)}
+        >
           <div class="flex items-start justify-between gap-2 mb-2">
             <p class="text-sm font-semibold text-gray-900">
               {t('history_order', { num: String(order.order_num) })}
             </p>
-            <span class={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${statusColor(order.status)}`}>
-              {t(statusKey(order.status)) || order.status}
-            </span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class={`text-[11px] font-medium px-2 py-0.5 rounded-full ${statusColor(order.status)}`}>
+                {t(statusKey(order.status)) || order.status}
+              </span>
+              <span class="text-gray-300 text-sm">›</span>
+            </div>
           </div>
 
-          <p class="text-xs text-gray-700 mb-1">
+          <p class="text-xs text-gray-600 mb-1">
             {t(`svc_${order.service_type}`) || order.service_type}
             {' · '}
             {t('history_rooms', { n: String(order.rooms) })}
             {' · '}
             {t('history_bathrooms', { n: String(order.bathrooms) })}
           </p>
-
-          <p class="text-xs text-gray-500 truncate mb-1">{order.address}</p>
 
           <div class="flex items-center justify-between">
             <p class="text-xs text-gray-400">
@@ -493,7 +809,7 @@ function HistoryTab({ telegramId }: { telegramId: number }) {
               {order.price.toLocaleString()} {t('currency')}
             </p>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   )
