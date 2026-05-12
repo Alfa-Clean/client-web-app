@@ -43,6 +43,8 @@ const ru: Strings = {
   home_order_now: 'Заказать уборку',
 
   // Address form
+  addr_housing_type: 'Тип помещения',
+  addr_housing_not_set: 'Не указан',
   addr_title_new: 'Новый адрес',
   addr_title_edit: 'Редактировать адрес',
   addr_map_hint: 'Укажите точку на карте',
@@ -64,6 +66,9 @@ const ru: Strings = {
   addr_notes_label: 'Доп. информация',
   addr_notes_placeholder: 'Ключ у консьержа, собака во дворе...',
   addr_required: 'Введите адрес',
+  addr_entrance_required: 'Введите подъезд',
+  addr_floor_required: 'Введите этаж',
+  addr_apt_required: 'Введите номер квартиры',
 
   // Order steps
   step_service_type: 'Тип уборки',
@@ -175,6 +180,8 @@ const uz: Strings = {
   home_no_orders: 'Hozircha buyurtmalar yo\'q',
   home_order_now: 'Tozalash buyurtma qilish',
 
+  addr_housing_type: 'Xona turi',
+  addr_housing_not_set: 'Ko\'rsatilmagan',
   addr_title_new: 'Yangi manzil',
   addr_title_edit: 'Manzilni tahrirlash',
   addr_map_hint: 'Xaritada nuqta ko\'rsating',
@@ -196,6 +203,9 @@ const uz: Strings = {
   addr_notes_label: 'Qo\'shimcha ma\'lumot',
   addr_notes_placeholder: 'Kalit qorovulda, hovlida it bor...',
   addr_required: 'Manzilni kiriting',
+  addr_entrance_required: 'Kirish raqamini kiriting',
+  addr_floor_required: 'Qavatni kiriting',
+  addr_apt_required: 'Kvartira raqamini kiriting',
 
   step_service_type: 'Tozalash turi',
   step_housing_type: 'Xona turi',
@@ -297,6 +307,8 @@ const en: Strings = {
   home_no_orders: 'No orders yet',
   home_order_now: 'Order cleaning',
 
+  addr_housing_type: 'Property type',
+  addr_housing_not_set: 'Not set',
   addr_title_new: 'New address',
   addr_title_edit: 'Edit address',
   addr_map_hint: 'Pick a point on the map',
@@ -318,6 +330,9 @@ const en: Strings = {
   addr_notes_label: 'Additional info',
   addr_notes_placeholder: 'Key at reception, dog in yard...',
   addr_required: 'Enter address',
+  addr_entrance_required: 'Enter entrance number',
+  addr_floor_required: 'Enter floor number',
+  addr_apt_required: 'Enter apartment number',
 
   step_service_type: 'Service type',
   step_housing_type: 'Property type',

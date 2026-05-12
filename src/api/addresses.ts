@@ -1,5 +1,7 @@
 import { apiFetch } from './client'
 
+export type HousingType = 'apt' | 'house'
+
 export interface Address {
   id: string
   telegram_id: number
@@ -11,6 +13,7 @@ export interface Address {
   notes?: string | null
   rooms?: number | null
   bathrooms?: number | null
+  housing_type?: HousingType | null
   latitude?: number | null
   longitude?: number | null
   geo_address?: string | null
@@ -26,6 +29,9 @@ export interface AddressPayload {
   notes?: string
   rooms?: number
   bathrooms?: number
+  housing_type?: HousingType
+  latitude?: number
+  longitude?: number
 }
 
 export function getAddresses(telegramId: number): Promise<Address[]> {

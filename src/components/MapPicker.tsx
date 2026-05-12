@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks'
+
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -8,30 +9,37 @@ const DEFAULT_LON = 69.2401
 
 interface Props {
   onLocationPick: (lat: number, lon: number) => void
+  initialLat?: number | null
+  initialLon?: number | null
 }
 
-export function MapPicker({ onLocationPick }: Props) {
+export function MapPicker({ onLocationPick, initialLat, initialLon }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const cbRef = useRef(onLocationPick)
+  cbRef.current = onLocationPick
 
   useEffect(() => {
     if (!containerRef.current) return
 
-    const map = L.map(containerRef.current).setView([DEFAULT_LAT, DEFAULT_LON], 13)
+    const lat = initialLat ?? DEFAULT_LAT
+    const lon = initialLon ?? DEFAULT_LON
+
+    const map = L.map(containerRef.current).setView([lat, lon], 15)
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
     }).addTo(map)
 
-    const marker = L.marker([DEFAULT_LAT, DEFAULT_LON], { draggable: true }).addTo(map)
+    const marker = L.marker([lat, lon], { draggable: true }).addTo(map)
 
     marker.on('dragend', () => {
       const { lat, lng } = marker.getLatLng()
-      onLocationPick(lat, lng)
+      cbRef.current(lat, lng)
     })
 
     map.on('click', (e: L.LeafletMouseEvent) => {
       marker.setLatLng(e.latlng)
-      onLocationPick(e.latlng.lat, e.latlng.lng)
+      cbRef.current(e.latlng.lat, e.latlng.lng)
     })
 
     return () => {

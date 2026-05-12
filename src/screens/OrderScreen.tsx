@@ -312,9 +312,10 @@ export function OrderScreen({ user, onBack }: Props) {
             value={draft.address}
             details={draft.addressDetails}
             t={t}
-            onChange={(address, details, totalRooms, totalBathrooms) => {
-              patch({ address, addressDetails: details, totalRooms, totalBathrooms })
-              goTo(draft.housingType === 'apt' ? 'rooms' : 'date')
+            onChange={(address, details, totalRooms, totalBathrooms, housingType) => {
+              const ht = housingType ?? draft.housingType
+              patch({ address, addressDetails: details, totalRooms, totalBathrooms, housingType: ht })
+              goTo(ht === 'apt' ? 'rooms' : 'date')
             }}
           />
         )}
@@ -456,7 +457,7 @@ function StepAddress({
   saved: Address[]
   value: string
   details: string
-  onChange: (address: string, details: string, totalRooms?: number, totalBathrooms?: number) => void
+  onChange: (address: string, details: string, totalRooms?: number, totalBathrooms?: number, housingType?: HousingType) => void
   t: TFn
 }) {
   const [manualMode, setManualMode] = useState(saved.length === 0)
@@ -477,7 +478,7 @@ function StepAddress({
             <button
               key={addr.id}
               type="button"
-              onClick={() => onChange(addr.address, addr.notes ?? '', addr.rooms ?? undefined, addr.bathrooms ?? undefined)}
+              onClick={() => onChange(addr.address, addr.notes ?? '', addr.rooms ?? undefined, addr.bathrooms ?? undefined, addr.housing_type ?? undefined)}
               class="w-full text-left bg-white rounded-xl p-4 border border-gray-200"
             >
               <p class="text-sm font-medium text-gray-900 truncate">{addr.address}</p>

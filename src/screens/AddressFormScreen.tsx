@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import type { Address, AddressPayload } from '../api/addresses'
+import type { Address, AddressPayload, HousingType } from '../api/addresses'
 import { reverseGeocode } from '../api/geocode'
 import { MapPicker } from '../components/MapPicker'
 import { useLocale } from '../i18n'
@@ -21,6 +21,9 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
     notes: initial?.notes ?? '',
     rooms: initial?.rooms ?? undefined,
     bathrooms: initial?.bathrooms ?? undefined,
+    housing_type: initial?.housing_type ?? undefined,
+    latitude: initial?.latitude ?? undefined,
+    longitude: initial?.longitude ?? undefined,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,6 +31,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
   const [geocoding, setGeocoding] = useState(false)
 
   async function handleLocationPick(lat: number, lon: number) {
+    setForm(prev => ({ ...prev, latitude: lat, longitude: lon }))
     setGeocoding(true)
     try {
       const resolved = await reverseGeocode(lat, lon)
@@ -47,9 +51,11 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
-    if (!form.address.trim()) {
-      setError(t('addr_required'))
-      return
+    if (!form.address.trim()) { setError(t('addr_required')); return }
+    if (form.housing_type === 'apt') {
+      if (!form.entrance?.trim()) { setError(t('addr_entrance_required')); return }
+      if (!form.floor?.trim()) { setError(t('addr_floor_required')); return }
+      if (!form.apartment?.trim()) { setError(t('addr_apt_required')); return }
     }
     setLoading(true)
     setError(null)
@@ -63,6 +69,9 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
         ...(form.notes?.trim() && { notes: form.notes.trim() }),
         ...(form.rooms != null && { rooms: form.rooms }),
         ...(form.bathrooms != null && { bathrooms: form.bathrooms }),
+        ...(form.housing_type && { housing_type: form.housing_type }),
+        ...(form.latitude != null && { latitude: form.latitude }),
+        ...(form.longitude != null && { longitude: form.longitude }),
       }
       await onSubmit(payload)
       onBack()
@@ -100,7 +109,11 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
           </div>
           {showMap && (
             <div class="flex flex-col gap-2">
-              <MapPicker onLocationPick={handleLocationPick} />
+              <MapPicker
+                onLocationPick={handleLocationPick}
+                initialLat={initial?.latitude}
+                initialLon={initial?.longitude}
+              />
               {geocoding && (
                 <p class="text-xs text-gray-400">{t('addr_geocoding')}</p>
               )}
@@ -117,34 +130,58 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
             />
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <Field
-            label={t('addr_entrance_label')}
-            placeholder={t('addr_entrance_placeholder')}
-            value={form.entrance ?? ''}
-            onChange={v => setField('entrance', v)}
-          />
-          <Field
-            label={t('addr_floor_label')}
-            placeholder={t('addr_floor_placeholder')}
-            value={form.floor ?? ''}
-            onChange={v => setField('floor', v)}
-          />
+        <div class="flex flex-col gap-2">
+          <label class="text-xs font-medium text-gray-500">{t('addr_housing_type')}</label>
+          <div class="flex gap-2">
+            {(['apt', 'house'] as HousingType[]).map(id => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, housing_type: prev.housing_type === id ? undefined : id }))}
+                class={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors ${
+                  form.housing_type === id
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-700'
+                }`}
+              >
+                {id === 'apt' ? t('housing_apt') : t('housing_house')}
+              </button>
+            ))}
+          </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <Field
-            label={t('addr_apt_label')}
-            placeholder={t('addr_apt_placeholder')}
-            value={form.apartment ?? ''}
-            onChange={v => setField('apartment', v)}
-          />
-          <Field
-            label={t('addr_intercom_label')}
-            placeholder={t('addr_intercom_placeholder')}
-            value={form.intercom ?? ''}
-            onChange={v => setField('intercom', v)}
-          />
-        </div>
+
+        {form.housing_type === 'apt' && (
+          <>
+            <div class="grid grid-cols-2 gap-3">
+              <Field
+                label={t('addr_entrance_label') + '*'}
+                placeholder={t('addr_entrance_placeholder')}
+                value={form.entrance ?? ''}
+                onChange={v => setField('entrance', v)}
+              />
+              <Field
+                label={t('addr_floor_label') + '*'}
+                placeholder={t('addr_floor_placeholder')}
+                value={form.floor ?? ''}
+                onChange={v => setField('floor', v)}
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <Field
+                label={t('addr_apt_label') + '*'}
+                placeholder={t('addr_apt_placeholder')}
+                value={form.apartment ?? ''}
+                onChange={v => setField('apartment', v)}
+              />
+              <Field
+                label={t('addr_intercom_label')}
+                placeholder={t('addr_intercom_placeholder')}
+                value={form.intercom ?? ''}
+                onChange={v => setField('intercom', v)}
+              />
+            </div>
+          </>
+        )}
 
         <div class="flex flex-col gap-3">
           <CounterField

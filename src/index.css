@@ -20,3 +20,22 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+.dark {
+  --color-white: #1c1c1e;
+  --color-gray-50: #1c1c1e;
+  --color-gray-100: #2c2c2e;
+  --color-gray-200: #3a3a3c;
+  --color-gray-300: #48484a;
+  --color-gray-400: #8e8e93;
+  --color-gray-500: #aeaeb2;
+  --color-gray-900: #f2f2f7;
+  --color-blue-50: #1a2e4a;
+  --color-blue-300: #5aabff;
+  --color-blue-400: #409cff;
+  --color-blue-500: #2f91ff;
+  --color-blue-600: #0a84ff;
+  --color-blue-700: #0071e3;
+  --color-green-100: #1a3a2a;
+  --color-red-500: #ff453a;
+}

@@ -1,10 +1,12 @@
 import { useState } from 'preact/hooks'
+import type { Theme } from '../hooks/useTheme'
 import type { User } from '../types'
 import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
 import { useAddresses } from '../hooks/useAddresses'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
+import { getTheme, setTheme } from '../hooks/useTheme'
 import { AddressFormScreen } from './AddressFormScreen'
 import { OrderScreen } from './OrderScreen'
 import { BottomBar } from '../components/BottomBar'
@@ -58,11 +60,6 @@ export function HomeScreen({ user }: Props) {
 
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
-      <div class="bg-white px-4 py-5 border-b border-gray-100">
-        <p class="text-xs text-gray-400 mb-0.5">{t('home_welcome')}</p>
-        <h1 class="text-lg font-semibold text-gray-900">{user.first_name}</h1>
-      </div>
-
       <div class="flex-1 overflow-y-auto">
         {tab === 'addresses' && (
           <AddressesTab
@@ -135,9 +132,10 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
               {addr.intercom && (
                 <p class="text-xs text-gray-400">{t('home_intercom', { n: addr.intercom })}</p>
               )}
-              {(addr.rooms != null || addr.bathrooms != null) && (
+              {(addr.rooms != null || addr.bathrooms != null || addr.housing_type) && (
                 <p class="text-xs text-gray-400 mt-0.5">
                   {[
+                    addr.housing_type && t(`housing_${addr.housing_type}`),
                     addr.rooms && `${addr.rooms} ${t('home_rooms_short')}`,
                     addr.bathrooms && `${addr.bathrooms} ${t('home_bathrooms_short')}`,
                   ].filter(Boolean).join(' · ')}
@@ -191,6 +189,14 @@ const LANGS: { id: Lang; flag: string }[] = [
 
 function SettingsTab({ user }: { user: User }) {
   const { t, lang, setLang } = useLocale()
+  const [theme, setThemeState] = useState(getTheme())
+
+  function toggleTheme() {
+    const next = theme === 'light' ? 'dark' : 'light'
+    setTheme(next)
+    setThemeState(next)
+  }
+
   return (
     <div class="px-4 py-5 flex flex-col gap-4">
       <div class="bg-white rounded-xl p-4 border border-gray-100">
@@ -218,6 +224,21 @@ function SettingsTab({ user }: { user: User }) {
               </span>
             </button>
           ))}
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl p-4 border border-gray-100">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium text-gray-900">
+            {theme === 'dark' ? '🌙' : '☀️'} {theme === 'dark' ? 'Тёмная тема' : 'Светлая тема'}
+          </span>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            style={`width:48px;height:28px;border-radius:14px;position:relative;transition:background 0.2s;background:${theme === 'dark' ? '#0a84ff' : '#d1d5db'}`}
+          >
+            <span style={`position:absolute;top:3px;width:22px;height:22px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left 0.2s;left:${theme === 'dark' ? '23px' : '3px'}`} />
+          </button>
         </div>
       </div>
     </div>
