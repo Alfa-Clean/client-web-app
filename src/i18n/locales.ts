@@ -199,6 +199,10 @@ const ru: Strings = {
   chat_load_error: 'Не удалось загрузить сообщения',
   chat_send_error: 'Не удалось отправить сообщение',
   chat_closed_error: 'Чат закрыт — заказ завершён',
+  chat_load_more: 'Загрузить предыдущие',
+  chat_loading_more: 'Загружаем...',
+  chat_media_too_large: 'Файл слишком большой (макс. 5 МБ)',
+  chat_media_wrong_type: 'Только JPG, PNG или WebP',
 }
 
 const uz: Strings = {
@@ -383,6 +387,10 @@ const uz: Strings = {
   chat_load_error: 'Xabarlarni yuklab bo\'lmadi',
   chat_send_error: 'Xabar yuborib bo\'lmadi',
   chat_closed_error: 'Chat yopiq — buyurtma yakunlandi',
+  chat_load_more: 'Oldingilarini yuklash',
+  chat_loading_more: 'Yuklanmoqda...',
+  chat_media_too_large: 'Fayl juda katta (maks. 5 MB)',
+  chat_media_wrong_type: 'Faqat JPG, PNG yoki WebP',
 }
 
 const en: Strings = {
@@ -567,6 +575,10 @@ const en: Strings = {
   chat_load_error: 'Failed to load messages',
   chat_send_error: 'Failed to send message',
   chat_closed_error: 'Chat closed — order is complete',
+  chat_load_more: 'Load previous',
+  chat_loading_more: 'Loading...',
+  chat_media_too_large: 'File too large (max 5 MB)',
+  chat_media_wrong_type: 'Only JPG, PNG or WebP allowed',
 }
 
 export const locales: Record<Lang, Strings> = { ru, uz, en }

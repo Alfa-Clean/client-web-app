@@ -34,3 +34,18 @@ export function sendMessage(
     body: JSON.stringify({ sender_type: 'client', sender_id: senderId, content }),
   })
 }
+
+export function sendMediaMessage(
+  orderId: string,
+  file: File,
+  senderId: string,
+): Promise<ChatMessage> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('sender_type', 'client')
+  form.append('sender_id', senderId)
+  return apiFetch<ChatMessage>(`/orders/${orderId}/messages/media`, {
+    method: 'POST',
+    body: form,
+  })
+}
