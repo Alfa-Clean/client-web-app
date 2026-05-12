@@ -432,39 +432,6 @@ function StepServiceType({
   )
 }
 
-// ─── Step: Housing Type ───────────────────────────────────────────────────────
-
-function StepHousingType({
-  value,
-  onChange,
-  t,
-}: {
-  value: HousingType
-  onChange: (v: HousingType) => void
-  t: TFn
-}) {
-  const types: { id: HousingType }[] = [{ id: 'apt' }, { id: 'house' }]
-  return (
-    <div class="px-4 py-5 flex flex-col gap-3">
-      {types.map(({ id }) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onChange(id)}
-          class={`w-full text-left p-4 rounded-2xl border-2 transition-colors ${
-            value === id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-          }`}
-        >
-          <p class={`text-sm font-semibold ${value === id ? 'text-blue-700' : 'text-gray-900'}`}>
-            {t(`housing_${id}`)}
-          </p>
-          <p class="text-xs text-gray-400 mt-0.5">{t(`housing_${id}_desc`)}</p>
-        </button>
-      ))}
-    </div>
-  )
-}
-
 // ─── Step: Address ────────────────────────────────────────────────────────────
 
 function StepAddress({

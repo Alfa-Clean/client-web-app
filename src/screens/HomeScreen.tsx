@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import type { Theme } from '../hooks/useTheme'
 import type { User } from '../types'
 import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
