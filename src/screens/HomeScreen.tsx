@@ -13,6 +13,7 @@ import { AddressFormScreen } from './AddressFormScreen'
 import { ExecutorScreen } from './ExecutorScreen'
 import { OrderScreen } from './OrderScreen'
 import { ChatScreen } from './ChatScreen'
+import { updateLanguage } from '../api/clients'
 import { BottomBar } from '../components/BottomBar'
 import type { Tab } from '../components/BottomBar'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -880,7 +881,7 @@ function SettingsTab({ user }: { user: User }) {
             <button
               key={id}
               type="button"
-              onClick={() => setLang(id)}
+              onClick={() => { setLang(id); updateLanguage(user.telegram_id, id).catch(() => {}) }}
               class={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-colors ${
                 lang === id
                   ? 'border-blue-500 bg-blue-50'
