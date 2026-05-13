@@ -1,8 +1,0 @@
-/auth/*       https://dev.tusamaker.uz/auth/:splat       200
-/clients/*    https://dev.tusamaker.uz/clients/:splat    200
-/orders/*     https://dev.tusamaker.uz/orders/:splat     200
-/addresses/*  https://dev.tusamaker.uz/addresses/:splat  200
-/addons/*     https://dev.tusamaker.uz/addons/:splat     200
-/executors/*  https://dev.tusamaker.uz/executors/:splat  200
-/geocode/*    https://dev.tusamaker.uz/geocode/:splat    200
-/*            /index.html                                200
