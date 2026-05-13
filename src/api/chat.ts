@@ -41,7 +41,7 @@ export function sendMediaMessage(
   senderId: string,
 ): Promise<ChatMessage> {
   const form = new FormData()
-  form.append('file', file)
+  form.append('file', new Blob([file], { type: file.type }), file.name)
   form.append('sender_type', 'client')
   form.append('sender_id', senderId)
   return apiFetch<ChatMessage>(`/orders/${orderId}/messages/media`, {
