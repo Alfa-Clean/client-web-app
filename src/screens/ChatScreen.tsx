@@ -34,6 +34,7 @@ export function ChatScreen({ orderId, executorId, executorName, senderId, readon
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [isReadonly, setIsReadonly] = useState(readonly)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -249,7 +250,11 @@ export function ChatScreen({ orderId, executorId, executorName, senderId, readon
       </div>
 
       {/* Messages */}
-      <div ref={listRef} class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
+      <div
+        ref={listRef}
+        onScroll={() => { if ((listRef.current?.scrollTop ?? 999) < 60) loadOlder() }}
+        class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2"
+      >
         {loading && (
           <div class="flex-1 flex items-center justify-center">
             <p class="text-sm text-gray-400">{t('btn_loading')}</p>
@@ -310,7 +315,13 @@ export function ChatScreen({ orderId, executorId, executorName, senderId, readon
                   )}
                   <div class={`max-w-[72%] px-4 py-2.5 rounded-2xl ${isClient ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm'}`}>
                     {msg.media_url && (
-                      <img src={msg.media_url} alt="" class="rounded-xl max-w-full mb-1" loading="lazy" />
+                      <img
+                        src={msg.media_url}
+                        alt=""
+                        class="rounded-xl max-w-full mb-1 cursor-zoom-in active:opacity-80 transition-opacity"
+                        loading="lazy"
+                        onClick={() => setLightboxUrl(msg.media_url!)}
+                      />
                     )}
                     {msg.content && (
                       <p class="text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.content}</p>
@@ -400,6 +411,28 @@ export function ChatScreen({ orderId, executorId, executorName, senderId, readon
       {isReadonly && (
         <div class="bg-gray-100 px-4 py-3 text-center shrink-0">
           <p class="text-xs text-gray-400">{t('chat_readonly_hint')}</p>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center animate-fade-in"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={lightboxUrl}
+            alt=""
+            class="max-w-full max-h-full object-contain select-none"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full text-white text-xl transition-colors"
+          >
+            ×
+          </button>
         </div>
       )}
     </div>
