@@ -11,7 +11,7 @@ import { CalendarPicker } from '../components/CalendarPicker'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ServiceType = 'standard' | 'general' | 'afterrepair'
+type ServiceType = 'standard' | 'general'
 type HousingType = 'apt' | 'house'
 
 type Step =
@@ -54,17 +54,14 @@ function calcPrice(
   const base: Record<ServiceType, number> = {
     standard: 100000,
     general: 150000,
-    afterrepair: 200000,
   }
   const perRoom: Record<ServiceType, number> = {
     standard: 30000,
     general: 50000,
-    afterrepair: 60000,
   }
   const perBath: Record<ServiceType, number> = {
     standard: 20000,
     general: 30000,
-    afterrepair: 40000,
   }
   const addonsTotal = addonsList
     .filter(a => selectedAddons.includes(a.id))
@@ -428,7 +425,7 @@ function StepServiceType({
   onChange: (v: ServiceType) => void
   t: TFn
 }) {
-  const types: ServiceType[] = ['standard', 'general', 'afterrepair']
+  const types: ServiceType[] = ['standard', 'general']
   return (
     <div class="px-4 py-5 flex flex-col gap-3">
       {types.map(type => (

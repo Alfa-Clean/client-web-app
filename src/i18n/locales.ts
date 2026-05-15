@@ -86,8 +86,6 @@ const ru: Strings = {
   svc_standard_desc: 'Регулярная поддерживающая уборка',
   svc_general: 'Генеральная уборка',
   svc_general_desc: 'Глубокая уборка с мытьём окон и техники',
-  svc_afterrepair: 'После ремонта',
-  svc_afterrepair_desc: 'Уборка после ремонта и строительства',
 
   // Housing types
   housing_apt: 'Квартира',
@@ -282,8 +280,6 @@ const uz: Strings = {
   svc_standard_desc: 'Muntazam qo\'llab-quvvatlash tozalash',
   svc_general: 'Bosh tozalash',
   svc_general_desc: 'Deraza va texnikani yuvish bilan chuqur tozalash',
-  svc_afterrepair: 'Ta\'mirdan keyin',
-  svc_afterrepair_desc: 'Ta\'mirlash va qurilishdan keyingi tozalash',
 
   housing_apt: 'Kvartira',
   housing_apt_desc: 'Apartament, studiya, xona',
@@ -470,8 +466,6 @@ const en: Strings = {
   svc_standard_desc: 'Regular maintenance cleaning',
   svc_general: 'Deep cleaning',
   svc_general_desc: 'Deep clean with windows and appliances',
-  svc_afterrepair: 'Post-renovation',
-  svc_afterrepair_desc: 'Cleaning after renovation and construction',
 
   housing_apt: 'Apartment',
   housing_apt_desc: 'Apartment, studio, room',
