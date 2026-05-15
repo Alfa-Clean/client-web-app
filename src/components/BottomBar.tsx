@@ -24,7 +24,7 @@ export function BottomBar({ active, onChange }: Props) {
           key={tab.id}
           type="button"
           onClick={() => onChange(tab.id)}
-          class={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
+          class={`flex-1 flex flex-col items-center gap-1 py-4 transition-colors ${
             active === tab.id ? 'text-blue-600' : 'text-gray-400'
           }`}
         >
