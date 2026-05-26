@@ -6,7 +6,8 @@ interface Props {
   message: ComponentChildren
   confirmLabel: string
   cancelLabel: string
-  confirmVariant?: 'danger' | 'primary'
+  confirmVariant?: 'danger' | 'primary' | 'normal'
+  cancelVariant?: 'danger' | 'normal'
   onConfirm: () => void
   onCancel: () => void
 }
@@ -18,6 +19,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   confirmVariant = 'primary',
+  cancelVariant = 'normal',
   onConfirm,
   onCancel,
 }: Props) {
@@ -42,17 +44,23 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            class="flex-1 py-3.5 text-sm font-medium text-gray-600 border-r border-gray-100 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            class={`flex-1 py-3.5 text-sm border-r border-gray-100 transition-colors ${
+              cancelVariant === 'danger'
+                ? 'font-bold text-red-600 hover:bg-red-50 active:bg-red-100'
+                : 'font-medium text-gray-600 hover:bg-gray-50 active:bg-gray-100'
+            }`}
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            class={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
+            class={`flex-1 py-3.5 text-sm transition-colors ${
               confirmVariant === 'danger'
-                ? 'text-red-600 hover:bg-red-50 active:bg-red-100'
-                : 'text-blue-600 hover:bg-blue-50 active:bg-blue-100'
+                ? 'font-semibold text-red-600 hover:bg-red-50 active:bg-red-100'
+                : confirmVariant === 'normal'
+                ? 'font-medium text-gray-900 hover:bg-gray-50 active:bg-gray-100'
+                : 'font-semibold text-blue-600 hover:bg-blue-50 active:bg-blue-100'
             }`}
           >
             {confirmLabel}

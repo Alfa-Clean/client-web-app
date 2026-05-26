@@ -5,6 +5,8 @@ export interface Addon {
   name_ru: string
   name_uz?: string
   price: number
+  category_ru?: string
+  category_uz?: string
 }
 
 export function getAddons(): Promise<Addon[]> {

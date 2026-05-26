@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import type { JSX } from 'preact'
+import type { ComponentType } from 'preact'
+import {
+  Clock, User as UserIcon, Car, DoorOpen, Sparkles, CheckCircle2, PartyPopper,
+  MapPin, CalendarDays, Banknote, MessageCircle, Star, Home, ClipboardCheck,
+  Moon, Sun,
+} from 'lucide-react'
 import type { User } from '../types'
 import type { Address, AddressPayload } from '../api/addresses'
 import { createAddress, deleteAddress, updateAddress } from '../api/addresses'
@@ -13,6 +20,7 @@ import { AddressFormScreen } from './AddressFormScreen'
 import { ExecutorScreen } from './ExecutorScreen'
 import { OrderScreen } from './OrderScreen'
 import { ChatScreen } from './ChatScreen'
+import { HouseOrderStatusScreen } from './HouseOrderStatusScreen'
 import { updateLanguage } from '../api/clients'
 import { BottomBar } from '../components/BottomBar'
 import type { Tab } from '../components/BottomBar'
@@ -25,6 +33,7 @@ type View =
   | { name: 'new_order' }
   | { name: 'executor'; executorId: string }
   | { name: 'order_detail'; order: Order }
+  | { name: 'house_order'; order: Order }
   | { name: 'chat'; orderId: string; executorId: string | null; executorName: string; senderId: string; readonly: boolean }
 
 interface Props {
@@ -86,6 +95,28 @@ export function HomeScreen({ user }: Props) {
     )
   }
 
+  if (view.name === 'house_order') {
+    return (
+      <HouseOrderStatusScreen
+        order={view.order}
+        onBack={() => setView({ name: 'list' })}
+        onChatClick={() =>
+          setView({
+            name: 'chat',
+            orderId: view.order.id,
+            executorId: view.order.foreman_id ?? null,
+            executorName: view.order.foreman_name ?? '—',
+            senderId: String(user.telegram_id),
+            readonly: false,
+          })
+        }
+        onOrderCancelled={() => setView({ name: 'list' })}
+        onOrderAccepted={() => setView({ name: 'list' })}
+        onOrderUpdated={updated => setView({ name: 'house_order', order: updated })}
+      />
+    )
+  }
+
   if (view.name === 'chat') {
     return (
       <ChatScreen
@@ -120,6 +151,7 @@ export function HomeScreen({ user }: Props) {
             telegramId={user.telegram_id}
             onNewOrder={() => setView({ name: 'new_order' })}
             onExecutorClick={id => setView({ name: 'executor', executorId: id })}
+            onHouseOrderClick={order => setView({ name: 'house_order', order })}
             onChatClick={(orderId, executorId, executorName) =>
               setView({ name: 'chat', orderId, executorId, executorName, senderId: String(user.telegram_id), readonly: false })
             }
@@ -226,7 +258,8 @@ function AddressesTab({ state, onAdd, onEdit, onDelete }: AddressesTabProps) {
   )
 }
 
-const ACTIVE_STATUSES = new Set(['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
+const HOUSE_ACTIVE_STATUSES = new Set(['assessment', 'price_submitted', 'price_rejected', 'team_formation'])
+const ACTIVE_STATUSES = new Set(['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', ...HOUSE_ACTIVE_STATUSES])
 
 const STATUS_TIMELINE = ['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', 'completed']
 
@@ -242,19 +275,19 @@ function timeAgo(isoStr: string, t: TFn): string {
   return t('time_ago_day', { n: String(Math.floor(diff / 86400)) })
 }
 
-const STATUS_ICON: Record<string, string> = {
-  new: '🕐',
-  assigned: '👤',
-  on_the_way: '🚗',
-  arrived: '🚪',
-  in_progress: '🧹',
-  awaiting_confirmation: '✅',
-  completed: '🎉',
+const STATUS_ICON: Record<string, ComponentType<{ size?: number; color?: string }>> = {
+  new: Clock,
+  assigned: UserIcon,
+  on_the_way: Car,
+  arrived: DoorOpen,
+  in_progress: Sparkles,
+  awaiting_confirmation: CheckCircle2,
+  completed: PartyPopper,
 }
 
 const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
 
-function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void; onChatClick: (orderId: string, executorId: string | null, executorName: string) => void }) {
+function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onHouseOrderClick, onChatClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void; onHouseOrderClick: (order: Order) => void; onChatClick: (orderId: string, executorId: string | null, executorName: string) => void }) {
   const { t, lang } = useLocale()
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
   const [ratingOrderId, setRatingOrderId] = useState<string | null>(null)
@@ -406,6 +439,25 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
     )
   }
 
+  if (activeOrder.housing_type === 'house' || HOUSE_ACTIVE_STATUSES.has(activeOrder.status)) {
+    return (
+      <div class="flex-1 flex flex-col">
+        <div class="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3 pb-24">
+          <HouseOrderCard order={activeOrder} onOpen={() => onHouseOrderClick(activeOrder)} t={t} />
+        </div>
+        <div class="px-4 pb-6">
+          <button
+            type="button"
+            onClick={onNewOrder}
+            class="w-full border-2 border-blue-600 text-blue-600 font-medium py-3.5 rounded-xl transition-all active:scale-95 text-sm hover:bg-blue-50"
+          >
+            {t('home_order_now')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const statusIdx = STATUS_TIMELINE.indexOf(activeOrder.status)
 
   return (
@@ -426,7 +478,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
             <p class="text-blue-300 text-xs">{timeAgo(activeOrder.created_at, t)}</p>
           </div>
           <div class="flex items-center gap-3">
-            <span class="text-4xl leading-none">{STATUS_ICON[activeOrder.status] ?? '🧹'}</span>
+            {(() => { const Icon = STATUS_ICON[activeOrder.status] ?? Sparkles; return <Icon size={40} color="white" /> })()}
             <div>
               <p class="text-white text-lg font-semibold leading-tight">
                 {t(statusKey(activeOrder.status)) || activeOrder.status}
@@ -440,7 +492,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
                   onClick={() => onExecutorClick(activeOrder.executor_id!)}
                   class="text-blue-100 text-xs mt-1 font-medium underline underline-offset-2 text-left"
                 >
-                  👤 {activeOrder.executor_name} →
+                  <UserIcon size={12} class="inline mr-0.5" /> {activeOrder.executor_name} →
                 </button>
               )}
             </div>
@@ -474,11 +526,11 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
         {/* Order details */}
         <div class="border-t border-gray-100 divide-y divide-gray-50">
           <div class="flex items-start gap-3 px-5 py-3">
-            <span class="text-base leading-none mt-0.5">📍</span>
+            <MapPin size={16} class="text-gray-400 mt-0.5 shrink-0" />
             <p class="text-sm text-gray-700 flex-1">{activeOrder.address}</p>
           </div>
           <div class="flex items-center gap-3 px-5 py-3">
-            <span class="text-base leading-none">📅</span>
+            <CalendarDays size={16} class="text-gray-400 shrink-0" />
             <p class="text-sm text-gray-700">
               {new Date(activeOrder.order_date).toLocaleDateString(LOCALE_MAP[lang], { day: 'numeric', month: 'long' })}
               {activeOrder.order_slot ? `, ${activeOrder.order_slot}` : ''}
@@ -486,7 +538,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
           </div>
           <div class="flex items-center justify-between px-5 py-3">
             <div class="flex items-center gap-3">
-              <span class="text-base leading-none">💰</span>
+              <Banknote size={16} class="text-gray-400 shrink-0" />
               <p class="text-sm text-gray-700">{t('confirm_total')}</p>
             </div>
             <p class="text-sm font-semibold text-gray-900">{activeOrder.price.toLocaleString()} {t('currency')}</p>
@@ -499,7 +551,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onChatClick }: { t
             onClick={() => onChatClick(activeOrder.id, activeOrder.executor_id ?? null, activeOrder.executor_name!)}
             class="w-full border-t border-gray-100 py-3.5 text-sm font-medium text-blue-600 flex items-center justify-center gap-2 hover:bg-blue-50 active:bg-blue-100 transition-colors"
           >
-            💬 {t('chat_contact_cleaner')}
+            <MessageCircle size={16} /> {t('chat_contact_cleaner')}
           </button>
         )}
 
@@ -543,7 +595,7 @@ function TopToast({ message }: { message: string }) {
   return (
     <div class="fixed top-4 left-4 right-4 z-50 flex justify-center pointer-events-none animate-toast-top-in">
       <div class="bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
-        <span>✅</span>
+        <CheckCircle2 size={16} class="text-white" />
         <span>{message}</span>
       </div>
     </div>
@@ -599,10 +651,13 @@ function RatingSheet({ orderId: _orderId, onDone }: { orderId: string; onDone: (
                 onClick={() => setScore(n)}
                 onMouseEnter={() => setHovered(n)}
                 onMouseLeave={() => setHovered(0)}
-                class={`text-4xl leading-none transition-colors active:scale-90 ${justSelected ? 'animate-star-pop' : ''}`}
-                style={{ color: active ? '#f59e0b' : '#d1d5db' }}
+                class={`transition-transform active:scale-90 ${justSelected ? 'animate-star-pop' : ''}`}
               >
-                ★
+                <Star
+                  size={36}
+                  fill={active ? '#f59e0b' : 'none'}
+                  color={active ? '#f59e0b' : '#d1d5db'}
+                />
               </button>
             )
           })}
@@ -631,6 +686,41 @@ function RatingSheet({ orderId: _orderId, onDone }: { orderId: string; onDone: (
         </button>
       </div>
     </div>
+  )
+}
+
+const HOUSE_STATUS_LABEL: Record<string, string> = {
+  new: '🔍',
+  assessment: '🚗',
+  price_submitted: '💰',
+  price_rejected: '↩️',
+  team_formation: '👷',
+}
+
+function HouseOrderCard({ order, onOpen, t }: { order: Order; onOpen: () => void; t: TFn }) {
+  const label = HOUSE_STATUS_LABEL[order.status] ?? '🏠'
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      class="w-full bg-white rounded-2xl border border-gray-100 overflow-hidden text-left active:scale-[0.99] transition-all"
+    >
+      <div class="px-5 pt-5 pb-4" style="background: #44973A">
+        <p class="text-white/70 text-xs mb-1">
+          {t('history_order', { num: String(order.order_num) })}
+        </p>
+        <p class="text-white text-base font-bold">
+          {label} {t(('status_' + order.status) as keyof Strings) || order.status}
+        </p>
+        {order.foreman_name && (
+          <p class="text-white/80 text-xs mt-1">{order.foreman_name}</p>
+        )}
+      </div>
+      <div class="px-5 py-3 flex items-center justify-between">
+        <p class="text-sm text-gray-600 truncate flex-1">{order.address}</p>
+        <span class="text-gray-400 text-lg ml-2">›</span>
+      </div>
+    </button>
   )
 }
 
@@ -672,21 +762,21 @@ function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBac
       <div class="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-3">
         {/* Service summary */}
         <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-          <DetailRow icon="🧹" label={t('confirm_service')} value={t(`svc_${order.service_type}`) || order.service_type} />
-          <DetailRow icon="📍" label={t('confirm_address')} value={order.address} />
+          <DetailRow icon={<Sparkles size={16} />} label={t('confirm_service')} value={t(`svc_${order.service_type}`) || order.service_type} />
+          <DetailRow icon={<MapPin size={16} />} label={t('confirm_address')} value={order.address} />
           <DetailRow
-            icon="📅"
+            icon={<CalendarDays size={16} />}
             label={t('confirm_date')}
             value={`${formatOrderDate(order.order_date, lang)}${order.order_slot ? `, ${order.order_slot}` : ''}`}
           />
           <DetailRow
-            icon="🏠"
+            icon={<Home size={16} />}
             label={t('confirm_rooms')}
             value={`${t('history_rooms', { n: String(order.rooms) })} · ${t('history_bathrooms', { n: String(order.bathrooms) })}`}
           />
           <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-3">
-              <span class="text-base leading-none">💰</span>
+              <Banknote size={16} class="text-gray-400 shrink-0" />
               <p class="text-sm text-gray-500">{t('confirm_total')}</p>
             </div>
             <p class="text-sm font-semibold text-gray-900">{order.price.toLocaleString()} {t('currency')}</p>
@@ -697,13 +787,13 @@ function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBac
         {(order.executor_name || addonNames.length > 0 || order.comment) && (
           <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
             {order.executor_name && (
-              <DetailRow icon="👤" label={t('history_executor')} value={order.executor_name} />
+              <DetailRow icon={<UserIcon size={16} />} label={t('history_executor')} value={order.executor_name} />
             )}
             {addonNames.length > 0 && (
-              <DetailRow icon="✨" label={t('confirm_addons')} value={addonNames.join(', ')} />
+              <DetailRow icon={<Sparkles size={16} />} label={t('confirm_addons')} value={addonNames.join(', ')} />
             )}
             {order.comment && (
-              <DetailRow icon="💬" label={t('history_comment_label')} value={order.comment} />
+              <DetailRow icon={<MessageCircle size={16} />} label={t('history_comment_label')} value={order.comment} />
             )}
           </div>
         )}
@@ -715,7 +805,7 @@ function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBac
             onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name!)}
             class="w-full bg-white rounded-2xl border border-gray-100 px-4 py-3.5 flex items-center gap-3 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
           >
-            <span class="text-xl leading-none">💬</span>
+            <MessageCircle size={20} class="text-blue-600 shrink-0" />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900">{t('chat_history_section')}</p>
               <p class="text-xs text-gray-400">{t('chat_history_hint')}</p>
@@ -730,7 +820,12 @@ function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBac
             <p class="text-xs text-gray-400 mb-2">{t('history_rating_label')}</p>
             <div class="flex gap-1 mb-2">
               {[1,2,3,4,5].map(n => (
-                <span key={n} style={{ color: n <= order.rating!.score ? '#f59e0b' : '#e5e7eb' }} class="text-2xl leading-none">★</span>
+                <Star
+                  key={n}
+                  size={22}
+                  fill={n <= order.rating!.score ? '#f59e0b' : 'none'}
+                  color={n <= order.rating!.score ? '#f59e0b' : '#e5e7eb'}
+                />
               ))}
             </div>
             {order.rating.comment && (
@@ -743,10 +838,10 @@ function OrderDetailScreen({ order, onBack, onChatClick }: { order: Order; onBac
   )
 }
 
-function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function DetailRow({ icon, label, value }: { icon: JSX.Element; label: string; value: string }) {
   return (
     <div class="flex items-start gap-3 px-4 py-3">
-      <span class="text-base leading-none mt-0.5">{icon}</span>
+      <span class="text-gray-400 mt-0.5 shrink-0">{icon}</span>
       <div class="flex-1 min-w-0">
         <p class="text-xs text-gray-400 mb-0.5">{label}</p>
         <p class="text-sm text-gray-800 break-words">{value}</p>
@@ -899,8 +994,9 @@ function SettingsTab({ user }: { user: User }) {
 
       <div class="bg-white rounded-xl p-4 border border-gray-100">
         <div class="flex items-center justify-between">
-          <span class="text-sm font-medium text-gray-900">
-            {theme === 'dark' ? '🌙' : '☀️'} {theme === 'dark' ? 'Тёмная тема' : 'Светлая тема'}
+          <span class="text-sm font-medium text-gray-900 flex items-center gap-2">
+            {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
+            {theme === 'dark' ? 'Тёмная тема' : 'Светлая тема'}
           </span>
           <button
             type="button"

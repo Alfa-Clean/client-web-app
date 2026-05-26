@@ -1,6 +1,7 @@
 interface Env {
   ASSETS: Fetcher
   BACKEND_URL: string
+  SERVICE_KEY?: string
 }
 
 export default {
@@ -12,9 +13,14 @@ export default {
       const backendPath = url.pathname.slice(4) // strip /api
       const backendUrl = target + backendPath + url.search
 
+      const headers = new Headers(request.headers)
+      if (env.SERVICE_KEY) {
+        headers.set('X-Service-Key', env.SERVICE_KEY)
+      }
+
       const proxied = new Request(backendUrl, {
         method: request.method,
-        headers: request.headers,
+        headers,
         body: request.body,
         redirect: 'follow',
       })

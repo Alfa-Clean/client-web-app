@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
+import { Star, Sparkles, MapPin, Check } from 'lucide-react'
 import type { Executor, ExecutorRatings } from '../api/executors'
 import { getExecutor, getExecutorRatings } from '../api/executors'
 import { useExitBack } from '../hooks/useExitBack'
@@ -10,9 +11,14 @@ interface Props {
 
 function Stars({ score }: { score: number }) {
   return (
-    <span>
+    <span class="flex gap-0.5">
       {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} class={i <= Math.round(score) ? 'text-yellow-400' : 'text-gray-200'}>★</span>
+        <Star
+          key={i}
+          size={14}
+          fill={i <= Math.round(score) ? '#f59e0b' : 'none'}
+          color={i <= Math.round(score) ? '#f59e0b' : '#e5e7eb'}
+        />
       ))}
     </span>
   )
@@ -62,7 +68,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
               />
             ) : (
               <div class="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
-                <span class="text-3xl">🧹</span>
+                <Sparkles size={32} class="text-blue-400" />
               </div>
             )}
             <div class="flex-1 min-w-0">
@@ -83,7 +89,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
                   ? 'bg-green-100 text-green-700'
                   : 'bg-gray-100 text-gray-500'
               }`}>
-                {executor.verification_status === 'verified' ? '✓ Проверен' : 'На проверке'}
+                {executor.verification_status === 'verified' ? <><Check size={11} class="inline mr-0.5" />Проверен</> : 'На проверке'}
               </span>
             </div>
           </div>
@@ -107,8 +113,8 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
                 <p class="text-xs text-gray-400 mb-1.5">Районы работы</p>
                 <div class="flex flex-wrap gap-1.5">
                   {executor.districts.map(d => (
-                    <span key={d} class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">
-                      📍 {d}
+                    <span key={d} class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                      <MapPin size={11} /> {d}
                     </span>
                   ))}
                 </div>

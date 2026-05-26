@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { MessageCircle } from "lucide-react";
 import type { ChatMessage } from "../api/chat";
 import { getMessages, sendMediaMessage, sendMessage } from "../api/chat";
 import { getExecutor } from "../api/executors";
@@ -323,7 +324,7 @@ export function ChatScreen({
 
         {!loading && messages.length === 0 && (
           <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center py-16">
-            <p class="text-4xl leading-none">💬</p>
+            <MessageCircle size={48} class="text-gray-300" />
             <p class="text-sm text-gray-400 mt-2">{t("chat_empty")}</p>
           </div>
         )}

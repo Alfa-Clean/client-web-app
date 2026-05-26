@@ -1,3 +1,5 @@
+import type { JSX } from 'preact'
+import { Sparkles, ClipboardList, MapPin, Settings } from 'lucide-react'
 import { useLocale } from '../i18n'
 
 type Tab = 'orders' | 'history' | 'addresses' | 'settings'
@@ -10,11 +12,11 @@ interface Props {
 export function BottomBar({ active, onChange }: Props) {
   const { t } = useLocale()
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'orders',    label: t('tab_orders'),    icon: '🧹' },
-    { id: 'history',   label: t('tab_history'),   icon: '📋' },
-    { id: 'addresses', label: t('tab_addresses'), icon: '📍' },
-    { id: 'settings',  label: t('tab_settings'),  icon: '⚙️' },
+  const tabs: { id: Tab; label: string; icon: JSX.Element }[] = [
+    { id: 'orders',    label: t('tab_orders'),    icon: <Sparkles size={20} /> },
+    { id: 'history',   label: t('tab_history'),   icon: <ClipboardList size={20} /> },
+    { id: 'addresses', label: t('tab_addresses'), icon: <MapPin size={20} /> },
+    { id: 'settings',  label: t('tab_settings'),  icon: <Settings size={20} /> },
   ]
 
   return (
@@ -28,7 +30,7 @@ export function BottomBar({ active, onChange }: Props) {
             active === tab.id ? 'text-blue-600' : 'text-gray-400'
           }`}
         >
-          <span class="text-xl leading-none">{tab.icon}</span>
+          <span class="leading-none">{tab.icon}</span>
           <span class="text-[10px] font-medium">{tab.label}</span>
         </button>
       ))}

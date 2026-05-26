@@ -5,6 +5,7 @@ export type HousingType = 'apt' | 'house'
 export interface Address {
   id: string
   telegram_id: number
+  label?: string | null
   address: string
   entrance?: string | null
   floor?: string | null
@@ -21,6 +22,7 @@ export interface Address {
 }
 
 export interface AddressPayload {
+  label?: string
   address: string
   entrance?: string
   floor?: string

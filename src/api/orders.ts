@@ -6,11 +6,18 @@ export interface OrderRating {
   created_at: string
 }
 
+export interface TeamMember {
+  id: string
+  name: string
+  role: 'foreman' | 'cleaner'
+}
+
 export interface Order {
   id: string
   order_num: number
   status: string
   service_type: string
+  housing_type?: 'apt' | 'house'
   rooms: number
   bathrooms: number
   price: number
@@ -23,6 +30,16 @@ export interface Order {
   executor_name?: string | null
   comment?: string | null
   rating?: OrderRating | null
+  // House order fields
+  foreman_id?: string | null
+  foreman_name?: string | null
+  foreman_rating?: number | null
+  submitted_price?: number | null
+  price_comment?: string | null
+  previous_price?: number | null
+  team_members?: TeamMember[]
+  foreman_total?: number | null
+  cleaner_total?: number | null
 }
 
 export interface OrderPayload {
@@ -37,6 +54,7 @@ export interface OrderPayload {
   order_slot: string
   source: 'bot'
   addons: string[]
+  comment?: string
 }
 
 export function createOrder(data: OrderPayload): Promise<Order> {
@@ -54,6 +72,17 @@ export function acceptOrder(orderId: string): Promise<Order> {
   return apiFetch<Order>(`/orders/${orderId}/client-confirm`, { method: 'POST' })
 }
 
+export function confirmPrice(orderId: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/confirm-price`, { method: 'POST', body: '{}' })
+}
+
+export function rejectPrice(orderId: string, counterPrice?: number): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/reject-price`, {
+    method: 'POST',
+    body: JSON.stringify({ counter_price: counterPrice ?? null }),
+  })
+}
+
 export function rateOrder(orderId: string, score: number, comment?: string): Promise<void> {
   return apiFetch<void>(`/orders/${orderId}/rate`, {
     method: 'POST',
@@ -64,5 +93,26 @@ export function rateOrder(orderId: string, score: number, comment?: string): Pro
 export function getUserOrders(telegramId: number): Promise<{ items: Order[]; total: number }> {
   return apiFetch<{ items: Order[]; total: number }>(
     `/orders?telegram_id=${telegramId}&limit=20&offset=0`,
+  )
+}
+
+export function submitPrice(orderId: string, price: number, comment: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/submit-price`, {
+    method: 'POST',
+    body: JSON.stringify({ price, comment }),
+  })
+}
+
+export function startCleaning(orderId: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/start-cleaning`, { method: 'POST', body: '{}' })
+}
+
+export function finishCleaning(orderId: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/finish-cleaning`, { method: 'POST', body: '{}' })
+}
+
+export function getBrigadierOrders(executorId: string): Promise<{ items: Order[]; total: number }> {
+  return apiFetch<{ items: Order[]; total: number }>(
+    `/orders?executor_id=${executorId}&limit=50&offset=0`,
   )
 }

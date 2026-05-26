@@ -2,6 +2,18 @@
 import { useState } from 'preact/hooks'
 import { getTheme, setTheme } from '../hooks/useTheme'
 import { MapPicker } from '../components/MapPicker'
+import { AddonPicker } from '../components/AddonPicker'
+import { AddressOption } from '../components/AddressOption'
+import { ChistomatyOrderBanner } from './HubScreen'
+import type { ChistomatyOrder } from './ActiveChistomatyScreen'
+import {
+  ViewA1, ViewA2, ViewA3, ViewA4, ViewA5, ViewA6, ViewA7,
+} from './HouseOrderStatusScreen'
+import {
+  B1_Assessment, B2_PriceSubmitted, B3_PriceRejected,
+  B4_TeamFormation, B5_InProgress, B6_Awaiting,
+} from './BrigadierOrderScreen'
+import type { Order } from '../api/orders'
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
@@ -158,12 +170,27 @@ function ServiceCardSmall({ label, image, soon = false }: { label: string; image
 
 // ─── Address Chip ─────────────────────────────────────────────────────────────
 
-function AddressChip({ address, active = false }: { address: string; active?: boolean }) {
+function AddressChip({ address, active = false, housingType = 'apt' }: { address: string; active?: boolean; housingType?: 'apt' | 'house' }) {
   return (
     <div class={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors ${
       active ? 'bg-[#E0F3DC] border border-[#44973A]/30' : 'bg-gray-100 border border-transparent'
     }`}>
-      <span class="text-lg leading-none shrink-0">🏠</span>
+      <span class={`shrink-0 ${active ? 'text-[#44973A]' : 'text-gray-400'}`}>
+        {housingType === 'house' ? (
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M2 8.5L9 2l7 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 7v8h10V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="6.5" y="11" width="5" height="4" rx="0.5" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M6 2v14" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/>
+            <path d="M12 2v14" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/>
+            <path d="M2 7h14M2 12h14" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/>
+          </svg>
+        )}
+      </span>
       <p class={`text-sm font-medium truncate ${active ? 'text-[#2D6126]' : 'text-gray-700'}`}>
         {address}
       </p>
@@ -524,6 +551,31 @@ export function UIKitScreen() {
 
         <Divider />
 
+        {/* ── CHISTOMATY BANNER ── */}
+        <Section title="Chistomaty Banner · Баннер активного заказа Чистоматы">
+          {(() => {
+            const MOCK: Record<ChistomatyOrder['status'], ChistomatyOrder> = {
+              received:  { id: '1', order_num: 42, status: 'received',  postamat_address: 'ТЦ Samarqand Darvoza, 1 этаж', created_at: '', items_count: 5, price: 95000, estimated_ready: '23 мая, 14:00' },
+              washing:   { id: '2', order_num: 43, status: 'washing',   postamat_address: 'ул. Навои, 30',                 created_at: '', items_count: 3, price: 60000, estimated_ready: '23 мая, 16:00' },
+              drying:    { id: '3', order_num: 44, status: 'drying',    postamat_address: 'ТЦ Komplex, вход со двора',     created_at: '', items_count: 3, price: 60000, estimated_ready: '23 мая, 18:00' },
+              ready:     { id: '4', order_num: 45, status: 'ready',     postamat_address: 'Юнусабад, 19-квартал, 8',       created_at: '', items_count: 4, price: 80000 },
+              collected: { id: '5', order_num: 46, status: 'collected', postamat_address: 'ТЦ Samarqand Darvoza, 1 этаж', created_at: '', items_count: 5, price: 95000 },
+            }
+            return (
+              <div class="flex flex-col gap-3">
+                {(Object.keys(MOCK) as ChistomatyOrder['status'][]).map(status => (
+                  <div key={status}>
+                    <p class="text-[10px] text-gray-400 mb-2 capitalize">{status}</p>
+                    <ChistomatyOrderBanner order={MOCK[status]} onClick={() => {}} />
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </Section>
+
+        <Divider />
+
         {/* ── ORDER HISTORY ── */}
         <Section title="Order History · История заказов">
           <div class="flex flex-col gap-2">
@@ -558,11 +610,82 @@ export function UIKitScreen() {
           <div class="flex flex-col gap-2">
             <AddressChip address="Карасу-2, 39" active />
             <AddressChip address="ул. Насирходжа, 72" />
+            <AddressChip address="Юнусабад, 19-квартал, 8" housingType="house" />
             <div class="flex items-center gap-3 px-4 py-3 rounded-2xl border-2 border-dashed border-gray-200">
               <span class="text-lg leading-none">+</span>
               <p class="text-sm text-gray-400">Добавить адрес</p>
             </div>
           </div>
+        </Section>
+
+        <Divider />
+
+        {/* ── ADDRESS OPTION ── */}
+        <Section title="Address Option · Опция адреса">
+          <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <AddressOption address="Карасу-2, д. 39" label="Дом" housingType="apt" active onClick={() => {}} />
+            <AddressOption address="ул. Насирходжа, 72" label="Работа" housingType="apt" onClick={() => {}} />
+            <AddressOption address="Юнусабад, 19-квартал, 8" housingType="house" onClick={() => {}} />
+          </div>
+        </Section>
+
+        <Divider />
+
+        {/* ── ADDRESS DROPDOWN ── */}
+        <Section title="Address Dropdown · Выбор адреса">
+          {(() => {
+            const MOCK_ADDRESSES = [
+              { id: 'a1', address: 'Карасу-2, д. 39', label: 'Дом', housing_type: 'apt' as const },
+              { id: 'a2', address: 'ул. Насирходжа, 72', label: 'Работа', housing_type: 'apt' as const },
+              { id: 'a3', address: 'Юнусабад, 19-квартал, 8', label: null, housing_type: 'house' as const },
+            ]
+            const [open, setOpen] = useState(false)
+            const [selected, setSelected] = useState<typeof MOCK_ADDRESSES[0] | null>(null)
+            return (
+              <div class="flex flex-col gap-6">
+                <div>
+                  <p class="text-[10px] text-gray-400 mb-2">Пустой (адрес не выбран)</p>
+                  <div class="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpen(v => !v)}
+                      class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${open ? 'border-[#44973A]' : 'border-gray-200'}`}
+                    >
+                      <p class="text-sm text-gray-400">{selected ? selected.address : 'Адрес'}</p>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class={`shrink-0 ml-2 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>
+                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    {open && (
+                      <>
+                        <div class="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+                        <div class="absolute left-0 right-0 top-[calc(100%+6px)] z-20 bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+                          {MOCK_ADDRESSES.map(addr => (
+                            <AddressOption
+                              key={addr.id}
+                              address={addr.address}
+                              label={addr.label}
+                              housingType={addr.housing_type}
+                              active={selected?.id === addr.id}
+                              onClick={() => { setSelected(addr); setOpen(false) }}
+                            />
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setOpen(false)}
+                            class="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors border-t border-gray-100"
+                          >
+                            <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-gray-500 text-sm font-light">+</div>
+                            <p class="text-sm font-medium text-gray-500">Создать новый адрес</p>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
         </Section>
 
         <Divider />
@@ -607,6 +730,54 @@ export function UIKitScreen() {
 
         <Divider />
 
+        {/* ── HOUSE ORDER FLOW ── */}
+        {(() => {
+          const BASE: Order = {
+            id: 'h1', order_num: 42, status: 'new', service_type: 'standard',
+            housing_type: 'house', rooms: 0, bathrooms: 0, price: 320000,
+            address: 'Юнусабад, 19-квартал, д. 8', order_date: '2026-05-26',
+            order_slot: '09:00–12:00', addons: [], created_at: '',
+            foreman_name: 'Амаль Зафаров', foreman_rating: 4.8,
+            submitted_price: 320000, price_comment: 'Уборка 3 комнат, кухня, 2 санузла. Включены все поверхности.',
+            team_members: [
+              { id: 'f', name: 'Амаль Зафаров', role: 'foreman' },
+              { id: 'c1', name: 'Малика Юсупова', role: 'cleaner' },
+              { id: 'c2', name: 'Нилуфар Алиева', role: 'cleaner' },
+            ],
+          }
+          const NOOP = () => {}
+          const views: { label: string; screen: string; order: Order }[] = [
+            { label: 'A1 — Поиск бригадира', screen: 'new', order: { ...BASE, status: 'new' } },
+            { label: 'A2 — Бригадир едет', screen: 'assessment', order: { ...BASE, status: 'assessment' } },
+            { label: 'A3 — Подтверждение цены ⭐', screen: 'price_submitted', order: { ...BASE, status: 'price_submitted' } },
+            { label: 'A3b — Пересмотр цены (повтор)', screen: 'price_submitted_revised', order: { ...BASE, status: 'price_submitted', previous_price: 280000 } },
+            { label: 'A4 — Ожидание новой цены', screen: 'price_rejected', order: { ...BASE, status: 'price_rejected', previous_price: 320000 } },
+            { label: 'A5 — Команда формируется', screen: 'team_formation', order: { ...BASE, status: 'team_formation' } },
+            { label: 'A6 — Уборка идёт', screen: 'in_progress', order: { ...BASE, status: 'in_progress' } },
+            { label: 'A7 — Подтверждение завершения ⭐', screen: 'awaiting_confirmation', order: { ...BASE, status: 'awaiting_confirmation' } },
+          ]
+          return (
+            <Section title="House Order · Флоу домового заказа (клиент A1–A7)">
+              <div class="flex flex-col gap-6">
+                {views.map(v => (
+                  <div key={v.screen}>
+                    <p class="text-[10px] text-gray-400 mb-2">{v.label}</p>
+                    {v.order.status === 'new' && <ViewA1 order={v.order} onCancel={NOOP} loading={false} />}
+                    {v.order.status === 'assessment' && <ViewA2 order={v.order} onChat={NOOP} onCancel={NOOP} loading={false} />}
+                    {v.order.status === 'price_submitted' && <ViewA3 order={v.order} onConfirm={NOOP} onReject={NOOP} onCounter={NOOP} onCancel={NOOP} loading={false} />}
+                    {v.order.status === 'price_rejected' && <ViewA4 order={v.order} onCancel={NOOP} loading={false} />}
+                    {v.order.status === 'team_formation' && <ViewA5 order={v.order} onCancel={NOOP} loading={false} />}
+                    {v.order.status === 'in_progress' && <ViewA6 order={v.order} onChat={NOOP} />}
+                    {v.order.status === 'awaiting_confirmation' && <ViewA7 order={v.order} onAccept={NOOP} loading={false} onChat={NOOP} />}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )
+        })()}
+
+        <Divider />
+
         {/* ── SPACING / BORDER RADIUS ── */}
         <Section title="Spacing & Radius">
           <div class="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col gap-3">
@@ -625,6 +796,40 @@ export function UIKitScreen() {
               </div>
             ))}
           </div>
+        </Section>
+
+        <Divider />
+
+        {/* ── ADDON PICKER ── */}
+        <Section title="Addon Picker · Дополнительные услуги">
+          {(() => {
+            const MOCK_ADDONS = [
+              { id: 'windows', name_ru: 'Мытьё окон',          name_uz: 'Derazalarni yuvish', price: 50000, category_ru: 'Окна и балкон', category_uz: 'Derazalar va balkon' },
+              { id: 'balcony', name_ru: 'Уборка балкона',       name_uz: 'Balkoni tozalash',   price: 40000, category_ru: 'Окна и балкон', category_uz: 'Derazalar va balkon' },
+              { id: 'oven',    name_ru: 'Чистка духовки',       name_uz: 'Pechni tozalash',    price: 30000, category_ru: 'Кухня',         category_uz: 'Oshxona' },
+              { id: 'fridge',  name_ru: 'Чистка холодильника',  price: 35000,                               category_ru: 'Кухня',         category_uz: 'Oshxona' },
+            ]
+            const [sel, setSel] = useState<string[]>([])
+            return (
+              <div class="flex flex-col gap-4">
+                <div>
+                  <p class="text-[10px] text-gray-400 mb-2">Default (ничего не выбрано)</p>
+                  <AddonPicker addons={MOCK_ADDONS} selected={[]} onChange={() => {}} />
+                </div>
+                <div>
+                  <p class="text-[10px] text-gray-400 mb-2">Интерактивный (кликайте)</p>
+                  <AddonPicker addons={MOCK_ADDONS} selected={sel} onChange={setSel} addMoreLabel="Добавить услуги" doneLabel="Готово" />
+                  {sel.length > 0 && (
+                    <p class="text-xs text-gray-400 mt-2">Выбрано: {sel.join(', ')}</p>
+                  )}
+                </div>
+                <div>
+                  <p class="text-[10px] text-gray-400 mb-2">lang=uz</p>
+                  <AddonPicker addons={MOCK_ADDONS} selected={['windows', 'balcony']} lang="uz" onChange={() => {}} />
+                </div>
+              </div>
+            )
+          })()}
         </Section>
 
         <Divider />
@@ -649,7 +854,331 @@ export function UIKitScreen() {
           </div>
         </Section>
 
+        <Divider />
+
+        {/* ── BRIGADIER: FULL SCREEN VIEWS ── */}
+        <Section title="Brigadier · Полные экраны по статусам">
+          {(() => {
+            const noop = () => {}
+            const BASE: Order = {
+              id: 'b1', order_num: 77, status: 'assessment',
+              service_type: 'house', housing_type: 'house',
+              rooms: 4, bathrooms: 2, price: 0,
+              address: 'Юнусабад, 19-квартал, д. 8',
+              order_date: '2025-05-25', order_slot: '09:00–12:00',
+              addons: [], created_at: '',
+              foreman_name: 'Малика Юсупова', foreman_rating: 4.8,
+              comment: 'Собака в комнате, не заходить',
+              team_members: [
+                { id: 't1', name: 'Малика Юсупова', role: 'foreman' },
+                { id: 't2', name: 'Нилуфар Алиева', role: 'cleaner' },
+                { id: 't3', name: 'Зарина Камолова', role: 'cleaner' },
+              ],
+            }
+            const sharedProps = {
+              loading: false,
+              onSubmitPrice: noop as any,
+              onRevisePrice: noop as any,
+              onStartCleaning: noop,
+              onFinish: noop,
+              onChat: noop,
+            }
+            const views: { label: string; order: Order }[] = [
+              { label: 'B1 — assessment (ввод цены)',         order: { ...BASE, status: 'assessment' } },
+              { label: 'B2 — price_submitted (ждём клиента)', order: { ...BASE, status: 'price_submitted', submitted_price: 480000, price_comment: 'Уборка 4 комнат, 2 санузлов, кухни и коридора' } },
+              { label: 'B3 — price_rejected (отклонили)',     order: { ...BASE, status: 'price_rejected', previous_price: 480000, submitted_price: 420000, price_comment: 'Уборка 4 комнат, 2 санузлов' } },
+              { label: 'B4 — team_formation (формируем)',     order: { ...BASE, status: 'team_formation', submitted_price: 450000, foreman_total: 180000 } },
+              { label: 'B5 — in_progress (убирают)',          order: { ...BASE, status: 'in_progress', submitted_price: 450000 } },
+              { label: 'B6 — awaiting_confirmation (ждём)',   order: { ...BASE, status: 'awaiting_confirmation', submitted_price: 450000 } },
+            ]
+            const components = [B1_Assessment, B2_PriceSubmitted, B3_PriceRejected, B4_TeamFormation, B5_InProgress, B6_Awaiting]
+            return (
+              <div class="flex flex-col gap-8">
+                {views.map((v, i) => {
+                  const Comp = components[i]
+                  return (
+                    <div key={v.label}>
+                      <p class="text-[10px] text-gray-400 mb-3">{v.label}</p>
+                      <div class="flex flex-col gap-3">
+                        <Comp {...sharedProps} order={v.order} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+        </Section>
+
+        <Divider />
+
+        {/* ── BRIGADIER: ORDER CARD ── */}
+        <Section title="Brigadier · Карточка заказа (дом)">
+          {(() => {
+            const STATUSES: { key: string; label: string; sub: string }[] = [
+              { key: 'assigned',              label: 'Назначен',              sub: 'Выедьте к объекту'            },
+              { key: 'on_the_way',            label: 'В пути',                sub: 'Едете к клиенту'             },
+              { key: 'arrived',               label: 'На объекте',            sub: 'Начните уборку'              },
+              { key: 'in_progress',           label: 'Уборка идёт',           sub: 'Завершите и сдайте клиенту'  },
+              { key: 'awaiting_confirmation', label: 'Ждём подтверждения',    sub: 'Клиент принимает работу'     },
+            ]
+            const STATUS_COLORS: Record<string, string> = {
+              assigned:              '#3B82F6',
+              on_the_way:            '#8B5CF6',
+              arrived:               '#D97706',
+              in_progress:           '#44973A',
+              awaiting_confirmation: '#059669',
+            }
+            return (
+              <div class="flex flex-col gap-4">
+                {STATUSES.map(s => (
+                  <div key={s.key}>
+                    <p class="text-[10px] text-gray-400 mb-2 capitalize">{s.key.replace(/_/g,' ')}</p>
+                    <BrigadeOrderCard
+                      status={s.key}
+                      statusLabel={s.label}
+                      statusSub={s.sub}
+                      statusColor={STATUS_COLORS[s.key]}
+                      address="Юнусабад, 19-квартал, д. 8"
+                      date="25 мая, 09:00–12:00"
+                      rooms={4}
+                      bathrooms={2}
+                      price={450000}
+                    />
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </Section>
+
+        <Divider />
+
+        {/* ── BRIGADIER: TEAM CHIPS ── */}
+        <Section title="Brigadier · Команда">
+          {(() => {
+            const MEMBERS = [
+              { name: 'Малика Юсупова',  role: 'Бригадир', online: true  },
+              { name: 'Нилуфар Алиева',  role: 'Клинер',   online: true  },
+              { name: 'Зарина Камолова', role: 'Клинер',   online: false },
+              { name: 'Диля Рашидова',   role: 'Клинер',   online: true  },
+            ]
+            return (
+              <div class="flex flex-col gap-4">
+                <div>
+                  <p class="text-[10px] text-gray-400 mb-3">Список команды</p>
+                  <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                    {MEMBERS.map(m => (
+                      <BrigadeMemberRow key={m.name} name={m.name} role={m.role} online={m.online} />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p class="text-[10px] text-gray-400 mb-3">Чипы (горизонтально)</p>
+                  <div class="flex gap-2 flex-wrap">
+                    {MEMBERS.map(m => (
+                      <BrigadeMemberChip key={m.name} name={m.name} role={m.role} online={m.online} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </Section>
+
+        <Divider />
+
+        {/* ── BRIGADIER: STATUS CTA ── */}
+        <Section title="Brigadier · Кнопки действий">
+          {(() => {
+            const ACTIONS: { status: string; label: string; variant: 'primary' | 'ghost' | 'danger' }[] = [
+              { status: 'assigned',              label: 'Выехать к клиенту',    variant: 'primary' },
+              { status: 'on_the_way',            label: 'Прибыл на объект',     variant: 'primary' },
+              { status: 'arrived',               label: 'Начать уборку',        variant: 'primary' },
+              { status: 'in_progress',           label: 'Завершить уборку',     variant: 'ghost'   },
+              { status: 'awaiting_confirmation', label: 'Ожидаем клиента...',   variant: 'ghost'   },
+            ]
+            return (
+              <div class="flex flex-col gap-3">
+                {ACTIONS.map(a => (
+                  <div key={a.status}>
+                    <p class="text-[10px] text-gray-400 mb-2 capitalize">{a.status.replace(/_/g,' ')}</p>
+                    <StatusCTABtn
+                      label={a.label}
+                      variant={a.variant}
+                      disabled={a.status === 'awaiting_confirmation'}
+                    />
+                  </div>
+                ))}
+                <div>
+                  <p class="text-[10px] text-gray-400 mb-2">Loading</p>
+                  <StatusCTABtn label="Выехать к клиенту" variant="primary" loading />
+                </div>
+              </div>
+            )
+          })()}
+        </Section>
+
       </div>
     </div>
+  )
+}
+
+// ─── Brigadier Components ─────────────────────────────────────────────────────
+
+function BrigadeOrderCard({
+  status,
+  statusLabel,
+  statusSub,
+  statusColor,
+  address,
+  date,
+  rooms,
+  bathrooms,
+  price,
+}: {
+  status: string
+  statusLabel: string
+  statusSub: string
+  statusColor: string
+  address: string
+  date: string
+  rooms: number
+  bathrooms: number
+  price: number
+}) {
+  return (
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+      {/* Status bar */}
+      <div class="px-4 pt-4 pb-3 flex items-start gap-3" style={{ borderLeft: `3px solid ${statusColor}` }}>
+        <div
+          class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+          style={{ background: `${statusColor}18` }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M2 9.5L10 2l8 7.5" stroke={statusColor} stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 8v9h5v-4h2v4h5V8" stroke={statusColor} stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span
+              class="text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: `${statusColor}18`, color: statusColor }}
+            >
+              {statusLabel}
+            </span>
+          </div>
+          <p class="text-xs text-gray-400 mt-0.5">{statusSub}</p>
+        </div>
+        <p class="text-base font-bold text-gray-900 shrink-0">{(price / 1000).toFixed(0)}k</p>
+      </div>
+
+      {/* Divider */}
+      <div class="h-px bg-gray-100 mx-4" />
+
+      {/* Details */}
+      <div class="px-4 py-3 flex flex-col gap-2">
+        <div class="flex items-start gap-2">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" class="mt-0.5 shrink-0 text-gray-400">
+            <path d="M7 1.5A4.5 4.5 0 0 1 11.5 6c0 3-4.5 7-4.5 7S2.5 9 2.5 6A4.5 4.5 0 0 1 7 1.5Z" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="7" cy="6" r="1.5" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          <p class="text-sm text-gray-800 leading-snug">{address}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" class="shrink-0 text-gray-400">
+            <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M1.5 5.5h11" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M4.5 1v3M9.5 1v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          <p class="text-xs text-gray-500">{date}</p>
+        </div>
+        <div class="flex items-center gap-3 mt-1">
+          <span class="text-xs text-gray-500 flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M4 1v10M8 1v10M1 5h10M1 8h10" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 1.5"/></svg>
+            {rooms} комн.
+          </span>
+          <span class="text-gray-200">·</span>
+          <span class="text-xs text-gray-500 flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 7h8M2 7V3.5C2 2.67 2.67 2 3.5 2S5 2.67 5 3.5V7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M2 9.5C2 10.33 2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5V7H2v2.5Z" stroke="currentColor" stroke-width="1.2"/></svg>
+            {bathrooms} санузл.
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BrigadeMemberRow({ name, role, online }: { name: string; role: string; online: boolean }) {
+  const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('')
+  return (
+    <div class="flex items-center gap-3 px-4 py-3">
+      <div class="relative shrink-0">
+        <div class="w-9 h-9 rounded-full bg-[#E0F3DC] flex items-center justify-center">
+          <span class="text-xs font-semibold text-[#2D6126]">{initials}</span>
+        </div>
+        <span
+          class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white"
+          style={{ background: online ? '#22c55e' : '#9CA3AF' }}
+        />
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-gray-900 truncate">{name}</p>
+        <p class="text-xs text-gray-400">{role}</p>
+      </div>
+      {online && (
+        <span class="text-[10px] text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">На смене</span>
+      )}
+    </div>
+  )
+}
+
+function BrigadeMemberChip({ name, role, online }: { name: string; role: string; online: boolean }) {
+  const initials = name.split(' ').map(w => w[0]).slice(0, 2).join('')
+  return (
+    <div class={`flex items-center gap-2 px-3 py-2 rounded-2xl border ${
+      online ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'
+    }`}>
+      <div class="relative shrink-0">
+        <div class="w-7 h-7 rounded-full bg-[#E0F3DC] flex items-center justify-center">
+          <span class="text-[10px] font-semibold text-[#2D6126]">{initials}</span>
+        </div>
+        <span
+          class="absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white"
+          style={{ background: online ? '#22c55e' : '#9CA3AF' }}
+        />
+      </div>
+      <div class="min-w-0">
+        <p class={`text-xs font-medium truncate ${online ? 'text-gray-900' : 'text-gray-400'}`}>
+          {name.split(' ')[0]}
+        </p>
+        <p class="text-[10px] text-gray-400">{role}</p>
+      </div>
+    </div>
+  )
+}
+
+function StatusCTABtn({
+  label,
+  variant,
+  disabled = false,
+  loading = false,
+}: {
+  label: string
+  variant: 'primary' | 'ghost' | 'danger'
+  disabled?: boolean
+  loading?: boolean
+}) {
+  const base = 'w-full py-4 rounded-2xl font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2'
+  const variants = {
+    primary: 'bg-[#44973A] text-white disabled:bg-[#BDE5B6] disabled:text-white',
+    ghost:   'border-2 border-[#44973A] text-[#44973A] disabled:opacity-40',
+    danger:  'bg-red-500 text-white disabled:opacity-40',
+  }
+  return (
+    <button type="button" disabled={disabled || loading} class={`${base} ${variants[variant]}`}>
+      {loading ? <span class="opacity-70">Загрузка...</span> : label}
+    </button>
   )
 }

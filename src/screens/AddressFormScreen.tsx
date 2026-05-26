@@ -13,6 +13,7 @@ interface Props {
 export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
   const { t } = useLocale()
   const [form, setForm] = useState<AddressPayload>({
+    label: initial?.label ?? '',
     address: initial?.address ?? '',
     entrance: initial?.entrance ?? '',
     floor: initial?.floor ?? '',
@@ -61,6 +62,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
     setError(null)
     try {
       const payload: AddressPayload = {
+        ...(form.label?.trim() && { label: form.label.trim() }),
         address: form.address.trim(),
         ...(form.entrance?.trim() && { entrance: form.entrance.trim() }),
         ...(form.floor?.trim() && { floor: form.floor.trim() }),
@@ -86,16 +88,23 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
 
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
-      <div class="bg-white px-4 py-5 border-b border-gray-100 flex items-center gap-3">
-        <button type="button" onClick={onBack} class="text-blue-600 text-sm font-medium">
-          {t('back')}
+      <div class="bg-white px-4 py-5 border-b border-gray-100 relative flex items-center justify-center">
+        <button type="button" onClick={onBack} class="absolute left-4 w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-lg font-light active:bg-gray-200 transition-colors">
+          ‹
         </button>
-        <h1 class="text-base font-semibold text-gray-900">
+        <h1 class="text-base font-bold text-gray-900">
           {isEdit ? t('addr_title_edit') : t('addr_title_new')}
         </h1>
       </div>
 
       <form onSubmit={handleSubmit} class="flex-1 flex flex-col px-4 py-5 gap-4">
+        <Field
+          label={t('addr_name_label')}
+          placeholder={t('addr_name_placeholder')}
+          value={form.label ?? ''}
+          onChange={v => setForm(prev => ({ ...prev, label: v }))}
+        />
+
         <div class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
             <span class="text-xs font-medium text-gray-500">{t('addr_map_hint')}</span>
@@ -133,20 +142,37 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
         <div class="flex flex-col gap-2">
           <label class="text-xs font-medium text-gray-500">{t('addr_housing_type')}</label>
           <div class="flex gap-2">
-            {(['apt', 'house'] as HousingType[]).map(id => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setForm(prev => ({ ...prev, housing_type: prev.housing_type === id ? undefined : id }))}
-                class={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors ${
-                  form.housing_type === id
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-700'
-                }`}
-              >
-                {id === 'apt' ? t('housing_apt') : t('housing_house')}
-              </button>
-            ))}
+            {(['apt', 'house'] as HousingType[]).map(id => {
+              const active = form.housing_type === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, housing_type: prev.housing_type === id ? undefined : id }))}
+                  class={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium border-2 transition-colors ${
+                    active
+                      ? 'border-[#44973A] bg-[#F0F9EE] text-[#2D6126]'
+                      : 'border-gray-200 bg-white text-gray-700'
+                  }`}
+                >
+                  {id === 'apt' ? (
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <rect x="2" y="3" width="14" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                      <path d="M6 16v-4h6v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <rect x="5" y="6" width="2.5" height="2.5" rx="0.5" fill="currentColor"/>
+                      <rect x="10.5" y="6" width="2.5" height="2.5" rx="0.5" fill="currentColor"/>
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                      <path d="M2 8.5L9 2l7 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M4 7.5V15a1 1 0 001 1h8a1 1 0 001-1V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <rect x="7" y="11" width="4" height="5" rx="0.5" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                  )}
+                  {id === 'apt' ? t('housing_apt') : t('housing_house')}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -213,7 +239,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
           <button
             type="submit"
             disabled={loading}
-            class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3.5 rounded-xl transition-colors"
+            class="w-full disabled:opacity-40 text-white font-medium py-3.5 rounded-xl transition-colors" style="background:#44973A"
           >
             {loading ? t('btn_saving') : isEdit ? t('btn_save') : t('btn_add')}
           </button>

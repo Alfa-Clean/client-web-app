@@ -1,5 +1,5 @@
 import { useEffect } from 'preact/hooks'
-import { loginWithTelegram } from './api/auth'
+import { loginWithTelegram, loginWithServiceKey } from './api/auth'
 import { apiFetch, ApiError, clearToken } from './api/client'
 import { useUser } from './hooks/useUser'
 import { LocaleProvider } from './i18n/index'
@@ -27,14 +27,20 @@ export function App() {
 
     async function init() {
       const initData: string = tg?.initData ?? ''
-      console.log('[init] initData present:', !!initData)
+      const devTgId = Number(import.meta.env.VITE_DEV_TG_ID)
+
       if (initData) {
         try {
           await loginWithTelegram(initData)
-          console.log('[init] token after login:', localStorage.getItem('alfaclean_token'))
         } catch (e) {
           console.error('[auth] loginWithTelegram failed:', e)
           return
+        }
+      } else if (import.meta.env.DEV && devTgId) {
+        try {
+          await loginWithServiceKey(devTgId)
+        } catch (e) {
+          console.error('[auth] loginWithServiceKey failed:', e)
         }
       }
 
@@ -77,13 +83,15 @@ export function App() {
     }
   }
 
-  if (IS_UIKIT) return <UIKitScreen />
+  const devTgId = import.meta.env.DEV ? Number(import.meta.env.VITE_DEV_TG_ID) || 0 : 0
+
+  if (IS_UIKIT) return <LocaleProvider><UIKitScreen /></LocaleProvider>
 
   return (
     <LocaleProvider telegramLang={telegramLang}>
       {user
         ? <HubScreen user={user} />
-        : <RegistrationScreen onRegistered={handleRegister} />
+        : <RegistrationScreen onRegistered={handleRegister} devTelegramId={devTgId} />
       }
     </LocaleProvider>
   )

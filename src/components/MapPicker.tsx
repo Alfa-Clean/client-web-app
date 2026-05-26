@@ -1,9 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks'
-
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// Ташкент по умолчанию
 const DEFAULT_LAT = 41.2995
 const DEFAULT_LON = 69.2401
 
@@ -42,9 +40,7 @@ export function MapPicker({ onLocationPick, initialLat, initialLon }: Props) {
       cbRef.current(e.latlng.lat, e.latlng.lng)
     })
 
-    return () => {
-      map.remove()
-    }
+    return () => { map.remove() }
   }, [])
 
   return (

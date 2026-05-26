@@ -2,7 +2,10 @@ import { useCallback, useState } from 'preact/hooks'
 
 interface ConfirmOptions {
   title?: string
-  confirmVariant?: 'danger' | 'primary'
+  confirmVariant?: 'danger' | 'primary' | 'normal'
+  cancelVariant?: 'danger' | 'normal'
+  confirmLabel?: string
+  cancelLabel?: string
 }
 
 interface Pending extends ConfirmOptions {
@@ -27,6 +30,9 @@ export function useConfirm() {
       message: pending?.message ?? '',
       title: pending?.title,
       confirmVariant: pending?.confirmVariant,
+      cancelVariant: pending?.cancelVariant,
+      confirmLabel: pending?.confirmLabel,
+      cancelLabel: pending?.cancelLabel,
       onConfirm: accept,
       onCancel: dismiss,
     },
