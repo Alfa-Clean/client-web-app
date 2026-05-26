@@ -392,7 +392,7 @@ function B4_TeamFormation({ order, loading, onStartCleaning }: StatusViewProps) 
 
         {/* Assigned cleaners */}
         {members.filter(m => m.role !== 'foreman').map(m => (
-          <MemberRow key={m.id} name={m.name} role={m.role} />
+          <MemberRow key={m.executor_id} name={m.name} role={m.role} />
         ))}
 
         {/* Add member */}
@@ -536,7 +536,7 @@ function TeamAvatarRow({ members }: { members: TeamMember[] }) {
         const initials = m.name.split(' ').map(w => w[0]).slice(0, 2).join('')
         const isForeman = m.role === 'foreman'
         return (
-          <div key={m.id} class="flex flex-col items-center gap-1">
+          <div key={m.executor_id} class="flex flex-col items-center gap-1">
             <div class="relative">
               <div
                 class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold"
@@ -584,4 +584,4 @@ function ChatBtn({ onChat, label }: { onChat: () => void; label: string }) {
 // ─── Exported for UIKit ───────────────────────────────────────────────────────
 
 export { B1_Assessment, B2_PriceSubmitted, B3_PriceRejected, B4_TeamFormation, B5_InProgress, B6_Awaiting }
-export { MemberRow, PulsingDot }
+export { MemberRow, PulsingDot, OrderMetaCard }

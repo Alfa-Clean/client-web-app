@@ -528,14 +528,14 @@ function StarRating({ score, dark = false }: { score: number; dark?: boolean }) 
   )
 }
 
-function TeamAvatarRow({ members }: { members: Array<{ id: string; name: string; role: string }> }) {
+function TeamAvatarRow({ members }: { members: Array<{ executor_id: string; name: string; role: string }> }) {
   return (
     <div class="flex items-center gap-2 flex-wrap">
       {members.map((m) => {
         const initials = m.name.split(' ').map(w => w[0]).slice(0, 2).join('')
         const isForeman = m.role === 'foreman'
         return (
-          <div key={m.id} class="flex flex-col items-center gap-1">
+          <div key={m.executor_id} class="flex flex-col items-center gap-1">
             <div class="relative">
               <div
                 class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold"

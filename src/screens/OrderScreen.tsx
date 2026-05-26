@@ -294,6 +294,7 @@ export function OrderScreen({ user, onBack }: Props) {
         telegram_id: user.telegram_id,
         phone: user.phone,
         service_type: draft.serviceType,
+        housing_type: draft.housingType,
         rooms: draft.rooms,
         bathrooms: draft.bathrooms,
         price,
@@ -519,8 +520,8 @@ export function OrderScreen({ user, onBack }: Props) {
           )}
         </div>
 
-        {/* Дополнения (только квартира) */}
-        {isApt && addons.length > 0 && (
+        {/* Дополнения */}
+        {addons.length > 0 && (
           <div>
             <SectionLabel>Дополнения</SectionLabel>
             <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">

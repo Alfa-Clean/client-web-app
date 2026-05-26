@@ -12,6 +12,7 @@ import {
 import {
   B1_Assessment, B2_PriceSubmitted, B3_PriceRejected,
   B4_TeamFormation, B5_InProgress, B6_Awaiting,
+  OrderMetaCard,
 } from './BrigadierOrderScreen'
 import type { Order } from '../api/orders'
 
@@ -320,6 +321,7 @@ function OrderHistoryItem({
 
 export function UIKitScreen() {
   const [theme, setThemeState] = useState(getTheme())
+  const [page, setPage] = useState<'system' | 'brigadier'>('system')
 
   function toggleTheme() {
     const next = theme === 'light' ? 'dark' : 'light'
@@ -330,8 +332,8 @@ export function UIKitScreen() {
   return (
     <div class="min-h-screen bg-gray-50 pb-16">
       {/* Header */}
-      <div class="bg-white border-b border-gray-100 px-4 pt-12 pb-5 sticky top-0 z-10">
-        <div class="flex items-start justify-between">
+      <div class="bg-white border-b border-gray-100 px-4 pt-12 pb-0 sticky top-0 z-10">
+        <div class="flex items-start justify-between mb-3">
           <div>
             <p class="text-[10px] font-semibold uppercase tracking-widest text-[#44973A] mb-1">UI Kit</p>
             <h1 class="text-2xl font-bold text-gray-900">
@@ -347,9 +349,19 @@ export function UIKitScreen() {
             <span style={`position:absolute;top:3px;width:22px;height:22px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left 0.2s;left:${theme === 'dark' ? '23px' : '3px'}`} />
           </button>
         </div>
+        <div class="flex -mx-4">
+          {(['system', 'brigadier'] as const).map(p => (
+            <button key={p} type="button" onClick={() => setPage(p)}
+              class={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${page === p ? 'border-[#44973A] text-[#44973A]' : 'border-transparent text-gray-400'}`}
+            >
+              {p === 'system' ? 'Design System' : 'Дом (клиент)'}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div class="pt-6 max-w-[1000px] mx-auto">
+      {page === 'brigadier' && <BrigadierDemoPage />}
+      <div class={`pt-6 max-w-[1000px] mx-auto${page !== 'system' ? ' hidden' : ''}`}>
 
         {/* ── BRAND ── */}
         <Section title="Brand · Логотип">
@@ -740,9 +752,9 @@ export function UIKitScreen() {
             foreman_name: 'Амаль Зафаров', foreman_rating: 4.8,
             submitted_price: 320000, price_comment: 'Уборка 3 комнат, кухня, 2 санузла. Включены все поверхности.',
             team_members: [
-              { id: 'f', name: 'Амаль Зафаров', role: 'foreman' },
-              { id: 'c1', name: 'Малика Юсупова', role: 'cleaner' },
-              { id: 'c2', name: 'Нилуфар Алиева', role: 'cleaner' },
+              { executor_id: 'f', name: 'Амаль Зафаров', role: 'foreman' },
+              { executor_id: 'c1', name: 'Малика Юсупова', role: 'cleaner' },
+              { executor_id: 'c2', name: 'Нилуфар Алиева', role: 'cleaner' },
             ],
           }
           const NOOP = () => {}
@@ -870,9 +882,9 @@ export function UIKitScreen() {
               foreman_name: 'Малика Юсупова', foreman_rating: 4.8,
               comment: 'Собака в комнате, не заходить',
               team_members: [
-                { id: 't1', name: 'Малика Юсупова', role: 'foreman' },
-                { id: 't2', name: 'Нилуфар Алиева', role: 'cleaner' },
-                { id: 't3', name: 'Зарина Камолова', role: 'cleaner' },
+                { executor_id: 't1', name: 'Малика Юсупова', role: 'foreman' },
+                { executor_id: 't2', name: 'Нилуфар Алиева', role: 'cleaner' },
+                { executor_id: 't3', name: 'Зарина Камолова', role: 'cleaner' },
               ],
             }
             const sharedProps = {
@@ -1180,5 +1192,126 @@ function StatusCTABtn({
     <button type="button" disabled={disabled || loading} class={`${base} ${variants[variant]}`}>
       {loading ? <span class="opacity-70">Загрузка...</span> : label}
     </button>
+  )
+}
+
+// ─── Brigadier Demo Page ──────────────────────────────────────────────────────
+
+function PoolOrderCard({ num, address, date, slot, serviceLabel }: {
+  num: number; address: string; date: string; slot: string; serviceLabel: string
+}) {
+  return (
+    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+      <div class="px-4 pt-4 pb-3">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div>
+            <span class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Дом · Заказ #{num}</span>
+            <p class="text-sm font-semibold text-gray-900 mt-0.5">{address}</p>
+          </div>
+          <span class="shrink-0 text-[11px] bg-[#F0F9EE] text-[#44973A] font-semibold px-2.5 py-1 rounded-full">{serviceLabel}</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs text-gray-500">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" class="text-gray-400 shrink-0">
+            <rect x="1.5" y="2.5" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M1.5 5.5h11" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M4.5 1v3M9.5 1v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          <span>{date} · {slot}</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-1">Оценка и цена — на месте</p>
+      </div>
+      <div class="border-t border-gray-50 px-4 pb-4 pt-3">
+        <button type="button" class="w-full py-3 rounded-xl text-sm font-semibold text-white active:scale-95 transition-all" style="background:#44973A">
+          Взять заказ
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function BrigadierDemoPage() {
+  const NOOP = () => {}
+  const BASE: Order = {
+    id: 'h-demo', order_num: 42, status: 'new',
+    service_type: 'standard', housing_type: 'house',
+    rooms: 0, bathrooms: 0, price: 320000,
+    address: 'Юнусабад, 19-квартал, д. 8',
+    order_date: '2026-05-26', order_slot: '09:00–12:00',
+    addons: [], created_at: '2026-05-26T07:00:00Z',
+    foreman_name: 'Малика Юсупова', foreman_rating: 4.8,
+    submitted_price: 450000,
+    price_comment: 'Уборка 4 комнат, 2 санузлов, кухни и коридора. Химчистка дивана включена.',
+    team_members: [
+      { executor_id: 'f1', name: 'Малика Юсупова', role: 'foreman' },
+      { executor_id: 'c1', name: 'Нилуфар Алиева', role: 'cleaner' },
+      { executor_id: 'c2', name: 'Зарина Камолова', role: 'cleaner' },
+    ],
+  }
+
+  const views: { label: string; desc: string; node: preact.ComponentChildren }[] = [
+    {
+      label: 'A1 · new — Ищем бригадира',
+      desc: 'Заказ создан, бригадир ещё не взял его из пула',
+      node: <ViewA1 order={{ ...BASE, status: 'new' }} onCancel={NOOP} loading={false} />,
+    },
+    {
+      label: 'A2 · assessment — Бригадир едет',
+      desc: 'Бригадир взял заказ и выехал на объект для оценки',
+      node: <ViewA2 order={{ ...BASE, status: 'assessment' }} onChat={NOOP} onCancel={NOOP} loading={false} />,
+    },
+    {
+      label: 'A3 · price_submitted — Бригадир назвал цену',
+      desc: 'Клиент видит предложение и может принять, отклонить или предложить свою цену',
+      node: <ViewA3 order={{ ...BASE, status: 'price_submitted' }} onConfirm={NOOP} onReject={NOOP} onCounter={NOOP} onCancel={NOOP} loading={false} />,
+    },
+    {
+      label: 'A3b · price_submitted — Пересмотренная цена',
+      desc: 'Бригадир пересмотрел цену после отказа — клиент видит "было / стало"',
+      node: <ViewA3 order={{ ...BASE, status: 'price_submitted', previous_price: 320000 }} onConfirm={NOOP} onReject={NOOP} onCounter={NOOP} onCancel={NOOP} loading={false} />,
+    },
+    {
+      label: 'A4 · price_rejected — Ждём новой цены',
+      desc: 'Клиент отклонил цену, бригадир готовит новое предложение',
+      node: <ViewA4 order={{ ...BASE, status: 'price_rejected', previous_price: 450000 }} onCancel={NOOP} loading={false} />,
+    },
+    {
+      label: 'A5 · team_formation — Команда формируется',
+      desc: 'Клиент согласился с ценой, бригадир набирает команду',
+      node: <ViewA5 order={{ ...BASE, status: 'team_formation' }} onCancel={NOOP} loading={false} />,
+    },
+    {
+      label: 'A6 · in_progress — Уборка идёт',
+      desc: 'Команда работает на объекте',
+      node: <ViewA6 order={{ ...BASE, status: 'in_progress' }} onChat={NOOP} />,
+    },
+    {
+      label: 'A7 · awaiting_confirmation — Принять работу',
+      desc: 'Уборка завершена, клиент подтверждает или открывает спор',
+      node: <ViewA7 order={{ ...BASE, status: 'awaiting_confirmation' }} onAccept={NOOP} loading={false} onChat={NOOP} />,
+    },
+  ]
+
+  return (
+    <div class="pt-6 max-w-[600px] mx-auto">
+      <div class="px-4 mb-6">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">House Order Flow</p>
+        <h2 class="text-base font-bold text-gray-900">Что видит клиент</h2>
+        <p class="text-xs text-gray-400 mt-1">8 состояний от создания заказа до подтверждения завершения</p>
+      </div>
+
+      {views.map((v, i) => (
+        <div key={v.label}>
+          {i > 0 && <Divider />}
+          <Section title={v.label}>
+            <p class="text-xs text-gray-400 mb-3">{v.desc}</p>
+            <div class="flex flex-col gap-2">
+              {v.node}
+            </div>
+          </Section>
+        </div>
+      ))}
+
+      <div class="h-10" />
+    </div>
   )
 }

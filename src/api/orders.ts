@@ -7,7 +7,7 @@ export interface OrderRating {
 }
 
 export interface TeamMember {
-  id: string
+  executor_id: string
   name: string
   role: 'foreman' | 'cleaner'
 }
@@ -46,6 +46,7 @@ export interface OrderPayload {
   telegram_id: number
   phone: string
   service_type: string
+  housing_type: 'apt' | 'house'
   rooms: number
   bathrooms: number
   price: number
@@ -96,10 +97,10 @@ export function getUserOrders(telegramId: number): Promise<{ items: Order[]; tot
   )
 }
 
-export function submitPrice(orderId: string, price: number, comment: string): Promise<Order> {
+export function submitPrice(orderId: string, price: number, description: string): Promise<Order> {
   return apiFetch<Order>(`/orders/${orderId}/submit-price`, {
     method: 'POST',
-    body: JSON.stringify({ price, comment }),
+    body: JSON.stringify({ price, description }),
   })
 }
 
