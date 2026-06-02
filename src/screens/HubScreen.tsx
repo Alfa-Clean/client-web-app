@@ -1,19 +1,27 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { Home, Sparkles, User as UserIcon, Sun, Moon, MessageCircle, ChevronRight, Shirt } from 'lucide-react'
+import { Home, Sparkles, User as UserIcon, Sun, Moon, MessageCircle, ChevronRight, Shirt, Pencil, Trash2, Plus, Wrench } from 'lucide-react'
 import type { User } from '../types'
-import type { Order } from '../api/orders'
-import { getUserOrders } from '../api/orders'
+import type { Order, HandymanOrder } from '../api/orders'
+import { getUserOrders, getActiveHandymanOrders } from '../api/orders'
+import { getAddresses, createAddress, updateAddress, deleteAddress } from '../api/addresses'
+import type { Address, AddressPayload } from '../api/addresses'
 import { useAddresses } from '../hooks/useAddresses'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { getTheme, setTheme } from '../hooks/useTheme'
 import { updateLanguage } from '../api/clients'
+import { BottomSheet } from '../components/BottomSheet'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useConfirm } from '../hooks/useConfirm'
+import { AddressFormScreen } from './AddressFormScreen'
 import { OrderScreen } from './OrderScreen'
+import { HandymanOrderScreen } from './HandymanOrderScreen'
 import { ChistomatyScreen } from './ChistomatyScreen'
 import { ActiveOrderScreen } from './ActiveOrderScreen'
 import { HouseOrderStatusScreen } from './HouseOrderStatusScreen'
 import { ChatScreen } from './ChatScreen'
 import { ActiveChistomatyScreen } from './ActiveChistomatyScreen'
+import { ActiveHandymanOrderScreen } from './ActiveHandymanOrderScreen'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL } from './ActiveChistomatyScreen'
 
@@ -94,7 +102,7 @@ function ServiceTile({
 
 // ─── Address Chip ─────────────────────────────────────────────────────────────
 
-function AddressChip({ address, onClick }: { address: string; onClick: () => void }) {
+function AddressChip({ label, address, onClick }: { label: string; address: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -102,14 +110,16 @@ function AddressChip({ address, onClick }: { address: string; onClick: () => voi
       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-100 active:bg-gray-200 transition-colors text-left"
     >
       <Home size={18} class="text-gray-500 shrink-0" />
-      <p class="text-sm font-medium text-gray-700 truncate">{address}</p>
+      <p class="text-sm font-medium text-gray-700 truncate">{label ? label : address}</p>
     </button>
   )
 }
 
 // ─── Active Order Banner ──────────────────────────────────────────────────────
 
-function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: () => void }) {
+export const ACTIVE_ORDER_STATUS_LABEL = STATUS_LABEL
+
+export function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: () => void }) {
   const label = STATUS_LABEL[order.status] ?? 'Активный заказ'
   return (
     <button
@@ -146,6 +156,65 @@ export function ChistomatyOrderBanner({ order, onClick }: { order: ChistomatyOrd
         <p class="text-white/60 text-[10px] font-medium mb-0.5">Чистоматы</p>
         <p class="text-white font-bold text-sm leading-tight">{label}</p>
         <p class="text-white/70 text-xs truncate mt-0.5">{order.postamat_address}</p>
+      </div>
+      <span class="text-white/60 text-xl leading-none shrink-0">›</span>
+    </button>
+  )
+}
+
+// ─── Handyman Order Banner ────────────────────────────────────────────────────
+
+const HANDYMAN_STATUS_LABEL: Record<string, string> = {
+  new:                   'Ищем мастера...',
+  assigned:              'Мастер назначен',
+  on_the_way:            'Мастер едет к вам',
+  arrived:               'Мастер прибыл',
+  in_progress:           'Идут работы',
+  awaiting_confirmation: 'Примите работу',
+}
+
+export function HandymanOrderBanner({ order, onClick }: { order: HandymanOrder; onClick: () => void }) {
+  const label = HANDYMAN_STATUS_LABEL[order.status] ?? 'Активный заказ'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      class="mx-4 mb-4 w-[calc(100%-32px)] bg-amber-500 rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left"
+    >
+      <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+        <Wrench size={20} class="text-white" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-white/60 text-[10px] font-medium mb-0.5">Хэндимен</p>
+        <p class="text-white font-bold text-sm leading-tight">{label}</p>
+        <p class="text-white/70 text-xs truncate mt-0.5">{order.address}</p>
+      </div>
+      <span class="text-white/60 text-xl leading-none shrink-0">›</span>
+    </button>
+  )
+}
+
+// ─── Combined Active Orders Banner ───────────────────────────────────────────
+
+function pluralOrders(n: number): string {
+  if (n % 10 === 1 && n % 100 !== 11) return `${n} активный заказ`
+  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return `${n} активных заказа`
+  return `${n} активных заказов`
+}
+
+function CombinedOrdersBanner({ count, onClick }: { count: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      class="mx-4 mb-4 w-[calc(100%-32px)] bg-gray-900 rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left"
+    >
+      <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+        <span class="text-white font-bold text-lg leading-none">{count}</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-white font-bold text-sm leading-tight">{pluralOrders(count)}</p>
+        <p class="text-white/60 text-xs mt-0.5">Нажмите, чтобы посмотреть все</p>
       </div>
       <span class="text-white/60 text-xl leading-none shrink-0">›</span>
     </button>
@@ -206,16 +275,56 @@ const LANGS: { id: Lang; flag: string; label: string }[] = [
 ]
 
 function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () => void; onSupportToast: () => void }) {
-  const { lang, setLang } = useLocale()
+  const { t, lang, setLang } = useLocale()
   const [theme, setThemeState] = useState(getTheme())
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [addressSheet, setAddressSheet] = useState<null | 'new' | Address>(null)
+  const { confirm, dialogProps } = useConfirm()
+
+  useEffect(() => {
+    getAddresses(user.telegram_id).then(setAddresses).catch(() => {})
+  }, [user.telegram_id])
 
   function toggleTheme(next: 'light' | 'dark') {
     setTheme(next)
     setThemeState(next)
   }
 
+  async function handleAddressSubmit(data: AddressPayload) {
+    if (addressSheet === 'new') {
+      const created = await createAddress(user.telegram_id, data)
+      setAddresses(prev => [...prev, created])
+    } else if (addressSheet && addressSheet !== 'new') {
+      const updated = await updateAddress(user.telegram_id, addressSheet.id, data)
+      setAddresses(prev => prev.map(a => a.id === updated.id ? updated : a))
+    }
+  }
+
+  async function handleDelete(addr: Address) {
+    const ok = await confirm(t('home_delete_confirm').replace('{address}', addr.label || addr.address), { confirmVariant: 'danger' })
+    if (!ok) return
+    await deleteAddress(user.telegram_id, addr.id).catch(() => {})
+    setAddresses(prev => prev.filter(a => a.id !== addr.id))
+  }
+
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
+      <ConfirmDialog
+        {...dialogProps}
+        confirmLabel={dialogProps.confirmLabel ?? t('dialog_ok')}
+        cancelLabel={dialogProps.cancelLabel ?? t('dialog_cancel')}
+      />
+
+      <BottomSheet open={addressSheet !== null} onClose={() => setAddressSheet(null)}>
+        {addressSheet !== null && (
+          <AddressFormScreen
+            initial={addressSheet === 'new' ? undefined : addressSheet}
+            onSubmit={handleAddressSubmit}
+            onBack={() => setAddressSheet(null)}
+          />
+        )}
+      </BottomSheet>
+
       {/* Header */}
       <div class="bg-white px-5 pt-12 pb-5 flex items-center gap-4 border-b border-gray-100">
         <button
@@ -238,6 +347,47 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
             <p class="text-sm font-semibold text-gray-900">{user.first_name}{user.last_name ? ` ${user.last_name}` : ''}</p>
             {user.phone && <p class="text-xs text-gray-400 mt-0.5">{user.phone}</p>}
           </div>
+        </div>
+
+        {/* Addresses */}
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest">{t('home_saved_addresses')}</p>
+            <button
+              type="button"
+              onClick={() => setAddressSheet('new')}
+              class="flex items-center gap-1 text-xs font-medium text-green-600 active:opacity-70 transition-opacity"
+            >
+              <Plus size={14} />
+              {t('btn_add')}
+            </button>
+          </div>
+          {addresses.length === 0 ? (
+            <p class="px-4 pb-4 text-sm text-gray-400">{t('home_no_addresses')}</p>
+          ) : (
+            addresses.map(addr => (
+              <div key={addr.id} class="flex items-center gap-2 px-4 py-3 border-t border-gray-50">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900 truncate">{addr.label || addr.address}</p>
+                  {addr.label && <p class="text-xs text-gray-400 truncate mt-0.5">{addr.address}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddressSheet(addr)}
+                  class="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 active:bg-gray-100 transition-colors shrink-0"
+                >
+                  <Pencil size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(addr)}
+                  class="w-8 h-8 flex items-center justify-center rounded-xl text-red-400 active:bg-red-50 transition-colors shrink-0"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Theme */}
@@ -314,11 +464,18 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
   )
 }
 
+// ─── Active order entry ───────────────────────────────────────────────────────
+
+type ActiveOrderEntry =
+  | { type: 'cleaning';   order: Order }
+  | { type: 'chistomaty'; order: ChistomatyOrder }
+  | { type: 'handyman';   order: HandymanOrder }
+
 // ─── Hub Screen ───────────────────────────────────────────────────────────────
 
 type View =
-  | 'hub' | 'cleaning' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty'
-  | { name: 'chat'; orderId: string; executorId: string | null; executorName: string; senderId: string }
+  | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman'
+  | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order'; executorId: string | null; executorName: string; senderId: string }
 
 interface Props {
   user: User
@@ -328,6 +485,8 @@ export function HubScreen({ user }: Props) {
   const [view, setView] = useState<View>('hub')
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
   const [activeChistomatyOrder, setActiveChistomatyOrder] = useState<ChistomatyOrder | null>(null)
+  const [activeHandymanOrder, setActiveHandymanOrder] = useState<HandymanOrder | null>(null)
+  const [showActiveSheet, setShowActiveSheet] = useState(false)
   const [historyOrders, setHistoryOrders] = useState<Order[]>([])
   const [toast, setToast] = useState<string | null>(null)
   const { state: addressState } = useAddresses(user.telegram_id)
@@ -343,6 +502,12 @@ export function HubScreen({ user }: Props) {
         if (active) startPolling()
       })
       .catch(() => setActiveOrder(null))
+    getActiveHandymanOrders(user.telegram_id)
+      .then(res => {
+        console.log('[handyman] active orders response:', res)
+        setActiveHandymanOrder(res.items[0] ?? null)
+      })
+      .catch(e => console.error('[handyman] active orders error:', e))
     return stopPolling
   }, [user.telegram_id])
 
@@ -371,10 +536,10 @@ export function HubScreen({ user }: Props) {
     return (
       <ChatScreen
         orderId={view.orderId}
+        contextType={view.contextType}
         executorId={view.executorId}
         executorName={view.executorName}
         senderId={view.senderId}
-        readonly={false}
         onBack={() => setView('active_order')}
       />
     )
@@ -391,6 +556,7 @@ export function HubScreen({ user }: Props) {
           onChatClick={() => setView({
             name: 'chat',
             orderId: activeOrder.id,
+            contextType: 'cleaning_order',
             executorId: activeOrder.foreman_id ?? null,
             executorName: activeOrder.foreman_name ?? 'Бригадир',
             senderId: String(user.telegram_id),
@@ -409,6 +575,7 @@ export function HubScreen({ user }: Props) {
         onChatClick={(orderId, executorId, executorName) => setView({
           name: 'chat',
           orderId,
+          contextType: activeOrder !== 'loading' && activeOrder?.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order',
           executorId,
           executorName,
           senderId: String(user.telegram_id),
@@ -431,8 +598,33 @@ export function HubScreen({ user }: Props) {
     )
   }
 
+  if (view === 'active_handyman' && activeHandymanOrder) {
+    const onHandymanDone = () => { setActiveHandymanOrder(null); setView('hub') }
+    return (
+      <ActiveHandymanOrderScreen
+        order={activeHandymanOrder}
+        onBack={() => setView('hub')}
+        onChatClick={(orderId, executorId, executorName) => setView({
+          name: 'chat',
+          orderId,
+          contextType: 'handyman_order',
+          executorId,
+          executorName,
+          senderId: String(user.telegram_id),
+        })}
+        onOrderCancelled={onHandymanDone}
+        onOrderAccepted={onHandymanDone}
+        onSupportClick={() => { setView('hub'); showToast('Скоро появится') }}
+      />
+    )
+  }
+
   if (view === 'cleaning') {
     return <OrderScreen user={user} onBack={() => setView('hub')} />
+  }
+
+  if (view === 'handyman') {
+    return <HandymanOrderScreen user={user} onBack={() => setView('hub')} />
   }
 
   if (view === 'chistomaty') {
@@ -450,6 +642,20 @@ export function HubScreen({ user }: Props) {
   }
 
   const addresses = addressState.status === 'success' ? addressState.data.slice(0, 3) : []
+
+  const activeEntries: ActiveOrderEntry[] = [
+    ...(activeOrder && activeOrder !== 'loading' ? [{ type: 'cleaning' as const, order: activeOrder }] : []),
+    ...(activeChistomatyOrder ? [{ type: 'chistomaty' as const, order: activeChistomatyOrder }] : []),
+    ...(activeHandymanOrder   ? [{ type: 'handyman'   as const, order: activeHandymanOrder }] : []),
+  ]
+
+  function renderBanner(entry: ActiveOrderEntry, onClick: (v: View) => void) {
+    switch (entry.type) {
+      case 'cleaning':   return <ActiveOrderBanner    key={entry.order.id} order={entry.order} onClick={() => onClick('active_order')} />
+      case 'chistomaty': return <ChistomatyOrderBanner key={entry.order.id} order={entry.order} onClick={() => onClick('active_chistomaty')} />
+      case 'handyman':   return <HandymanOrderBanner   key={entry.order.id} order={entry.order} onClick={() => onClick('active_handyman')} />
+    }
+  }
 
   return (
     <div class="min-h-screen bg-white flex flex-col">
@@ -477,18 +683,10 @@ export function HubScreen({ user }: Props) {
       </div>
 
       {/* Active order banners */}
-      {activeOrder && activeOrder !== 'loading' && (
-        <ActiveOrderBanner
-          order={activeOrder}
-          onClick={() => setView('active_order')}
-        />
-      )}
-      {activeChistomatyOrder && (
-        <ChistomatyOrderBanner
-          order={activeChistomatyOrder}
-          onClick={() => setView('active_chistomaty')}
-        />
-      )}
+      {activeEntries.length > 2
+        ? <CombinedOrdersBanner count={activeEntries.length} onClick={() => setShowActiveSheet(true)} />
+        : activeEntries.map(e => renderBanner(e, setView))
+      }
 
       {/* Service tiles — boxes и лейблы разделены чтобы высоты совпадали */}
       <div class="px-4 pb-6">
@@ -505,10 +703,9 @@ export function HubScreen({ user }: Props) {
           <div class="flex-1 flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => showToast('Скоро появится')}
+              onClick={() => setView('handyman')}
               class="flex-1 relative bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
             >
-              <span class="absolute top-2 right-2 bg-gray-100 text-gray-500 text-[9px] font-semibold px-1.5 py-0.5 rounded-full">Скоро</span>
               <img src="/service_tiles/handyman.png" alt="Хэндимен" class="w-full h-full object-contain" />
               <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">Хэндимен</p>
             </button>
@@ -523,22 +720,6 @@ export function HubScreen({ user }: Props) {
           </div>
         </div>
       </div>
-
-      {/* Saved addresses */}
-      {addresses.length > 0 && (
-        <div class="px-4 flex flex-col gap-2">
-          <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
-            {t('home_saved_addresses')}
-          </p>
-          {addresses.map(addr => (
-            <AddressChip
-              key={addr.id}
-              address={addr.address}
-              onClick={() => setView('cleaning')}
-            />
-          ))}
-        </div>
-      )}
 
       {/* Order history */}
       <div class="px-4 mt-6 pb-8 flex flex-col gap-2">
@@ -556,6 +737,13 @@ export function HubScreen({ user }: Props) {
           </div>
         )}
       </div>
+
+      <BottomSheet open={showActiveSheet} onClose={() => setShowActiveSheet(false)}>
+        <div class="px-0 pt-2 pb-6">
+          <p class="text-base font-bold text-gray-900 px-5 mb-4">Активные заказы</p>
+          {activeEntries.map(e => renderBanner(e, v => { setShowActiveSheet(false); setView(v) }))}
+        </div>
+      </BottomSheet>
 
       {toast && <ComingSoonToast message={toast} />}
     </div>

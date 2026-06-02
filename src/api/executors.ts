@@ -27,9 +27,9 @@ export interface ExecutorRatings {
 }
 
 export function getExecutor(executorId: string): Promise<Executor> {
-  return apiFetch<Executor>(`/executors/${executorId}`)
+  return apiFetch<Executor>(`/cleaning/executors/${executorId}`)
 }
 
 export function getExecutorRatings(executorId: string): Promise<ExecutorRatings> {
-  return apiFetch<ExecutorRatings>(`/executors/${executorId}/ratings?limit=20`)
+  return apiFetch<ExecutorRatings>(`/cleaning/executors/${executorId}/ratings?limit=20`)
 }

@@ -59,33 +59,59 @@ export interface OrderPayload {
 }
 
 export function createOrder(data: OrderPayload): Promise<Order> {
-  return apiFetch<Order>('/orders', {
+  return apiFetch<Order>('/cleaning/orders', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export interface HandymanOrderPayload {
+  phone: string
+  description: string
+  price: number
+  order_date: string
+  order_slot: string
+  telegram_id?: number | null
+  address_id?: string | null
+  comment?: string | null
+  source?: 'bot' | 'manual'
+}
+
+export interface HandymanOrderResponse {
+  id: string
+  order_num: number
+  status: string
+  created_at: string
+}
+
+export function createHandymanOrder(data: HandymanOrderPayload): Promise<HandymanOrderResponse> {
+  return apiFetch<HandymanOrderResponse>('/handyman/orders', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export function cancelOrder(orderId: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/${orderId}/cancel`, { method: 'POST' })
+  return apiFetch<Order>(`/cleaning/orders/${orderId}/cancel`, { method: 'POST' })
 }
 
 export function acceptOrder(orderId: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/${orderId}/client-confirm`, { method: 'POST' })
+  return apiFetch<Order>(`/cleaning/orders/${orderId}/client-confirm`, { method: 'POST' })
 }
 
 export function confirmPrice(orderId: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/${orderId}/confirm-price`, { method: 'POST', body: '{}' })
+  return apiFetch<Order>(`/cleaning/orders/${orderId}/confirm-price`, { method: 'POST', body: '{}' })
 }
 
 export function rejectPrice(orderId: string, counterPrice?: number): Promise<Order> {
-  return apiFetch<Order>(`/orders/${orderId}/reject-price`, {
+  return apiFetch<Order>(`/cleaning/orders/${orderId}/reject-price`, {
     method: 'POST',
     body: JSON.stringify({ counter_price: counterPrice ?? null }),
   })
 }
 
 export function rateOrder(orderId: string, score: number, comment?: string): Promise<void> {
-  return apiFetch<void>(`/orders/${orderId}/rate`, {
+  return apiFetch<void>(`/cleaning/orders/${orderId}/rate`, {
     method: 'POST',
     body: JSON.stringify({ score, comment: comment || null }),
   })
@@ -93,27 +119,52 @@ export function rateOrder(orderId: string, score: number, comment?: string): Pro
 
 export function getUserOrders(telegramId: number): Promise<{ items: Order[]; total: number }> {
   return apiFetch<{ items: Order[]; total: number }>(
-    `/orders?telegram_id=${telegramId}&limit=20&offset=0`,
+    `/cleaning/orders?telegram_id=${telegramId}&limit=20&offset=0`,
   )
 }
 
 export function submitPrice(orderId: string, price: number, description: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/${orderId}/submit-price`, {
+  return apiFetch<Order>(`/cleaning/orders/${orderId}/submit-price`, {
     method: 'POST',
     body: JSON.stringify({ price, description }),
   })
 }
 
 export function startCleaning(orderId: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/${orderId}/start-cleaning`, { method: 'POST', body: '{}' })
+  return apiFetch<Order>(`/cleaning/orders/${orderId}/start-cleaning`, { method: 'POST', body: '{}' })
 }
 
 export function finishCleaning(orderId: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/${orderId}/finish-cleaning`, { method: 'POST', body: '{}' })
+  return apiFetch<Order>(`/cleaning/orders/${orderId}/finish-cleaning`, { method: 'POST', body: '{}' })
 }
 
 export function getBrigadierOrders(executorId: string): Promise<{ items: Order[]; total: number }> {
   return apiFetch<{ items: Order[]; total: number }>(
-    `/orders?executor_id=${executorId}&limit=50&offset=0`,
+    `/cleaning/orders?executor_id=${executorId}&limit=50&offset=0`,
   )
+}
+
+export interface HandymanOrder {
+  id: string
+  order_num: number
+  status: string
+  description: string
+  price: number
+  address: string
+  order_date: string
+  order_slot: string
+  created_at: string
+  executor_id?: string | null
+  executor_name?: string | null
+  telegram_id?: number | null
+}
+
+export function getActiveHandymanOrders(telegramId: number): Promise<{ items: HandymanOrder[]; total: number }> {
+  return apiFetch<{ items: HandymanOrder[]; total: number }>(
+    `/handyman/orders?telegram_id=${telegramId}&active=true`,
+  )
+}
+
+export function cancelHandymanOrder(orderId: string): Promise<HandymanOrder> {
+  return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}/cancel`, { method: 'POST' })
 }
