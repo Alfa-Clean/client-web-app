@@ -97,7 +97,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} class="flex-1 flex flex-col px-4 py-5 gap-4">
+      <form onSubmit={handleSubmit} class="flex-1 flex flex-col px-4 py-5 gap-4 pb-2">
         <Field
           label={t('addr_name_label')}
           placeholder={t('addr_name_placeholder')}
@@ -235,16 +235,18 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
 
         {error && <p class="text-red-500 text-sm">{error}</p>}
 
-        <div class="mt-auto pt-4">
-          <button
-            type="submit"
-            disabled={loading}
-            class="w-full disabled:opacity-40 text-white font-medium py-3.5 rounded-xl transition-colors" style="background:#44973A"
-          >
-            {loading ? t('btn_saving') : isEdit ? t('btn_save') : t('btn_add')}
-          </button>
-        </div>
       </form>
+      <div class="sticky bottom-0 px-4 pt-3 pb-8 bg-gray-50 border-t border-gray-100">
+        <button
+          type="button"
+          disabled={loading}
+          onClick={e => handleSubmit(e as unknown as Event)}
+          class="w-full disabled:opacity-40 text-white font-medium py-3.5 rounded-xl transition-colors"
+          style="background:#44973A"
+        >
+          {loading ? t('btn_saving') : isEdit ? t('btn_save') : t('btn_add')}
+        </button>
+      </div>
     </div>
   )
 }

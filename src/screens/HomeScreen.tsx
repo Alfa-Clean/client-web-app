@@ -34,7 +34,7 @@ type View =
   | { name: 'executor'; executorId: string }
   | { name: 'order_detail'; order: Order }
   | { name: 'house_order'; order: Order }
-  | { name: 'chat'; orderId: string; executorId: string | null; executorName: string; senderId: string; readonly: boolean }
+  | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order'; executorId: string | null; executorName: string; senderId: string }
 
 interface Props {
   user: User
@@ -89,7 +89,7 @@ export function HomeScreen({ user }: Props) {
         order={view.order}
         onBack={() => setView({ name: 'list' })}
         onChatClick={(orderId, executorId, executorName) =>
-          setView({ name: 'chat', orderId, executorId, executorName, senderId: String(user.telegram_id), readonly: true })
+          setView({ name: 'chat', orderId, contextType: view.name === 'order_detail' && view.order.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order', executorId, executorName, senderId: String(user.telegram_id) })
         }
       />
     )
@@ -104,10 +104,10 @@ export function HomeScreen({ user }: Props) {
           setView({
             name: 'chat',
             orderId: view.order.id,
+            contextType: 'cleaning_order',
             executorId: view.order.foreman_id ?? null,
             executorName: view.order.foreman_name ?? '—',
             senderId: String(user.telegram_id),
-            readonly: false,
           })
         }
         onOrderCancelled={() => setView({ name: 'list' })}
@@ -121,10 +121,10 @@ export function HomeScreen({ user }: Props) {
     return (
       <ChatScreen
         orderId={view.orderId}
+        contextType={view.contextType}
         executorId={view.executorId}
         executorName={view.executorName}
         senderId={view.senderId}
-        readonly={view.readonly}
         onBack={() => setView({ name: 'list' })}
       />
     )
@@ -152,8 +152,8 @@ export function HomeScreen({ user }: Props) {
             onNewOrder={() => setView({ name: 'new_order' })}
             onExecutorClick={id => setView({ name: 'executor', executorId: id })}
             onHouseOrderClick={order => setView({ name: 'house_order', order })}
-            onChatClick={(orderId, executorId, executorName) =>
-              setView({ name: 'chat', orderId, executorId, executorName, senderId: String(user.telegram_id), readonly: false })
+            onChatClick={(orderId, executorId, executorName, contextType) =>
+              setView({ name: 'chat', orderId, contextType, executorId, executorName, senderId: String(user.telegram_id) })
             }
           />
         )}
@@ -287,7 +287,7 @@ const STATUS_ICON: Record<string, ComponentType<{ size?: number; color?: string 
 
 const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
 
-function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onHouseOrderClick, onChatClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void; onHouseOrderClick: (order: Order) => void; onChatClick: (orderId: string, executorId: string | null, executorName: string) => void }) {
+function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onHouseOrderClick, onChatClick }: { telegramId: number; onNewOrder: () => void; onExecutorClick: (id: string) => void; onHouseOrderClick: (order: Order) => void; onChatClick: (orderId: string, executorId: string | null, executorName: string, contextType: 'cleaning_order' | 'handyman_order') => void }) {
   const { t, lang } = useLocale()
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
   const [ratingOrderId, setRatingOrderId] = useState<string | null>(null)
@@ -548,7 +548,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onHouseOrderClick,
         {CHAT_STATUSES.has(activeOrder.status) && activeOrder.executor_id && activeOrder.executor_name && (
           <button
             type="button"
-            onClick={() => onChatClick(activeOrder.id, activeOrder.executor_id ?? null, activeOrder.executor_name!)}
+            onClick={() => onChatClick(activeOrder.id, activeOrder.executor_id ?? null, activeOrder.executor_name!, activeOrder.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order')}
             class="w-full border-t border-gray-100 py-3.5 text-sm font-medium text-blue-600 flex items-center justify-center gap-2 hover:bg-blue-50 active:bg-blue-100 transition-colors"
           >
             <MessageCircle size={16} /> {t('chat_contact_cleaner')}

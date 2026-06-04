@@ -21,7 +21,7 @@ interface Draft {
   addressDetails: string
   orderDate: string
   orderSlot: string
-  addons: string[]
+  works: string[]
   comment: string
 }
 
@@ -37,7 +37,7 @@ const EMPTY_DRAFT: Draft = {
   addressDetails: '',
   orderDate: '',
   orderSlot: '',
-  addons: [],
+  works: [],
   comment: '',
 }
 
@@ -119,7 +119,9 @@ function loadSavedDraft(): Draft | null {
     const raw = localStorage.getItem(DRAFT_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    return parsed?.draft ?? null
+    const saved = parsed?.draft
+    if (!saved) return null
+    return { ...EMPTY_DRAFT, ...saved, works: saved.works ?? saved.addons ?? [] }
   } catch {
     return null
   }
@@ -243,7 +245,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
     setShowAddressSheet(false)
   }
 
-  const price = calcPrice(addons, draft.addons)
+  const price = calcPrice(addons, draft.works)
 
   const tz = nowInTashkent()
   const todayIso = toISO(tz)
@@ -253,9 +255,8 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
   const slots = draft.orderDate ? availableSlots(draft.orderDate) : []
   const isOtherDate = !!draft.orderDate && draft.orderDate !== todayIso && draft.orderDate !== tomorrowIso
 
-  const description = draft.comment.trim() ||
-    addons.filter(a => draft.addons.includes(a.id)).map(a => a.translations[lang] ?? a.translations['ru'] ?? a.id).join(', ')
-  const canSubmit = !!draft.addressId && !!draft.orderDate && !!draft.orderSlot && !!description
+  const canSubmit = !!draft.addressId && !!draft.orderDate && !!draft.orderSlot &&
+                    draft.works.length > 0 && !!draft.comment.trim()
 
   async function handleSubmit() {
     if (!canSubmit || submitting) return
@@ -264,9 +265,8 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
     try {
       const order = await createHandymanOrder({
         telegram_id: user.telegram_id,
-        phone: user.phone,
-        description,
-        price,
+        description: draft.comment.trim(),
+        works: draft.works,
         address_id: draft.addressId,
         order_date: draft.orderDate,
         order_slot: draft.orderSlot,
@@ -433,15 +433,15 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
             <SectionLabel>{t('step_addons')}</SectionLabel>
             <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
               {addons.map(addon => {
-                const on = draft.addons.includes(addon.id)
+                const on = draft.works.includes(addon.id)
                 return (
                   <button
                     key={addon.id}
                     type="button"
                     onClick={() => patch({
                       addons: on
-                        ? draft.addons.filter(x => x !== addon.id)
-                        : [...draft.addons, addon.id],
+                        ? draft.works.filter(x => x !== addon.id)
+                        : [...draft.works, addon.id],
                     })}
                     class="w-full flex items-center justify-between px-4 py-3.5 transition-colors active:bg-gray-50 text-left"
                   >

@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
-import type { Addon } from '../api/addons'
+import type { Addon, AddonCategory } from '../api/addons'
+import { addonLabel } from '../api/addons'
 import { BottomSheet } from './BottomSheet'
 
 // ─── Built-in icons ───────────────────────────────────────────────────────────
@@ -13,7 +14,7 @@ const ADDON_ICONS: Record<string, ComponentChildren> = {
       <line x1="2" y1="9" x2="16" y2="9" stroke="currentColor" stroke-width="1.5"/>
     </svg>
   ),
-  oven: (
+  oven_inside: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
       <rect x="2" y="3" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
       <rect x="5" y="7" width="8" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/>
@@ -29,7 +30,7 @@ const ADDON_ICONS: Record<string, ComponentChildren> = {
       <path d="M4 8V6a5 5 0 0 1 10 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
   ),
-  fridge: (
+  fridge_inside: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
       <rect x="4" y="2" width="10" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
       <line x1="4" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5"/>
@@ -47,7 +48,7 @@ const ICON_FALLBACK = (
   </svg>
 )
 
-// ─── Addon row (shared between main view and sheet) ───────────────────────────
+// ─── Addon row ────────────────────────────────────────────────────────────────
 
 function AddonRow({
   addon,
@@ -57,10 +58,10 @@ function AddonRow({
 }: {
   addon: Addon
   on: boolean
-  lang: 'ru' | 'uz' | 'en'
+  lang: string
   onToggle: () => void
 }) {
-  const name = lang === 'uz' && addon.name_uz ? addon.name_uz : addon.name_ru
+  const name = addonLabel(addon, lang)
   const icon = ADDON_ICONS[addon.id] ?? ICON_FALLBACK
   return (
     <button
@@ -86,24 +87,31 @@ function AddonRow({
 
 function AddonSheetList({
   addons,
+  categories,
   draft,
   lang,
   onToggle,
 }: {
   addons: Addon[]
+  categories: AddonCategory[]
   draft: string[]
-  lang: 'ru' | 'uz' | 'en'
+  lang: string
   onToggle: (id: string) => void
 }) {
-  // Group by category; addons without category go into null bucket
-  const groups = new Map<string | null, Addon[]>()
-  for (const addon of addons) {
-    const cat = (lang === 'uz' ? addon.category_uz : addon.category_ru) ?? addon.category_ru ?? null
-    if (!groups.has(cat)) groups.set(cat, [])
-    groups.get(cat)!.push(addon)
+  const catLabel = (catId: string | null | undefined): string | null => {
+    if (!catId) return null
+    const cat = categories.find(c => c.id === catId)
+    if (!cat) return catId
+    return cat.translations[lang] ?? cat.translations['ru'] ?? catId
   }
 
-  // null category last
+  const groups = new Map<string | null, Addon[]>()
+  for (const addon of addons) {
+    const key = addon.category_id ?? null
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(addon)
+  }
+
   const sorted = [...groups.entries()].sort(([a], [b]) => {
     if (a === null) return 1
     if (b === null) return -1
@@ -112,11 +120,11 @@ function AddonSheetList({
 
   return (
     <div class="flex flex-col gap-5">
-      {sorted.map(([cat, items]) => (
-        <div key={cat ?? '__no_cat'}>
-          {cat && (
+      {sorted.map(([catId, items]) => (
+        <div key={catId ?? '__no_cat'}>
+          {catId && (
             <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2 px-1">
-              {cat}
+              {catLabel(catId)}
             </p>
           )}
           <div class="flex flex-col gap-2">
@@ -140,8 +148,9 @@ function AddonSheetList({
 
 interface Props {
   addons: Addon[]
+  categories?: AddonCategory[]
   selected: string[]
-  lang?: 'ru' | 'uz' | 'en'
+  lang?: string
   addMoreLabel?: string
   doneLabel?: string
   onChange: (ids: string[]) => void
@@ -149,6 +158,7 @@ interface Props {
 
 export function AddonPicker({
   addons,
+  categories = [],
   selected,
   lang = 'ru',
   addMoreLabel = 'Добавить услуги',
@@ -205,7 +215,7 @@ export function AddonPicker({
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
         <div class="px-4 pt-2 pb-4">
-          <AddonSheetList addons={addons} draft={draft} lang={lang} onToggle={toggleDraft} />
+          <AddonSheetList addons={addons} categories={categories} draft={draft} lang={lang} onToggle={toggleDraft} />
           <button
             type="button"
             onClick={confirm}

@@ -66,14 +66,12 @@ export function createOrder(data: OrderPayload): Promise<Order> {
 }
 
 export interface HandymanOrderPayload {
-  phone: string
   description: string
-  price: number
+  works: string[]
   order_date: string
   order_slot: string
   telegram_id?: number | null
   address_id?: string | null
-  comment?: string | null
   source?: 'bot' | 'manual'
 }
 
@@ -81,6 +79,7 @@ export interface HandymanOrderResponse {
   id: string
   order_num: number
   status: string
+  price: number
   created_at: string
 }
 

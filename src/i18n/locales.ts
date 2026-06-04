@@ -246,6 +246,26 @@ const ru: Strings = {
   chat_media_too_large: 'Файл слишком большой (макс. 5 МБ)',
   chat_media_wrong_type: 'Только JPG, PNG или WebP',
 
+  // Системные вехи чата
+  event_assigned: 'Исполнитель принял заказ',
+  event_assigned_named: '{name} принял заказ',
+  event_on_the_way: 'Исполнитель в пути',
+  event_arrived: 'Исполнитель прибыл',
+  event_started: 'Работа началась',
+  event_awaiting_confirmation: 'Ожидает подтверждения клиента',
+  event_done: 'Заказ завершён',
+  event_cancelled: 'Заказ отменён',
+  event_disputed: 'Открыт спор',
+
+  // Handyman
+  handyman_new_order: 'Новый заказ',
+  handyman_comment_label: 'Описание задачи',
+  handyman_comment_placeholder: 'Опишите, что нужно сделать...',
+  handyman_media_label: 'Фото и видео',
+  handyman_media_add: 'Добавить',
+  handyman_media_size_error: 'Файл слишком большой (макс. 20 МБ)',
+  handyman_media_type_error: 'Только фото и видео',
+
   // Brigadier screen
   brigadier_assessment_hint: 'Осмотрите объект и введите стоимость работ',
   brigadier_price_label: 'Стоимость работ',
@@ -503,6 +523,26 @@ const uz: Strings = {
   chat_media_too_large: 'Fayl juda katta (maks. 5 MB)',
   chat_media_wrong_type: 'Faqat JPG, PNG yoki WebP',
 
+  // Tizim hodisalari
+  event_assigned: 'Ijrochi buyurtmani qabul qildi',
+  event_assigned_named: '{name} buyurtmani qabul qildi',
+  event_on_the_way: 'Ijrochi yo\'lda',
+  event_arrived: 'Ijrochi yetib keldi',
+  event_started: 'Ish boshlandi',
+  event_awaiting_confirmation: 'Mijoz tasdiqini kutmoqda',
+  event_done: 'Buyurtma yakunlandi',
+  event_cancelled: 'Buyurtma bekor qilindi',
+  event_disputed: 'Mojaro ochildi',
+
+  // Handyman
+  handyman_new_order: 'Yangi buyurtma',
+  handyman_comment_label: 'Vazifani tavsiflang',
+  handyman_comment_placeholder: 'Nima qilish kerakligini yozing...',
+  handyman_media_label: 'Rasm va video',
+  handyman_media_add: 'Qo\'shish',
+  handyman_media_size_error: 'Fayl juda katta (maks. 20 MB)',
+  handyman_media_type_error: 'Faqat rasm va video',
+
   // Brigadier screen
   brigadier_assessment_hint: 'Ob\'ektni ko\'zdan kechiring va ish narxini kiriting',
   brigadier_price_label: 'Ish narxi',
@@ -759,6 +799,26 @@ const en: Strings = {
   chat_loading_more: 'Loading...',
   chat_media_too_large: 'File too large (max 5 MB)',
   chat_media_wrong_type: 'Only JPG, PNG or WebP allowed',
+
+  // System events
+  event_assigned: 'Executor accepted the order',
+  event_assigned_named: '{name} accepted the order',
+  event_on_the_way: 'Executor is on the way',
+  event_arrived: 'Executor has arrived',
+  event_started: 'Work has started',
+  event_awaiting_confirmation: 'Awaiting client confirmation',
+  event_done: 'Order completed',
+  event_cancelled: 'Order cancelled',
+  event_disputed: 'Dispute opened',
+
+  // Handyman
+  handyman_new_order: 'New order',
+  handyman_comment_label: 'Task description',
+  handyman_comment_placeholder: 'Describe what needs to be done...',
+  handyman_media_label: 'Photos & Videos',
+  handyman_media_add: 'Add',
+  handyman_media_size_error: 'File too large (max 20 MB)',
+  handyman_media_type_error: 'Photos and videos only',
 
   // Brigadier screen
   brigadier_assessment_hint: 'Inspect the property and enter the cost of work',

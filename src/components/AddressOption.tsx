@@ -12,7 +12,7 @@ export function AddressOption({ address, label, housingType = 'apt', active = fa
       type="button"
       onClick={onClick}
       class={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${
-        active ? 'bg-[#F0F9EE] dark:bg-[#1a3a2a]' : 'active:bg-gray-50'
+        active ? 'bg-green-50' : 'active:bg-gray-50'
       }`}
     >
       <span class={`shrink-0 ${active ? 'text-[#44973A]' : 'text-gray-300'}`}>
@@ -32,7 +32,7 @@ export function AddressOption({ address, label, housingType = 'apt', active = fa
         )}
       </span>
       <div class="flex-1 min-w-0">
-        <p class={`text-sm font-medium truncate ${active ? 'text-[#2D6126] dark:text-[#6DB363]' : 'text-gray-900'}`}>
+        <p class={`text-sm font-medium truncate ${active ? 'text-[#44973A]' : 'text-gray-900'}`}>
           {label || address}
         </p>
         {label && <p class="text-xs text-gray-400 mt-0.5 truncate">{address}</p>}

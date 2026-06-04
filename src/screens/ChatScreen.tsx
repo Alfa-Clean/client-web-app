@@ -1,17 +1,22 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { MessageCircle } from "lucide-react";
-import type { ChatMessage } from "../api/chat";
-import { getMessages, sendMediaMessage, sendMessage } from "../api/chat";
+import type { ContextType, ConversationMessage, ConversationState } from "../api/conversations";
+import {
+  getOrCreateConversation,
+  getConversationMessages,
+  sendConversationMessage,
+  sendConversationMedia,
+} from "../api/conversations";
 import { getExecutor } from "../api/executors";
 import { useLocale } from "../i18n";
 import { useExitBack } from "../hooks/useExitBack";
 
 interface Props {
   orderId: string;
+  contextType: ContextType;
   executorId: string | null;
   executorName: string;
   senderId: string;
-  readonly?: boolean;
   onBack: () => void;
 }
 
@@ -25,16 +30,17 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export function ChatScreen({
   orderId,
+  contextType,
   executorId,
   executorName,
   senderId,
-  readonly = false,
   onBack,
 }: Props) {
   const { t, lang } = useLocale();
   const { exiting, handleBack } = useExitBack(onBack);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversationState, setConversationState] = useState<ConversationState>("closed");
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -45,7 +51,6 @@ export function ChatScreen({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [isReadonly, setIsReadonly] = useState(readonly);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -56,19 +61,34 @@ export function ChatScreen({
   const serverTotalRef = useRef(0);
   const startOffsetRef = useRef(0);
   const firstLoad = useRef(true);
+  const convIdRef = useRef<string | null>(null);
 
-  async function loadInitial() {
+  async function init() {
     try {
-      // probe total first to start from newest 50
-      const probe = await getMessages(orderId, 1, 0);
+      const conv = await getOrCreateConversation(contextType, orderId);
+      convIdRef.current = conv.id;
+      setConversationState(conv.state);
+      await loadInitial(conv.id);
+      if (conv.state === "open") {
+        pollRef.current = setInterval(() => pollNew(conv.id), 4000);
+      }
+    } catch {
+      setError(t("chat_load_error"));
+      setLoading(false);
+    }
+  }
+
+  async function loadInitial(convId: string) {
+    try {
+      const probe = await getConversationMessages(convId, 1, 0);
       const total = probe.total;
       const startOffset = Math.max(0, total - 50);
       const res =
         startOffset === 0
           ? probe.items.length <= 1
-            ? await getMessages(orderId, 50, 0)
+            ? await getConversationMessages(convId, 50, 0)
             : probe
-          : await getMessages(orderId, 50, startOffset);
+          : await getConversationMessages(convId, 50, startOffset);
       setMessages(res.items);
       serverTotalRef.current = total;
       startOffsetRef.current = startOffset;
@@ -81,9 +101,9 @@ export function ChatScreen({
     }
   }
 
-  async function pollNew() {
+  async function pollNew(convId: string) {
     try {
-      const res = await getMessages(orderId, 50, serverTotalRef.current);
+      const res = await getConversationMessages(convId, 50, serverTotalRef.current);
       if (res.items.length > 0) {
         setMessages((prev) => [...prev, ...res.items]);
         serverTotalRef.current = res.total;
@@ -94,21 +114,20 @@ export function ChatScreen({
   }
 
   async function loadOlder() {
-    if (loadingMore || startOffsetRef.current === 0) return;
+    const convId = convIdRef.current;
+    if (!convId || loadingMore || startOffsetRef.current === 0) return;
     setLoadingMore(true);
     try {
       const newOffset = Math.max(0, startOffsetRef.current - 50);
       const limit = startOffsetRef.current - newOffset;
-      const res = await getMessages(orderId, limit, newOffset);
+      const res = await getConversationMessages(convId, limit, newOffset);
       const prevScrollHeight = listRef.current?.scrollHeight ?? 0;
       setMessages((prev) => [...res.items, ...prev]);
       startOffsetRef.current = newOffset;
       setHasMore(newOffset > 0);
-      // restore scroll position after prepend
       requestAnimationFrame(() => {
         if (listRef.current) {
-          listRef.current.scrollTop =
-            listRef.current.scrollHeight - prevScrollHeight;
+          listRef.current.scrollTop = listRef.current.scrollHeight - prevScrollHeight;
         }
       });
     } catch {
@@ -119,14 +138,9 @@ export function ChatScreen({
   }
 
   useEffect(() => {
-    loadInitial();
+    init();
     if (executorId) {
-      getExecutor(executorId)
-        .then((e) => setAvatarUrl(e.avatar_url))
-        .catch(() => {});
-    }
-    if (!readonly) {
-      pollRef.current = setInterval(pollNew, 4000);
+      getExecutor(executorId).then((e) => setAvatarUrl(e.avatar_url)).catch(() => {});
     }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -160,14 +174,8 @@ export function ChatScreen({
   function handleFileSelect(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE) {
-      setError(t("chat_media_too_large"));
-      return;
-    }
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setError(t("chat_media_wrong_type"));
-      return;
-    }
+    if (file.size > MAX_FILE_SIZE) { setError(t("chat_media_too_large")); return; }
+    if (!ALLOWED_TYPES.includes(file.type)) { setError(t("chat_media_wrong_type")); return; }
     if (mediaPreviewUrl) URL.revokeObjectURL(mediaPreviewUrl);
     setMediaFile(file);
     setMediaPreviewUrl(URL.createObjectURL(file));
@@ -182,33 +190,34 @@ export function ChatScreen({
   }
 
   async function handleSend() {
-    if (sending || uploading) return;
+    const convId = convIdRef.current;
+    if (!convId || sending || uploading) return;
+
     if (mediaFile) {
       setUploading(true);
       try {
-        const msg = await sendMediaMessage(orderId, mediaFile, senderId);
+        const msg = await sendConversationMedia(convId, mediaFile, senderId);
         setMessages((prev) => [...prev, msg]);
         serverTotalRef.current += 1;
         clearMedia();
-      } catch (err: unknown) {
+      } catch (err) {
         handleSendError(err);
       } finally {
         setUploading(false);
       }
       return;
     }
+
     const trimmed = text.trim();
     if (!trimmed) return;
     setSending(true);
     setText("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     try {
-      const msg = await sendMessage(orderId, trimmed, senderId);
+      const msg = await sendConversationMessage(convId, trimmed, senderId);
       setMessages((prev) => [...prev, msg]);
       serverTotalRef.current += 1;
-    } catch (err: unknown) {
+    } catch (err) {
       setText(trimmed);
       handleSendError(err);
     } finally {
@@ -217,9 +226,8 @@ export function ChatScreen({
   }
 
   function handleSendError(err: unknown) {
-    const status = (err as { status?: number })?.status;
-    if (status === 403) {
-      setIsReadonly(true);
+    if ((err as { status?: number })?.status === 403) {
+      setConversationState("closed");
       if (pollRef.current) clearInterval(pollRef.current);
       setError(t("chat_closed_error"));
     } else {
@@ -228,45 +236,45 @@ export function ChatScreen({
   }
 
   function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   }
 
   function formatTime(isoStr: string): string {
     const d = new Date(isoStr);
     const locale = LOCALE_MAP[lang] ?? "ru-RU";
     if (d.toDateString() === new Date().toDateString()) {
-      return d.toLocaleTimeString(locale, {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
     }
-    return d.toLocaleString(locale, {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return d.toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   }
 
   function getInitials(name: string) {
-    return name
-      .split(" ")
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
+    return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   }
 
-  const canSend =
-    !isReadonly && !sending && !uploading && (!!text.trim() || !!mediaFile);
+  function renderEventText(msg: ConversationMessage): string {
+    const payload = msg.payload as Record<string, string> | null;
+    switch (msg.event_type) {
+      case "assigned": {
+        const name = payload?.cleaner_name ?? payload?.executor_name;
+        return name ? t("event_assigned_named", { name }) : t("event_assigned");
+      }
+      case "on_the_way": return t("event_on_the_way");
+      case "arrived": return t("event_arrived");
+      case "started": return t("event_started");
+      case "awaiting_confirmation": return t("event_awaiting_confirmation");
+      case "done": return t("event_done");
+      case "cancelled": return t("event_cancelled");
+      case "disputed": return t("event_disputed");
+      default: return msg.event_type ?? "";
+    }
+  }
+
+  const isReadonly = conversationState === "closed";
+  const canSend = !isReadonly && !sending && !uploading && (!!text.trim() || !!mediaFile);
 
   return (
-    <div
-      class={`h-screen bg-gray-50 flex flex-col ${exiting ? "animate-slide-out-right" : "animate-slide-in-right"}`}
-    >
+    <div class={`h-screen bg-gray-50 flex flex-col ${exiting ? "animate-slide-out-right" : "animate-slide-in-right"}`}>
       {/* Header */}
       <div class="bg-white border-b border-gray-100 px-4 pt-4 pb-3 flex items-center gap-3 shrink-0">
         <button
@@ -280,15 +288,11 @@ export function ChatScreen({
           {avatarUrl ? (
             <img src={avatarUrl} alt="" class="w-full h-full object-cover" />
           ) : (
-            <span class="text-xs font-semibold text-blue-600">
-              {getInitials(executorName)}
-            </span>
+            <span class="text-xs font-semibold text-blue-600">{getInitials(executorName)}</span>
           )}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-base font-semibold text-gray-900 truncate">
-            {executorName}
-          </p>
+          <p class="text-base font-semibold text-gray-900 truncate">{executorName}</p>
           <p class="text-xs text-gray-400">
             {isReadonly ? t("chat_readonly_hint") : t("chat_active_hint")}
           </p>
@@ -298,9 +302,7 @@ export function ChatScreen({
       {/* Messages */}
       <div
         ref={listRef}
-        onScroll={() => {
-          if ((listRef.current?.scrollTop ?? 999) < 60) loadOlder();
-        }}
+        onScroll={() => { if ((listRef.current?.scrollTop ?? 999) < 60) loadOlder(); }}
         class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2"
       >
         {loading && (
@@ -333,59 +335,38 @@ export function ChatScreen({
           const prevMsg = messages[i - 1];
           const showDate =
             !prevMsg ||
-            new Date(msg.created_at).toDateString() !==
-              new Date(prevMsg.created_at).toDateString();
+            new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();
           const isClient = msg.sender_type === "client";
-          const isSystem = msg.sender_type === "system";
+          const isEvent = msg.kind === "event";
 
           return (
             <div key={msg.id}>
               {showDate && (
                 <div class="flex justify-center my-2">
                   <span class="text-[11px] text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-                    {new Date(msg.created_at).toLocaleDateString(
-                      LOCALE_MAP[lang] ?? "ru-RU",
-                      { day: "numeric", month: "long" },
-                    )}
+                    {new Date(msg.created_at).toLocaleDateString(LOCALE_MAP[lang] ?? "ru-RU", {
+                      day: "numeric",
+                      month: "long",
+                    })}
                   </span>
                 </div>
               )}
 
-              {isSystem ? (
+              {isEvent ? (
                 <div class="flex justify-center my-2 px-4">
                   <div class="text-center">
-                    <div
-                      class="
-                        inline-block
-                        max-w-[80%]
-                        px-3 py-1.5
-                        rounded-full
-                        bg-gray-100
-                        text-[11px]
-                        text-gray-500
-                        break-words
-                      "
-                    >
-                      {msg.content}
+                    <div class="inline-block max-w-[80%] px-3 py-1.5 rounded-full bg-gray-100 text-[11px] text-gray-500 break-words">
+                      {renderEventText(msg)}
                     </div>
-
-                    <p class="text-[10px] text-gray-400 mt-1">
-                      {formatTime(msg.created_at)}
-                    </p>
+                    <p class="text-[10px] text-gray-400 mt-1">{formatTime(msg.created_at)}</p>
                   </div>
                 </div>
               ) : (
-                <div
-                  class={`flex items-end gap-2 ${isClient ? "justify-end" : "justify-start"}`}
-                >
+                <div class={`flex items-end gap-2 ${isClient ? "justify-end" : "justify-start"}`}>
                   {!isClient && (
                     <div class="w-7 h-7 rounded-full bg-blue-100 shrink-0 overflow-hidden flex items-center justify-center mb-0.5">
                       {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt=""
-                          class="w-full h-full object-cover"
-                        />
+                        <img src={avatarUrl} alt="" class="w-full h-full object-cover" />
                       ) : (
                         <span class="text-[10px] font-semibold text-blue-600">
                           {getInitials(executorName)}
@@ -394,7 +375,11 @@ export function ChatScreen({
                     </div>
                   )}
                   <div
-                    class={`max-w-[72%] px-4 py-2.5 rounded-2xl ${isClient ? "bg-blue-600 text-white rounded-br-sm" : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm"}`}
+                    class={`max-w-[72%] px-4 py-2.5 rounded-2xl ${
+                      isClient
+                        ? "bg-blue-600 text-white rounded-br-sm"
+                        : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm"
+                    }`}
                   >
                     {msg.media_url && (
                       <img
@@ -410,9 +395,7 @@ export function ChatScreen({
                         {msg.content}
                       </p>
                     )}
-                    <p
-                      class={`text-[10px] mt-1 text-right ${isClient ? "text-blue-200" : "text-gray-400"}`}
-                    >
+                    <p class={`text-[10px] mt-1 text-right ${isClient ? "text-blue-200" : "text-gray-400"}`}>
                       {formatTime(msg.created_at)}
                     </p>
                   </div>
@@ -429,14 +412,9 @@ export function ChatScreen({
       {/* Input */}
       {!isReadonly && (
         <div class="bg-white border-t border-gray-100 px-4 py-3 flex flex-col gap-2 shrink-0">
-          {/* Media preview */}
           {mediaPreviewUrl && (
             <div class="relative w-20 h-20">
-              <img
-                src={mediaPreviewUrl}
-                alt=""
-                class="w-full h-full object-cover rounded-xl"
-              />
+              <img src={mediaPreviewUrl} alt="" class="w-full h-full object-cover rounded-xl" />
               <button
                 type="button"
                 onClick={clearMedia}
@@ -453,7 +431,6 @@ export function ChatScreen({
           )}
 
           <div class="flex items-end gap-2">
-            {/* Hidden file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -461,22 +438,12 @@ export function ChatScreen({
               class="hidden"
               onChange={handleFileSelect}
             />
-            {/* Attach button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               class="w-10 h-10 shrink-0 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors active:scale-90"
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
               </svg>
             </button>
@@ -498,16 +465,7 @@ export function ChatScreen({
               disabled={!canSend}
               class="w-10 h-10 shrink-0 flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 text-white rounded-2xl transition-all active:scale-90"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
@@ -522,7 +480,6 @@ export function ChatScreen({
         </div>
       )}
 
-      {/* Lightbox */}
       {lightboxUrl && (
         <div
           class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center animate-fade-in"

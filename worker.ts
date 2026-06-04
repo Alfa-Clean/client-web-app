@@ -10,8 +10,7 @@ export default {
 
     if (url.pathname.startsWith('/api/')) {
       const target = env.BACKEND_URL.replace(/\/$/, '')
-      const backendPath = url.pathname.slice(4) // strip /api
-      const backendUrl = target + backendPath + url.search
+      const backendUrl = target + url.pathname + url.search
 
       const headers = new Headers(request.headers)
       if (env.SERVICE_KEY) {

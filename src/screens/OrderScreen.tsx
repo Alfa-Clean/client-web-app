@@ -364,7 +364,7 @@ export function OrderScreen({ user, onBack }: Props) {
             <div class="flex-1 min-w-0">
               {draft.address ? (
                 <>
-                  <p class="text-sm font-medium text-[#2D6126] dark:text-[#6DB363] truncate">{draft.address}</p>
+                  <p class="text-sm font-medium text-[#44973A] truncate">{draft.address}</p>
                   {draft.addressDetails && (
                     <p class="text-xs text-gray-400 mt-0.5 truncate">{draft.addressDetails}</p>
                   )}
@@ -539,7 +539,7 @@ export function OrderScreen({ user, onBack }: Props) {
                     class="w-full flex items-center justify-between px-4 py-3.5 transition-colors active:bg-gray-50 text-left"
                   >
                     <span class={`text-sm font-medium ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
-                      {addon.name_ru}
+                      {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
                     </span>
                     <div class="flex items-center gap-3">
                       <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>

@@ -14,6 +14,7 @@ import {
   B4_TeamFormation, B5_InProgress, B6_Awaiting,
   OrderMetaCard,
 } from './BrigadierOrderScreen'
+import { ActiveOrderBanner, ACTIVE_ORDER_STATUS_LABEL } from './HubScreen'
 import type { Order } from '../api/orders'
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
@@ -321,7 +322,7 @@ function OrderHistoryItem({
 
 export function UIKitScreen() {
   const [theme, setThemeState] = useState(getTheme())
-  const [page, setPage] = useState<'system' | 'brigadier'>('system')
+  const [page, setPage] = useState<'system' | 'brigadier' | 'handyman'>('system')
 
   function toggleTheme() {
     const next = theme === 'light' ? 'dark' : 'light'
@@ -350,17 +351,18 @@ export function UIKitScreen() {
           </button>
         </div>
         <div class="flex -mx-4">
-          {(['system', 'brigadier'] as const).map(p => (
+          {(['system', 'brigadier', 'handyman'] as const).map(p => (
             <button key={p} type="button" onClick={() => setPage(p)}
               class={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${page === p ? 'border-[#44973A] text-[#44973A]' : 'border-transparent text-gray-400'}`}
             >
-              {p === 'system' ? 'Design System' : 'Дом (клиент)'}
+              {p === 'system' ? 'Design System' : p === 'brigadier' ? 'Дом (клиент)' : 'Хэндимен'}
             </button>
           ))}
         </div>
       </div>
 
       {page === 'brigadier' && <BrigadierDemoPage />}
+      {page === 'handyman' && <HandymanDemoPage />}
       <div class={`pt-6 max-w-[1000px] mx-auto${page !== 'system' ? ' hidden' : ''}`}>
 
         {/* ── BRAND ── */}
@@ -816,10 +818,10 @@ export function UIKitScreen() {
         <Section title="Addon Picker · Дополнительные услуги">
           {(() => {
             const MOCK_ADDONS = [
-              { id: 'windows', name_ru: 'Мытьё окон',          name_uz: 'Derazalarni yuvish', price: 50000, category_ru: 'Окна и балкон', category_uz: 'Derazalar va balkon' },
-              { id: 'balcony', name_ru: 'Уборка балкона',       name_uz: 'Balkoni tozalash',   price: 40000, category_ru: 'Окна и балкон', category_uz: 'Derazalar va balkon' },
-              { id: 'oven',    name_ru: 'Чистка духовки',       name_uz: 'Pechni tozalash',    price: 30000, category_ru: 'Кухня',         category_uz: 'Oshxona' },
-              { id: 'fridge',  name_ru: 'Чистка холодильника',  price: 35000,                               category_ru: 'Кухня',         category_uz: 'Oshxona' },
+              { id: 'windows',      translations: { ru: 'Мытьё окон',         uz: 'Derazalarni yuvish' }, price: 50000, category_id: 'windows' },
+              { id: 'balcony',      translations: { ru: 'Уборка балкона',      uz: 'Balkoni tozalash'   }, price: 40000, category_id: 'windows' },
+              { id: 'oven_inside',  translations: { ru: 'Чистка духовки',      uz: 'Pechni tozalash'    }, price: 30000, category_id: 'kitchen' },
+              { id: 'fridge_inside',translations: { ru: 'Чистка холодильника'                           }, price: 35000, category_id: 'kitchen' },
             ]
             const [sel, setSel] = useState<string[]>([])
             return (
@@ -1310,6 +1312,341 @@ function BrigadierDemoPage() {
           </Section>
         </div>
       ))}
+
+      <div class="h-10" />
+    </div>
+  )
+}
+
+// ─── Handyman Demo Page ───────────────────────────────────────────────────────
+
+function HandymanDemoPage() {
+  const MOCK_ADDONS = [
+    { id: 'plumbing',   translations: { ru: 'Сантехника'     }, price: 30000 },
+    { id: 'electrical', translations: { ru: 'Электрика'      }, price: 40000 },
+    { id: 'furniture',  translations: { ru: 'Сборка мебели'  }, price: 50000 },
+    { id: 'painting',   translations: { ru: 'Покраска'        }, price: 60000 },
+  ]
+  const MOCK_ADDRESSES = [
+    { id: 'a1', address: 'Карасу-2, д. 39',              label: 'Дом',    housing_type: 'apt'   as const },
+    { id: 'a2', address: 'ул. Насирходжа, 72',           label: 'Работа', housing_type: 'apt'   as const },
+    { id: 'a3', address: 'Юнусабад, 19-квартал, д. 8',  label: null,     housing_type: 'house' as const },
+  ]
+
+  const [addrOpen,    setAddrOpen]    = useState(false)
+  const [selectedAddr, setSelectedAddr] = useState<typeof MOCK_ADDRESSES[0] | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([])
+  const [comment,    setComment]    = useState('')
+
+  const SLOTS = ['09:00–12:00', '12:00–15:00', '15:00–18:00']
+  const BASE_PRICE = 50000
+  const price = BASE_PRICE + MOCK_ADDONS.filter(a => selectedAddons.includes(a.id)).reduce((s, a) => s + a.price, 0)
+  const canSubmit = !!selectedAddr && !!selectedDate && !!selectedSlot
+
+  function toggleAddon(id: string) {
+    setSelectedAddons(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  return (
+    <div class="pt-6 max-w-[600px] mx-auto">
+
+      {/* ── Intro ── */}
+      <div class="px-4 mb-6">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Handyman Order</p>
+        <h2 class="text-base font-bold text-gray-900">Экран заказа мастера</h2>
+        <p class="text-xs text-gray-400 mt-1">Интерактивное демо всех состояний формы</p>
+      </div>
+
+      {/* ── Address dropdown ── */}
+      <Section title="1 · Адрес — дропдаун">
+        <div class="flex flex-col gap-4">
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Пустой</p>
+            <div class="flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 border-gray-200 bg-white">
+              <p class="text-sm text-gray-400">Адрес</p>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="text-gray-400">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Выбран</p>
+            <div class="flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 border-[#44973A] bg-[#F0F9EE]">
+              <div>
+                <p class="text-sm font-medium text-[#44973A]">Карасу-2, д. 39</p>
+                <p class="text-xs text-gray-400 mt-0.5">кв. 12, домофон 42</p>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="text-gray-400">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Открытый (интерактивный)</p>
+            <div class="relative">
+              <button
+                type="button"
+                onClick={() => setAddrOpen(v => !v)}
+                class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${addrOpen ? 'border-[#44973A]' : selectedAddr ? 'border-[#44973A] bg-[#F0F9EE]' : 'border-gray-200'}`}
+              >
+                {selectedAddr ? (
+                  <p class="text-sm font-medium text-[#44973A] truncate">{selectedAddr.address}</p>
+                ) : (
+                  <p class="text-sm text-gray-400">Адрес</p>
+                )}
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class={`shrink-0 ml-2 text-gray-400 transition-transform ${addrOpen ? 'rotate-180' : ''}`}>
+                  <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              {addrOpen && (
+                <>
+                  <div class="fixed inset-0 z-10" onClick={() => setAddrOpen(false)} />
+                  <div class="absolute left-0 right-0 top-[calc(100%+6px)] z-20 bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+                    {MOCK_ADDRESSES.map(addr => (
+                      <AddressOption
+                        key={addr.id}
+                        address={addr.address}
+                        label={addr.label}
+                        housingType={addr.housing_type}
+                        active={selectedAddr?.id === addr.id}
+                        onClick={() => { setSelectedAddr(addr); setAddrOpen(false) }}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setAddrOpen(false)}
+                      class="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors border-t border-gray-100"
+                    >
+                      <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-gray-500 text-sm font-light">+</div>
+                      <p class="text-sm font-medium text-gray-500">Добавить новый адрес</p>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Divider />
+
+      {/* ── Date chips ── */}
+      <Section title="2 · Дата и слот — чипы">
+        <div class="flex flex-col gap-4">
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Ничего не выбрано</p>
+            <div class="flex gap-2">
+              {['Сегодня', 'Завтра', 'Другой день'].map(d => (
+                <button key={d} type="button" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Интерактивно — выберите дату и слот</p>
+            <div class="flex gap-2 mb-3">
+              {[{ iso: '2026-05-31', label: 'Сегодня' }, { iso: '2026-06-01', label: 'Завтра' }, { iso: '2026-06-05', label: '5 июн' }].map(d => (
+                <button
+                  key={d.iso}
+                  type="button"
+                  onClick={() => { setSelectedDate(d.iso); setSelectedSlot(null) }}
+                  class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedDate === d.iso ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'}`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            {selectedDate && (
+              <div class="flex gap-2 flex-wrap">
+                {SLOTS.map(slot => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setSelectedSlot(slot)}
+                    class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedSlot === slot ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'}`}
+                  >
+                    {slot}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      <Divider />
+
+      {/* ── Addons ── */}
+      <Section title="3 · Дополнения — чекбоксы">
+        <div class="flex flex-col gap-4">
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Ничего не выбрано</p>
+            <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+              {MOCK_ADDONS.map(addon => (
+                <div key={addon.id} class="flex items-center justify-between px-4 py-3.5">
+                  <span class="text-sm font-medium text-gray-900">{addon.translations['ru'] ?? addon.id}</span>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
+                    <div class="w-5 h-5 rounded-md border-2 border-gray-300" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Интерактивный (кликайте)</p>
+            <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+              {MOCK_ADDONS.map(addon => {
+                const on = selectedAddons.includes(addon.id)
+                return (
+                  <button
+                    key={addon.id}
+                    type="button"
+                    onClick={() => toggleAddon(addon.id)}
+                    class="w-full flex items-center justify-between px-4 py-3.5 transition-colors active:bg-gray-50 text-left"
+                  >
+                    <span class={`text-sm font-medium ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>{addon.translations['ru'] ?? addon.id}</span>
+                    <div class="flex items-center gap-3">
+                      <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
+                      <div class={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${on ? 'bg-[#44973A] border-[#44973A]' : 'border-gray-300'}`}>
+                        {on && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                            <path d="M1 4l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            {selectedAddons.length > 0 && (
+              <p class="text-xs text-gray-400 mt-2">Выбрано: {selectedAddons.join(', ')}</p>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      <Divider />
+
+      {/* ── Comment ── */}
+      <Section title="4 · Комментарий — textarea">
+        <div class="flex flex-col gap-4">
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Пустой</p>
+            <textarea
+              rows={3}
+              placeholder="Опишите задачу подробнее..."
+              disabled
+              class="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-400 placeholder-gray-400 resize-none"
+            />
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Интерактивный</p>
+            <textarea
+              rows={3}
+              placeholder="Опишите задачу подробнее..."
+              value={comment}
+              onInput={e => setComment((e.target as HTMLTextAreaElement).value)}
+              class="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#44973A] transition-colors resize-none"
+            />
+          </div>
+        </div>
+      </Section>
+
+      <Divider />
+
+      {/* ── Submit CTA ── */}
+      <Section title="5 · Кнопка отправки — состояния">
+        <div class="flex flex-col gap-3">
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Disabled (адрес / дата не выбраны)</p>
+            <button type="button" disabled class="w-full py-4 rounded-2xl text-sm font-semibold text-white opacity-40" style="background:#44973A">
+              Оставить заявку · 50 000 сум
+            </button>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Active</p>
+            <button type="button" class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors" style="background:#44973A">
+              Оставить заявку · 50 000 сум
+            </button>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">Loading</p>
+            <button type="button" disabled class="w-full py-4 rounded-2xl text-sm font-semibold text-white opacity-70" style="background:#44973A">
+              Отправляем...
+            </button>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400 mb-2">С аддонами (интерактивно — выберите выше)</p>
+            <button
+              type="button"
+              disabled={!canSubmit}
+              class={`w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors ${!canSubmit ? 'opacity-40' : ''}`}
+              style="background:#44973A"
+            >
+              {`Оставить заявку · ${price.toLocaleString('ru-RU')} сум`}
+            </button>
+            {!canSubmit && (
+              <p class="text-[10px] text-gray-400 mt-2 text-center">Выберите адрес + дату + слот выше</p>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      <Divider />
+
+      {/* ── Done screen ── */}
+      <Section title="6 · Экран успеха">
+        <div class="bg-gray-50 rounded-2xl p-6 flex flex-col items-center text-center gap-5">
+          <div class="w-16 h-16 rounded-full bg-[#F0F9EE] flex items-center justify-center">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M5 14l7 7 11-12" stroke="#44973A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-gray-900 mb-1">Заявка принята!</h2>
+            <p class="text-sm text-gray-400">Мастер свяжется с вами в ближайшее время</p>
+          </div>
+          <button type="button" class="w-full max-w-xs py-4 rounded-2xl text-sm font-semibold text-white" style="background:#44973A">
+            На главную
+          </button>
+        </div>
+      </Section>
+
+      <Divider />
+
+      {/* ── Active Order Banners ── */}
+      {(() => {
+        const BASE_ORDER: Order = {
+          id: 'demo', order_num: 42, status: 'new',
+          service_type: 'standard', housing_type: 'apt',
+          rooms: 2, bathrooms: 1, price: 280000,
+          address: 'Карасу-2, д. 39', order_date: '2026-05-31',
+          order_slot: '12:00–15:00', addons: [], created_at: '',
+        }
+        const statuses = Object.entries(ACTIVE_ORDER_STATUS_LABEL) as [string, string][]
+        return (
+          <Section title="7 · Баннер активного заказа — все статусы">
+            <div class="flex flex-col gap-3">
+              {statuses.map(([status, label]) => (
+                <div key={status}>
+                  <p class="text-[10px] text-gray-400 mb-1.5 font-mono">{status} — {label}</p>
+                  <ActiveOrderBanner
+                    order={{ ...BASE_ORDER, status: status as Order['status'] }}
+                    onClick={() => {}}
+                  />
+                </div>
+              ))}
+            </div>
+          </Section>
+        )
+      })()}
 
       <div class="h-10" />
     </div>
