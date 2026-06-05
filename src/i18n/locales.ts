@@ -215,7 +215,7 @@ const ru: Strings = {
   confirm_cancel_order_title: 'Отмена заказа',
   confirm_cancel_order: 'Вы точно хотите отменить заказ? Клинер уже выехал к вам. Отмена будет платной.',
   confirm_cancel_new_order: 'Вы точно хотите отменить заказ?',
-  dialog_ok: 'Подтвердить',
+  dialog_ok: 'Понятно',
   dialog_cancel: 'Отмена',
   dialog_btn_cancel_order: 'Отменить',
   dialog_btn_no: 'Нет',

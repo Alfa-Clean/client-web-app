@@ -1,3 +1,4 @@
+import { Info } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { User } from '../types'
 import type { Address } from '../api/addresses'
@@ -178,6 +179,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showAddressSheet, setShowAddressSheet] = useState(false)
+  const [infoAddon, setInfoAddon] = useState<HandymanWork | null>(null)
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
   const [done, setDone] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
@@ -289,7 +291,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
   }
 
   return (
-    <div class="min-h-screen bg-gray-50 flex flex-col">
+    <div class="h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div class="bg-white px-5 pt-12 pb-4 flex items-center justify-between border-b border-gray-100">
         <button
@@ -435,39 +437,49 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
               {addons.map(addon => {
                 const on = draft.works.includes(addon.id)
                 return (
-                  <button
-                    key={addon.id}
-                    type="button"
-                    onClick={() => patch({
-                      addons: on
-                        ? draft.works.filter(x => x !== addon.id)
-                        : [...draft.works, addon.id],
-                    })}
-                    class="w-full flex items-center justify-between px-4 py-3.5 transition-colors active:bg-gray-50 text-left"
-                  >
-                    <div class="flex-1 min-w-0">
-                      <p class={`text-sm font-medium ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
+                  <div key={addon.id} class="flex items-center px-4 py-3.5 gap-2">
+                    <div class="flex-1 min-w-0 flex items-center gap-1.5">
+                      <p
+                        class={`text-sm font-medium truncate cursor-pointer ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}
+                        onClick={() => patch({
+                          works: on
+                            ? draft.works.filter(x => x !== addon.id)
+                            : [...draft.works, addon.id],
+                        })}
+                      >
                         {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
                       </p>
                       {(addon.description_translations[lang] ?? addon.description_translations['ru']) && (
-                        <p class="text-xs text-gray-400 mt-0.5">
-                          {addon.description_translations[lang] ?? addon.description_translations['ru']}
-                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setInfoAddon(addon)}
+                          class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 active:text-gray-500 transition-colors"
+                        >
+                          <Info size={14} />
+                        </button>
                       )}
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 shrink-0">
                       <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
-                      <div class={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-                        on ? 'bg-[#44973A] border-[#44973A]' : 'border-gray-300'
-                      }`}>
+                      <button
+                        type="button"
+                        onClick={() => patch({
+                          works: on
+                            ? draft.works.filter(x => x !== addon.id)
+                            : [...draft.works, addon.id],
+                        })}
+                        class={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+                          on ? 'bg-[#44973A] border-[#44973A]' : 'border-gray-300'
+                        }`}
+                      >
                         {on && (
                           <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
                             <path d="M1 4l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                           </svg>
                         )}
-                      </div>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -560,6 +572,27 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
           onSubmit={handleAddressCreated}
           onBack={() => setShowAddressSheet(false)}
         />
+      </BottomSheet>
+
+      <BottomSheet open={!!infoAddon} onClose={() => setInfoAddon(null)}>
+        {infoAddon && (
+          <div class="px-5 pt-2 pb-6">
+            <p class="text-base font-semibold text-gray-900 mb-3">
+              {infoAddon.translations[lang] ?? infoAddon.translations['ru'] ?? infoAddon.id}
+            </p>
+            <p class="text-sm text-gray-600 leading-relaxed mb-5">
+              {infoAddon.description_translations[lang] ?? infoAddon.description_translations['ru']}
+            </p>
+            <button
+              type="button"
+              onClick={() => setInfoAddon(null)}
+              class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
+              style="background:#44973A"
+            >
+              {t('dialog_ok')}
+            </button>
+          </div>
+        )}
       </BottomSheet>
 
       {/* Sticky CTA */}
