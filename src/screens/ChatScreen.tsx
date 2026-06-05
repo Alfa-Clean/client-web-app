@@ -355,7 +355,7 @@ export function ChatScreen({
               {isEvent ? (
                 <div class="flex justify-center my-2 px-4">
                   <div class="text-center">
-                    <div class="inline-block max-w-[80%] px-3 py-1.5 rounded-full bg-gray-100 text-[11px] text-gray-500 break-words">
+                    <div class="inline-block max-w-[92%] px-3 py-1.5 rounded-full bg-gray-100 text-[11px] text-gray-500 break-words">
                       {renderEventText(msg)}
                     </div>
                     <p class="text-[10px] text-gray-400 mt-1">{formatTime(msg.created_at)}</p>

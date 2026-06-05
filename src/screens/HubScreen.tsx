@@ -475,7 +475,7 @@ type ActiveOrderEntry =
 
 type View =
   | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman'
-  | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order'; executorId: string | null; executorName: string; senderId: string }
+  | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order'; executorId: string | null; executorName: string; senderId: string; backView: 'active_order' | 'active_handyman' }
 
 interface Props {
   user: User
@@ -540,7 +540,7 @@ export function HubScreen({ user }: Props) {
         executorId={view.executorId}
         executorName={view.executorName}
         senderId={view.senderId}
-        onBack={() => setView('active_order')}
+        onBack={() => setView(view.backView)}
       />
     )
   }
@@ -560,6 +560,7 @@ export function HubScreen({ user }: Props) {
             executorId: activeOrder.foreman_id ?? null,
             executorName: activeOrder.foreman_name ?? 'Бригадир',
             senderId: String(user.telegram_id),
+            backView: 'active_order',
           })}
           onOrderCancelled={onOrderDone}
           onOrderAccepted={onOrderDone}
@@ -579,6 +580,7 @@ export function HubScreen({ user }: Props) {
           executorId,
           executorName,
           senderId: String(user.telegram_id),
+          backView: 'active_order',
         })}
         onOrderCancelled={onOrderDone}
         onOrderAccepted={onOrderDone}
@@ -611,6 +613,7 @@ export function HubScreen({ user }: Props) {
           executorId,
           executorName,
           senderId: String(user.telegram_id),
+          backView: 'active_handyman',
         })}
         onOrderCancelled={onHandymanDone}
         onOrderAccepted={onHandymanDone}

@@ -2,9 +2,10 @@ import { useState } from 'preact/hooks'
 import {
   MapPin, CalendarDays, Banknote, Wrench, MessageCircle,
   User as UserIcon, Clock, Car, DoorOpen, CheckCircle2,
-  X, ChevronRight,
+  X, ChevronRight, HeadphonesIcon,
 } from 'lucide-react'
 import type { ComponentType } from 'preact'
+import type { JSX } from 'preact'
 import type { HandymanOrder } from '../api/orders'
 import { cancelHandymanOrder } from '../api/orders'
 import { useLocale } from '../i18n'
@@ -162,15 +163,6 @@ export function ActiveHandymanOrderScreen({
               <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Мастер</p>
               <p class="text-sm font-semibold text-gray-900 mt-0.5">{order.executor_name}</p>
             </div>
-            {canChat && (
-              <button
-                type="button"
-                onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name ?? 'Мастер')}
-                class="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center active:bg-amber-100 transition-colors"
-              >
-                <MessageCircle size={18} class="text-amber-600" />
-              </button>
-            )}
           </div>
         )}
 
@@ -201,18 +193,21 @@ export function ActiveHandymanOrderScreen({
           </div>
         </div>
 
-        {/* Support */}
-        <button
-          type="button"
-          onClick={onSupportClick}
-          class="bg-white rounded-2xl border border-gray-100 px-4 py-3.5 flex items-center gap-3 active:bg-gray-50 transition-colors w-full text-left"
-        >
-          <div class="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-            <MessageCircle size={16} class="text-green-600" />
-          </div>
-          <p class="flex-1 text-sm font-medium text-gray-900">Поддержка</p>
-          <ChevronRight size={16} class="text-gray-300" />
-        </button>
+        {/* Actions */}
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
+          {canChat && (
+            <ActionRow
+              icon={<MessageCircle size={18} class="text-amber-500" />}
+              label={t('chat_contact_cleaner')}
+              onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name ?? 'Мастер')}
+            />
+          )}
+          <ActionRow
+            icon={<HeadphonesIcon size={18} class="text-gray-500" />}
+            label="Поддержка"
+            onClick={onSupportClick}
+          />
+        </div>
 
       </div>
 
@@ -231,5 +226,19 @@ export function ActiveHandymanOrderScreen({
         </div>
       )}
     </div>
+  )
+}
+
+function ActionRow({ icon, label, onClick }: { icon: JSX.Element; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      class="w-full flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors text-left"
+    >
+      <span class="shrink-0">{icon}</span>
+      <p class="flex-1 text-sm font-medium text-gray-900">{label}</p>
+      <ChevronRight size={15} class="text-gray-300 shrink-0" />
+    </button>
   )
 }
