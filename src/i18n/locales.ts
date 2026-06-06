@@ -314,6 +314,19 @@ const ru: Strings = {
   promo_error_on_submit: 'Промокод стал недействителен. Заказ оформлен без скидки.',
   open_in_telegram: 'Открой в Telegram',
   open_in_telegram_hint: 'Это приложение работает только внутри Telegram.',
+
+  // Order edit
+  edit_order_title: 'Изменить заказ',
+  edit_order_save: 'Сохранить изменения',
+  edit_order_saving: 'Сохраняем...',
+  edit_order_saved: 'Изменения сохранены',
+  edit_order_assigned_hint: 'Клинер уже назначен — можно изменить только доп. услуги',
+  edit_order_conflict: 'Заказ нельзя редактировать в текущем статусе',
+  edit_order_address_label: 'Адрес',
+  edit_order_date_label: 'Дата и время',
+  edit_order_addons_label: 'Дополнительные услуги',
+  edit_order_no_addons: 'Доп. услуги недоступны для этого типа уборки',
+  edit_order_housing_change: 'Изменить тип помещения нельзя — отмените заказ и создайте новый.',
 }
 
 const uz: Strings = {
@@ -612,6 +625,19 @@ const uz: Strings = {
   promo_error_on_submit: 'Promokod yaroqsiz bo\'lib qoldi. Buyurtma chegirmasiz rasmiylashtirildi.',
   open_in_telegram: 'Telegramda oching',
   open_in_telegram_hint: 'Bu ilova faqat Telegram ichida ishlaydi.',
+
+  // Order edit
+  edit_order_title: 'Buyurtmani o\'zgartirish',
+  edit_order_save: 'O\'zgarishlarni saqlash',
+  edit_order_saving: 'Saqlanmoqda...',
+  edit_order_saved: 'O\'zgarishlar saqlandi',
+  edit_order_assigned_hint: 'Tozalovchi tayinlangan — faqat qo\'shimcha xizmatlarni o\'zgartirish mumkin',
+  edit_order_conflict: 'Buyurtmani hozirgi holatda tahrirlash mumkin emas',
+  edit_order_address_label: 'Manzil',
+  edit_order_date_label: 'Sana va vaqt',
+  edit_order_addons_label: 'Qo\'shimcha xizmatlar',
+  edit_order_no_addons: 'Bu tozalash turi uchun qo\'shimcha xizmatlar mavjud emas',
+  edit_order_housing_change: 'Turar joy turini o\'zgartirish mumkin emas — buyurtmani bekor qiling va yangi yarating.',
 }
 
 const en: Strings = {
@@ -910,6 +936,19 @@ const en: Strings = {
   promo_error_on_submit: 'Promo code became invalid. Order placed without discount.',
   open_in_telegram: 'Open in Telegram',
   open_in_telegram_hint: 'This app only works inside Telegram.',
+
+  // Order edit
+  edit_order_title: 'Edit Order',
+  edit_order_save: 'Save Changes',
+  edit_order_saving: 'Saving...',
+  edit_order_saved: 'Changes saved',
+  edit_order_assigned_hint: 'Cleaner assigned — only add-ons can be changed',
+  edit_order_conflict: 'Order cannot be edited in its current status',
+  edit_order_address_label: 'Address',
+  edit_order_date_label: 'Date & Time',
+  edit_order_addons_label: 'Add-on Services',
+  edit_order_no_addons: 'Add-ons are not available for this service type',
+  edit_order_housing_change: 'Cannot change housing type — cancel the order and create a new one.',
 }
 
 export const locales: Record<Lang, Strings> = { ru, uz, en }

@@ -22,6 +22,7 @@ interface Props {
   onOrderCancelled: () => void
   onOrderAccepted: () => void
   onOrderUpdated: (order: Order) => void
+  onEditClick: () => void
 }
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ export function HouseOrderStatusScreen({
   onOrderCancelled,
   onOrderAccepted,
   onOrderUpdated,
+  onEditClick,
 }: Props) {
   const { t } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
@@ -165,6 +167,7 @@ export function HouseOrderStatusScreen({
           onCancel={handleCancel}
           onAcceptWork={handleAcceptWork}
           onChat={onChatClick}
+          onEdit={onEditClick}
         />
       </div>
     </div>
@@ -182,16 +185,17 @@ interface ContentProps {
   onCancel: () => void
   onAcceptWork: () => void
   onChat: () => void
+  onEdit: () => void
 }
 
-function StatusContent({ order, loading, onConfirmPrice, onRejectPrice, onCounterPrice, onCancel, onAcceptWork, onChat }: ContentProps) {
+function StatusContent({ order, loading, onConfirmPrice, onRejectPrice, onCounterPrice, onCancel, onAcceptWork, onChat, onEdit }: ContentProps) {
   const { t } = useLocale()
 
   switch (order.status) {
     case 'new':
-      return <ViewA1 order={order} onCancel={onCancel} loading={loading} />
+      return <ViewA1 order={order} onCancel={onCancel} onEdit={onEdit} loading={loading} />
     case 'assessment':
-      return <ViewA2 order={order} onChat={onChat} onCancel={onCancel} loading={loading} />
+      return <ViewA2 order={order} onChat={onChat} onCancel={onCancel} onEdit={onEdit} loading={loading} />
     case 'price_submitted':
       return <ViewA3 order={order} onConfirm={onConfirmPrice} onReject={onRejectPrice} onCounter={onCounterPrice} onCancel={onCancel} loading={loading} />
     case 'price_rejected':
@@ -213,7 +217,7 @@ function StatusContent({ order, loading, onConfirmPrice, onRejectPrice, onCounte
 
 // ─── A1 — Поиск бригадира ─────────────────────────────────────────────────────
 
-function ViewA1({ order, onCancel, loading }: { order: Order; onCancel: () => void; loading: boolean }) {
+function ViewA1({ order, onCancel, onEdit, loading }: { order: Order; onCancel: () => void; onEdit: () => void; loading: boolean }) {
   const { t } = useLocale()
   return (
     <>
@@ -229,6 +233,14 @@ function ViewA1({ order, onCancel, loading }: { order: Order; onCancel: () => vo
           <AddressRow address={order.address} />
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        class="w-full py-3.5 rounded-2xl text-sm font-medium border active:opacity-80 transition-colors"
+        style={`color: ${BLUE}; border-color: ${BLUE}`}
+      >
+        {t('edit_order_title')}
+      </button>
       <CancelBtn onCancel={onCancel} loading={loading} />
     </>
   )
@@ -236,7 +248,7 @@ function ViewA1({ order, onCancel, loading }: { order: Order; onCancel: () => vo
 
 // ─── A2 — Бригадир едет ──────────────────────────────────────────────────────
 
-function ViewA2({ order, onChat, onCancel, loading }: { order: Order; onChat: () => void; onCancel: () => void; loading: boolean }) {
+function ViewA2({ order, onChat, onCancel, onEdit, loading }: { order: Order; onChat: () => void; onCancel: () => void; onEdit: () => void; loading: boolean }) {
   const { t } = useLocale()
   return (
     <>
@@ -258,6 +270,14 @@ function ViewA2({ order, onChat, onCancel, loading }: { order: Order; onChat: ()
           </button>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        class="w-full py-3.5 rounded-2xl text-sm font-medium border active:opacity-80 transition-colors"
+        style={`color: ${BLUE}; border-color: ${BLUE}`}
+      >
+        {t('edit_order_title')}
+      </button>
       <CancelBtn onCancel={onCancel} loading={loading} />
     </>
   )

@@ -1,13 +1,15 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import {
   MapPin, CalendarDays, Banknote, Sparkles, MessageCircle,
   User as UserIcon, Clock, Car, DoorOpen, CheckCircle2, PartyPopper,
-  Pencil, HeadphonesIcon, ChevronRight,
+  HeadphonesIcon, ChevronRight,
 } from 'lucide-react'
 import type { ComponentType } from 'preact'
 import type { JSX } from 'preact'
 import type { Order } from '../api/orders'
 import { cancelOrder, acceptOrder } from '../api/orders'
+import type { Addon } from '../api/addons'
+import { getAddons } from '../api/addons'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
@@ -61,13 +63,17 @@ export function ActiveOrderScreen({
   const { confirm, dialogProps } = useConfirm()
   const [order] = useState(initialOrder)
   const [loading, setLoading] = useState(false)
+  const [addonsCatalog, setAddonsCatalog] = useState<Addon[]>([])
+
+  useEffect(() => {
+    if (order.addons.length > 0) {
+      getAddons().then(setAddonsCatalog).catch(() => {})
+    }
+  }, [])
 
   const statusIdx = STATUS_TIMELINE.indexOf(order.status)
   const StatusIcon = STATUS_ICON[order.status] ?? Sparkles
 
-  const addonNames = order.addons
-    .map(id => t(`addon_${id}`) || id)
-    .filter(Boolean)
 
   async function handleCancel() {
     const isNew = order.status === 'new'
@@ -181,8 +187,26 @@ export function ActiveOrderScreen({
           <DetailRow icon={<MapPin size={15} />}       label={t('confirm_address')} value={order.address} />
           <DetailRow icon={<CalendarDays size={15} />} label={t('confirm_date')}    value={formatDate(order.order_date, order.order_slot, lang, LOCALE_MAP)} />
           <DetailRow icon={<Sparkles size={15} />}     label={t('confirm_service')} value={t(`svc_${order.service_type}`) || order.service_type} />
-          {addonNames.length > 0 && (
-            <DetailRow icon={<Sparkles size={15} />}   label={t('confirm_addons')}  value={addonNames.join(', ')} />
+          {order.addons.length > 0 && (
+            <div class="flex items-start gap-3 px-4 py-3">
+              <span class="text-gray-400 mt-0.5 shrink-0"><Sparkles size={15} /></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-400 mb-1">{t('confirm_addons')}</p>
+                <ul class="flex flex-col gap-0.5">
+                  {order.addons.map(a => {
+                    const found = addonsCatalog.find(x => x.id === a.id)
+                    const name = found ? (found.translations[lang] ?? found.translations['ru'] ?? a.id) : a.id
+                    const qty = a.qty ?? 1
+                    return (
+                      <li key={a.id} class="flex items-center justify-between gap-2">
+                        <span class="text-sm text-gray-800">{name}</span>
+                        {qty > 1 && <span class="text-xs text-gray-400 shrink-0">× {qty}</span>}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            </div>
           )}
           {order.comment && (
             <DetailRow icon={<MessageCircle size={15} />} label={t('history_comment_label')} value={order.comment} />
@@ -206,18 +230,13 @@ export function ActiveOrderScreen({
             />
           )}
           <ActionRow
-            icon={<Pencil size={18} class="text-blue-500" />}
-            label="Изменить заказ"
-            onClick={onEditClick}
-          />
-          <ActionRow
             icon={<HeadphonesIcon size={18} class="text-gray-500" />}
             label="Поддержка"
             onClick={onSupportClick}
           />
         </div>
 
-        {/* Accept / Cancel */}
+        {/* Accept / Cancel / Edit */}
         <div class="flex flex-col gap-2">
           {order.status === 'awaiting_confirmation' && (
             <button
@@ -227,6 +246,15 @@ export function ActiveOrderScreen({
               class="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
             >
               {t('home_accept_work')}
+            </button>
+          )}
+          {(order.status === 'new' || order.status === 'assigned') && (
+            <button
+              type="button"
+              onClick={onEditClick}
+              class="w-full border-2 border-blue-500 text-blue-600 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-blue-50"
+            >
+              {t('edit_order_title')}
             </button>
           )}
           {CANCEL_ALLOWED.has(order.status) && (

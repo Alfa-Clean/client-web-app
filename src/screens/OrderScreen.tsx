@@ -652,7 +652,8 @@ export function OrderScreen({ user, onBack }: Props) {
         </div>
 
         {/* Дополнения */}
-        {addons.length > 0 && draft.serviceType !== 'general' && (() => {
+        {addons.length > 0 && (() => {
+          const isVisible = draft.serviceType !== 'general'
           const uncategorized = addons.filter(a => !a.category_id)
           const groups: Array<{ category: AddonCategory; items: Addon[] }> = addonCategories
             .map(cat => ({ category: cat, items: addons.filter(a => a.category_id === cat.id) }))
@@ -730,52 +731,58 @@ export function OrderScreen({ user, onBack }: Props) {
           }
 
           return (
-            <div class="bg-[#F0F9EE] rounded-2xl border border-[#c8e6c0] overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setAddonsOpen(v => !v)}
-                class="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-[#e4f4df] transition-colors"
-              >
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-[#2D6126]">Дополнительные услуги</span>
-                  {selectedCount > 0 && (
-                    <span class="text-xs font-semibold text-white bg-[#44973A] rounded-full w-5 h-5 flex items-center justify-center">
-                      {selectedCount}
-                    </span>
-                  )}
-                </div>
-                <svg
-                  width="20" height="20" viewBox="0 0 20 20" fill="none"
-                  class={`shrink-0 text-[#44973A] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
-                >
-                  <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-              </button>
+            <div class={`grid transition-all duration-300 ease-in-out ${isVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+              <div class="overflow-hidden">
+                <div class="bg-[#F0F9EE] rounded-2xl border border-[#c8e6c0] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setAddonsOpen(v => !v)}
+                    class="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-[#e4f4df] transition-colors"
+                  >
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-medium text-[#2D6126]">Дополнительные услуги</span>
+                      {selectedCount > 0 && (
+                        <span class="text-xs font-semibold text-white bg-[#44973A] rounded-full w-5 h-5 flex items-center justify-center">
+                          {selectedCount}
+                        </span>
+                      )}
+                    </div>
+                    <svg
+                      width="20" height="20" viewBox="0 0 20 20" fill="none"
+                      class={`shrink-0 text-[#44973A] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
+                    >
+                      <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </button>
 
-              {addonsOpen && (
-                <div class="border-t border-[#c8e6c0] bg-white flex flex-col gap-4 py-4">
-                  {groups.map(({ category, items }) => (
-                    <div key={category.id}>
-                      <div class="px-4">
-                        <SectionLabel>
-                          {category.translations[lang] ?? category.translations['ru'] ?? category.id}
-                        </SectionLabel>
-                      </div>
-                      <div class="divide-y divide-gray-50">
-                        {items.map(addon => <AddonRow key={addon.id} addon={addon} />)}
+                  <div class={`grid transition-all duration-300 ease-in-out ${addonsOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                    <div class="overflow-hidden">
+                      <div class="border-t border-[#c8e6c0] bg-white flex flex-col gap-4 py-4">
+                        {groups.map(({ category, items }) => (
+                          <div key={category.id}>
+                            <div class="px-4">
+                              <SectionLabel>
+                                {category.translations[lang] ?? category.translations['ru'] ?? category.id}
+                              </SectionLabel>
+                            </div>
+                            <div class="divide-y divide-gray-50">
+                              {items.map(addon => <AddonRow key={addon.id} addon={addon} />)}
+                            </div>
+                          </div>
+                        ))}
+                        {uncategorized.length > 0 && (
+                          <div>
+                            {groups.length > 0 && <div class="px-4"><SectionLabel>Дополнения</SectionLabel></div>}
+                            <div class="divide-y divide-gray-50">
+                              {uncategorized.map(addon => <AddonRow key={addon.id} addon={addon} />)}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
-                  {uncategorized.length > 0 && (
-                    <div>
-                      {groups.length > 0 && <div class="px-4"><SectionLabel>Дополнения</SectionLabel></div>}
-                      <div class="divide-y divide-gray-50">
-                        {uncategorized.map(addon => <AddonRow key={addon.id} addon={addon} />)}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )
         })()}
