@@ -1,6 +1,6 @@
 const BASE_URL = '/api/v1'
 
-const TOKEN_KEY = 'alfaclean_token'
+const TOKEN_KEY = 'chaqqon_token'
 
 export class ApiError extends Error {
   status: number

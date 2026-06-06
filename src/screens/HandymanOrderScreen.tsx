@@ -31,7 +31,7 @@ interface Draft {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TZ_OFFSET = 5
-const DRAFT_KEY = 'alfaclean_handyman_draft'
+const DRAFT_KEY = 'chaqqon_handyman_draft'
 const BASE_PRICE = 50000
 
 const EMPTY_DRAFT: Draft = {

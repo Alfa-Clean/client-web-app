@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { User } from '../types'
 
-const STORAGE_KEY = 'alfaclean_user'
+const STORAGE_KEY = 'chaqqon_user'
 
 function getStoredUser(): User | null {
   try {

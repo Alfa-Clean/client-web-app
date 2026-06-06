@@ -37,7 +37,7 @@ interface Draft {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TZ_OFFSET = 5
-const DRAFT_KEY = 'alfaclean_order_draft'
+const DRAFT_KEY = 'chaqqon_order_draft'
 
 const EMPTY_DRAFT: Draft = {
   serviceType: 'standard',

@@ -4,7 +4,7 @@ import type { ComponentChildren } from 'preact'
 import { locales } from './locales'
 import type { Lang } from './locales'
 
-const STORAGE_KEY = 'alfaclean_lang'
+const STORAGE_KEY = 'chaqqon_lang'
 
 function detectLang(telegramLang?: string): Lang {
   const stored = localStorage.getItem(STORAGE_KEY) as Lang | null

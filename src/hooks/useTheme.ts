@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'alfaclean_theme'
+const STORAGE_KEY = 'chaqqon_theme'
 
 export type Theme = 'light' | 'dark'
 
