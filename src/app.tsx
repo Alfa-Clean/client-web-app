@@ -73,8 +73,7 @@ export function App() {
       if (e instanceof ApiError && e.status === 409) {
         saveUser(newUser)
       } else {
-        console.error(e)
-        saveUser(newUser)
+        console.error('[register] failed:', e)
       }
     }
   }
