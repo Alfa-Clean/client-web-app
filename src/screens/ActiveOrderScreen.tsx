@@ -2,14 +2,14 @@ import { useState } from 'preact/hooks'
 import {
   MapPin, CalendarDays, Banknote, Sparkles, MessageCircle,
   User as UserIcon, Clock, Car, DoorOpen, CheckCircle2, PartyPopper,
-  Pencil, X, HeadphonesIcon, ChevronRight,
+  Pencil, HeadphonesIcon, ChevronRight,
 } from 'lucide-react'
 import type { ComponentType } from 'preact'
 import type { JSX } from 'preact'
 import type { Order } from '../api/orders'
 import { cancelOrder, acceptOrder } from '../api/orders'
 import { useLocale } from '../i18n'
-import type { Lang, Strings } from '../i18n/locales'
+import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
@@ -18,7 +18,7 @@ import { useConfirm } from '../hooks/useConfirm'
 
 const STATUS_TIMELINE = ['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', 'completed']
 
-const STATUS_ICON: Record<string, ComponentType<{ size?: number; color?: string; class?: string }>> = {
+const STATUS_ICON: Record<string, ComponentType<any>> = {
   new: Clock,
   assigned: UserIcon,
   on_the_way: Car,
@@ -32,8 +32,6 @@ const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress
 const CANCEL_ALLOWED = new Set(['new', 'assigned', 'on_the_way'])
 
 const LOCALE_MAP: Record<Lang, string> = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-US' }
-
-type TFn = (key: keyof Strings, params?: Record<string, string>) => string
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -61,14 +59,14 @@ export function ActiveOrderScreen({
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
   const { confirm, dialogProps } = useConfirm()
-  const [order, setOrder] = useState(initialOrder)
+  const [order] = useState(initialOrder)
   const [loading, setLoading] = useState(false)
 
   const statusIdx = STATUS_TIMELINE.indexOf(order.status)
   const StatusIcon = STATUS_ICON[order.status] ?? Sparkles
 
   const addonNames = order.addons
-    .map(id => t(`addon_${id}` as keyof Strings) || id)
+    .map(id => t(`addon_${id}`) || id)
     .filter(Boolean)
 
   async function handleCancel() {
@@ -140,7 +138,7 @@ export function ActiveOrderScreen({
                   {t(`svc_${order.service_type}`) || order.service_type}
                 </p>
                 <p class="text-white text-lg font-bold leading-tight">
-                  {t(`status_${order.status}` as keyof Strings) || order.status}
+                  {t(`status_${order.status}`) || order.status}
                 </p>
                 {order.executor_name && (
                   <p class="text-white/80 text-xs mt-1 flex items-center gap-1">

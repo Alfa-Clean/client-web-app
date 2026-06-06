@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
-import { Star, Sparkles, MapPin, Check } from 'lucide-react'
+import { Star as StarIcon, Sparkles, MapPin, Check } from 'lucide-react'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Star = StarIcon as any
 import type { Executor, ExecutorRatings } from '../api/executors'
 import { getExecutor, getExecutorRatings } from '../api/executors'
 import { useExitBack } from '../hooks/useExitBack'

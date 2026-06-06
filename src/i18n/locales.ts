@@ -212,6 +212,7 @@ const ru: Strings = {
   rating_skip: 'Пропустить',
   rating_thanks: 'Спасибо за оценку!',
   home_cancel_order: 'Отменить заказ',
+  cleaning_order_title: 'Заказ клининга',
   confirm_cancel_order_title: 'Отмена заказа',
   confirm_cancel_order: 'Вы точно хотите отменить заказ? Клинер уже выехал к вам. Отмена будет платной.',
   confirm_cancel_new_order: 'Вы точно хотите отменить заказ?',
@@ -258,7 +259,7 @@ const ru: Strings = {
   event_disputed: 'Открыт спор',
 
   // Handyman
-  handyman_new_order: 'Новый заказ',
+  handyman_new_order: 'Заказ хэндимена',
   handyman_comment_label: 'Описание задачи',
   handyman_comment_placeholder: 'Опишите, что нужно сделать...',
   handyman_media_label: 'Фото и видео',
@@ -293,6 +294,21 @@ const ru: Strings = {
   brigadier_your_take: 'Ваша доля',
   confirm_brigadier_finish: 'Завершить уборку? Клиент получит запрос на подтверждение.',
   confirm_brigadier_submit_price: 'Отправить предложение клиенту?',
+
+  // Promo codes
+  promo_label: 'Промокод',
+  promo_placeholder: 'Введите промокод',
+  promo_apply: 'Применить',
+  promo_applying: 'Проверяем...',
+  promo_valid: 'Скидка {pct}%',
+  promo_remove: 'Удалить',
+  promo_invalid_not_found: 'Промокод не найден',
+  promo_invalid_inactive: 'Промокод недействителен',
+  promo_invalid_not_started: 'Промокод ещё не активен',
+  promo_invalid_expired: 'Срок действия промокода истёк',
+  promo_invalid_wrong_service_type: 'Промокод не применяется к этому типу уборки',
+  promo_invalid_already_used: 'Вы уже использовали этот промокод',
+  promo_error_on_submit: 'Промокод стал недействителен. Заказ оформлен без скидки.',
 }
 
 const uz: Strings = {
@@ -489,6 +505,7 @@ const uz: Strings = {
   rating_skip: 'O\'tkazib yuborish',
   rating_thanks: 'Baholaginiz uchun rahmat!',
   home_cancel_order: 'Buyurtmani bekor qilish',
+  cleaning_order_title: 'Tozalik buyurtmasi',
   confirm_cancel_order_title: 'Buyurtmani bekor qilish',
   confirm_cancel_order: 'Buyurtmani bekor qilmoqchimisiz? Kliner allaqachon yo\'lga chiqdi. Bekor qilish pullik bo\'ladi.',
   confirm_cancel_new_order: 'Buyurtmani bekor qilmoqchimisiz?',
@@ -535,7 +552,7 @@ const uz: Strings = {
   event_disputed: 'Mojaro ochildi',
 
   // Handyman
-  handyman_new_order: 'Yangi buyurtma',
+  handyman_new_order: 'Handyman buyurtmasi',
   handyman_comment_label: 'Vazifani tavsiflang',
   handyman_comment_placeholder: 'Nima qilish kerakligini yozing...',
   handyman_media_label: 'Rasm va video',
@@ -570,6 +587,21 @@ const uz: Strings = {
   brigadier_your_take: 'Sizning ulushingiz',
   confirm_brigadier_finish: 'Tozalashni tugatish? Mijozga tasdiqlash so\'rovi yuboriladi.',
   confirm_brigadier_submit_price: 'Mijozga taklif yuborilsinmi?',
+
+  // Promo codes
+  promo_label: 'Promokod',
+  promo_placeholder: 'Promokodni kiriting',
+  promo_apply: 'Qo\'llash',
+  promo_applying: 'Tekshirilmoqda...',
+  promo_valid: '{pct}% chegirma',
+  promo_remove: 'O\'chirish',
+  promo_invalid_not_found: 'Promokod topilmadi',
+  promo_invalid_inactive: 'Promokod amal qilmaydi',
+  promo_invalid_not_started: 'Promokod hali faol emas',
+  promo_invalid_expired: 'Promokodning amal qilish muddati tugagan',
+  promo_invalid_wrong_service_type: 'Promokod bu turdagi tozalashga tegishli emas',
+  promo_invalid_already_used: 'Bu promokodni allaqachon ishlatgansiz',
+  promo_error_on_submit: 'Promokod yaroqsiz bo\'lib qoldi. Buyurtma chegirmasiz rasmiylashtirildi.',
 }
 
 const en: Strings = {
@@ -766,6 +798,7 @@ const en: Strings = {
   rating_skip: 'Skip',
   rating_thanks: 'Thanks for your feedback!',
   home_cancel_order: 'Cancel order',
+  cleaning_order_title: 'Cleaning order',
   confirm_cancel_order_title: 'Cancel order',
   confirm_cancel_order: 'Are you sure you want to cancel? The cleaner is already on the way. A cancellation fee may apply.',
   confirm_cancel_new_order: 'Are you sure you want to cancel this order?',
@@ -812,7 +845,7 @@ const en: Strings = {
   event_disputed: 'Dispute opened',
 
   // Handyman
-  handyman_new_order: 'New order',
+  handyman_new_order: 'Handyman order',
   handyman_comment_label: 'Task description',
   handyman_comment_placeholder: 'Describe what needs to be done...',
   handyman_media_label: 'Photos & Videos',
@@ -847,6 +880,21 @@ const en: Strings = {
   brigadier_your_take: 'Your share',
   confirm_brigadier_finish: 'Finish cleaning? Client will receive a confirmation request.',
   confirm_brigadier_submit_price: 'Send price offer to client?',
+
+  // Promo codes
+  promo_label: 'Promo code',
+  promo_placeholder: 'Enter promo code',
+  promo_apply: 'Apply',
+  promo_applying: 'Checking...',
+  promo_valid: '{pct}% discount',
+  promo_remove: 'Remove',
+  promo_invalid_not_found: 'Promo code not found',
+  promo_invalid_inactive: 'Promo code is not active',
+  promo_invalid_not_started: 'Promo code is not yet active',
+  promo_invalid_expired: 'Promo code has expired',
+  promo_invalid_wrong_service_type: 'Promo code does not apply to this service type',
+  promo_invalid_already_used: 'You have already used this promo code',
+  promo_error_on_submit: 'Promo code became invalid. Order placed without discount.',
 }
 
 export const locales: Record<Lang, Strings> = { ru, uz, en }

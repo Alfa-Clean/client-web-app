@@ -18,7 +18,7 @@ import { useConfirm } from '../hooks/useConfirm'
 
 const STATUS_TIMELINE = ['new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', 'completed']
 
-const STATUS_ICON: Record<string, ComponentType<{ size?: number; color?: string; class?: string }>> = {
+const STATUS_ICON: Record<string, ComponentType<any>> = {
   new: Clock,
   assigned: UserIcon,
   on_the_way: Car,

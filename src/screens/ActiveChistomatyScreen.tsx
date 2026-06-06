@@ -37,7 +37,7 @@ export const CHISTOMATY_STATUS_LABEL: Record<ChistomatyStatus, string> = {
   collected: 'Вещи забраны',
 }
 
-export const CHISTOMATY_STATUS_ICON: Record<ChistomatyStatus, ComponentType<{ size?: number; color?: string; class?: string }>> = {
+export const CHISTOMATY_STATUS_ICON: Record<ChistomatyStatus, ComponentType<any>> = {
   received:  Package,
   washing:   Droplets,
   drying:    Wind,

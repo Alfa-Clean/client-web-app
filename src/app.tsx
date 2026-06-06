@@ -4,12 +4,8 @@ import { apiFetch, ApiError, clearToken } from './api/client'
 import { useUser } from './hooks/useUser'
 import { LocaleProvider } from './i18n/index'
 import { RegistrationScreen } from './screens/RegistrationScreen'
-import { HomeScreen } from './screens/HomeScreen'
 import { HubScreen } from './screens/HubScreen'
-import { UIKitScreen } from './screens/UIKitScreen'
 import type { User } from './types'
-
-const IS_UIKIT = new URLSearchParams(window.location.search).get('uikit') === '1'
 
 const tg = (window as any).Telegram?.WebApp
 
@@ -84,8 +80,6 @@ export function App() {
   }
 
   const devTgId = import.meta.env.DEV ? Number(import.meta.env.VITE_DEV_TG_ID) || 0 : 0
-
-  if (IS_UIKIT) return <LocaleProvider><UIKitScreen /></LocaleProvider>
 
   return (
     <LocaleProvider telegramLang={telegramLang}>

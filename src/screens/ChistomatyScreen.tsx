@@ -128,7 +128,7 @@ export function ChistomatyScreen({ onBack }: Props) {
     <div class="min-h-screen bg-white flex flex-col">
 
       {/* Header */}
-      <div class="px-5 pt-12 pb-4 flex items-center gap-4 shrink-0 bg-white">
+      <div class="px-5 pt-12 pb-4 flex items-center shrink-0 bg-white relative">
         <button
           type="button"
           onClick={onBack}
@@ -136,7 +136,7 @@ export function ChistomatyScreen({ onBack }: Props) {
         >
           ‹
         </button>
-        <p class="text-xl font-bold text-gray-900">Чистоматы</p>
+        <p class="absolute inset-x-0 text-center text-base font-bold text-gray-900 pointer-events-none">Чистоматы</p>
       </div>
 
       {/* Map — 60vh */}

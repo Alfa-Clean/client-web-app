@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { Home, Sparkles, User as UserIcon, Sun, Moon, MessageCircle, ChevronRight, Shirt, Pencil, Trash2, Plus, Wrench } from 'lucide-react'
+import { Sparkles, User as UserIcon, Sun, Moon, MessageCircle, ChevronRight, Shirt, Pencil, Trash2, Plus, Wrench } from 'lucide-react'
 import type { User } from '../types'
 import type { Order, HandymanOrder } from '../api/orders'
 import { getUserOrders, getActiveHandymanOrders } from '../api/orders'
 import { getAddresses, createAddress, updateAddress, deleteAddress } from '../api/addresses'
 import type { Address, AddressPayload } from '../api/addresses'
-import { useAddresses } from '../hooks/useAddresses'
+
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { getTheme, setTheme } from '../hooks/useTheme'
@@ -64,55 +64,6 @@ const STATUS_LABEL: Record<string, string> = {
   price_submitted:       'Бригадир оценил работу',
   price_rejected:        'Ожидаем новую цену',
   team_formation:        'Команда формируется',
-}
-
-// ─── Service Tile ─────────────────────────────────────────────────────────────
-
-function ServiceTile({
-  label,
-  image,
-  soon = false,
-  stretch = false,
-  onClick,
-}: {
-  label: string
-  image: string
-  soon?: boolean
-  stretch?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      class={`flex flex-col gap-2 w-full text-left active:scale-[0.97] transition-transform ${stretch ? 'flex-1' : ''}`}
-    >
-      <div class={`relative bg-white rounded-3xl border border-gray-100 shadow-sm w-full flex items-center justify-center p-2 ${stretch ? 'flex-1' : 'aspect-square'}`}>
-        {soon && (
-          <span class="absolute top-2.5 right-2.5 z-10 bg-gray-100 text-gray-500 text-[9px] font-semibold px-2 py-0.5 rounded-full">
-            Скоро
-          </span>
-        )}
-        <img src={image} alt={label} class="w-full h-full object-contain" />
-      </div>
-      <p class="text-sm font-semibold text-gray-900 text-center">{label}</p>
-    </button>
-  )
-}
-
-// ─── Address Chip ─────────────────────────────────────────────────────────────
-
-function AddressChip({ label, address, onClick }: { label: string; address: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-100 active:bg-gray-200 transition-colors text-left"
-    >
-      <Home size={18} class="text-gray-500 shrink-0" />
-      <p class="text-sm font-medium text-gray-700 truncate">{label ? label : address}</p>
-    </button>
-  )
 }
 
 // ─── Active Order Banner ──────────────────────────────────────────────────────
@@ -294,7 +245,7 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
     if (addressSheet === 'new') {
       const created = await createAddress(user.telegram_id, data)
       setAddresses(prev => [...prev, created])
-    } else if (addressSheet && addressSheet !== 'new') {
+    } else if (addressSheet !== null) {
       const updated = await updateAddress(user.telegram_id, addressSheet.id, data)
       setAddresses(prev => prev.map(a => a.id === updated.id ? updated : a))
     }
@@ -484,13 +435,12 @@ interface Props {
 export function HubScreen({ user }: Props) {
   const [view, setView] = useState<View>('hub')
   const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
-  const [activeChistomatyOrder, setActiveChistomatyOrder] = useState<ChistomatyOrder | null>(null)
+  const [activeChistomatyOrder] = useState<ChistomatyOrder | null>(null)
   const [activeHandymanOrder, setActiveHandymanOrder] = useState<HandymanOrder | null>(null)
   const [showActiveSheet, setShowActiveSheet] = useState(false)
   const [historyOrders, setHistoryOrders] = useState<Order[]>([])
   const [toast, setToast] = useState<string | null>(null)
-  const { state: addressState } = useAddresses(user.telegram_id)
-  const { t } = useLocale()
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -576,7 +526,7 @@ export function HubScreen({ user }: Props) {
         onChatClick={(orderId, executorId, executorName) => setView({
           name: 'chat',
           orderId,
-          contextType: activeOrder !== 'loading' && activeOrder?.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order',
+          contextType: activeOrder.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order',
           executorId,
           executorName,
           senderId: String(user.telegram_id),
@@ -643,8 +593,6 @@ export function HubScreen({ user }: Props) {
       />
     )
   }
-
-  const addresses = addressState.status === 'success' ? addressState.data.slice(0, 3) : []
 
   const activeEntries: ActiveOrderEntry[] = [
     ...(activeOrder && activeOrder !== 'loading' ? [{ type: 'cleaning' as const, order: activeOrder }] : []),

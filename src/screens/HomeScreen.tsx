@@ -3,7 +3,7 @@ import type { JSX } from 'preact'
 import type { ComponentType } from 'preact'
 import {
   Clock, User as UserIcon, Car, DoorOpen, Sparkles, CheckCircle2, PartyPopper,
-  MapPin, CalendarDays, Banknote, MessageCircle, Star, Home, ClipboardCheck,
+  MapPin, CalendarDays, Banknote, MessageCircle, Star as StarIcon, Home,
   Moon, Sun,
 } from 'lucide-react'
 import type { User } from '../types'
@@ -22,6 +22,8 @@ import { OrderScreen } from './OrderScreen'
 import { ChatScreen } from './ChatScreen'
 import { HouseOrderStatusScreen } from './HouseOrderStatusScreen'
 import { updateLanguage } from '../api/clients'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Star = StarIcon as any
 import { BottomBar } from '../components/BottomBar'
 import type { Tab } from '../components/BottomBar'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -275,7 +277,7 @@ function timeAgo(isoStr: string, t: TFn): string {
   return t('time_ago_day', { n: String(Math.floor(diff / 86400)) })
 }
 
-const STATUS_ICON: Record<string, ComponentType<{ size?: number; color?: string }>> = {
+const STATUS_ICON: Record<string, ComponentType<any>> = {
   new: Clock,
   assigned: UserIcon,
   on_the_way: Car,

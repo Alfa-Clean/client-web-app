@@ -56,6 +56,10 @@ export interface OrderPayload {
   source: 'bot'
   addons: string[]
   comment?: string
+  promo_code?: string
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
 }
 
 export function createOrder(data: OrderPayload): Promise<Order> {
@@ -73,6 +77,10 @@ export interface HandymanOrderPayload {
   telegram_id?: number | null
   address_id?: string | null
   source?: 'bot' | 'manual'
+  promo_code?: string
+  utm_source?: string
+  utm_medium?: string
+  utm_campaign?: string
 }
 
 export interface HandymanOrderResponse {

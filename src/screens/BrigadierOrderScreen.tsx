@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import { MessageCircle, ChevronRight, Plus, UserCheck } from 'lucide-react'
 import type { Order, TeamMember } from '../api/orders'
-import { submitPrice, startCleaning, finishCleaning, rejectPrice } from '../api/orders'
+import { submitPrice, startCleaning, finishCleaning } from '../api/orders'
 import { useLocale } from '../i18n'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
@@ -21,7 +21,6 @@ interface Props {
   onBack: () => void
   onChatClick: () => void
   onOrderUpdated: (order: Order) => void
-  onOrderFinished: () => void
 }
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
@@ -31,7 +30,6 @@ export function BrigadierOrderScreen({
   onBack,
   onChatClick,
   onOrderUpdated,
-  onOrderFinished,
 }: Props) {
   const { t } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
