@@ -21,6 +21,7 @@ import { AddressFormScreen } from './AddressFormScreen'
 interface Draft {
   addressId: string
   address: string
+  addressLabel: string
   addressDetails: string
   orderDate: string
   orderSlot: string
@@ -37,6 +38,7 @@ const BASE_PRICE = 50000
 const EMPTY_DRAFT: Draft = {
   addressId: '',
   address: '',
+  addressLabel: '',
   addressDetails: '',
   orderDate: '',
   orderSlot: '',
@@ -295,6 +297,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
     patch({
       addressId: newAddr.id,
       address: newAddr.address,
+      addressLabel: newAddr.label ?? '',
       addressDetails: newAddr.notes ?? '',
     })
     setShowAddressSheet(false)
@@ -314,7 +317,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
   const isOtherDate = !!draft.orderDate && draft.orderDate !== todayIso && draft.orderDate !== tomorrowIso
 
   const canSubmit = !!draft.addressId && !!draft.orderDate && !!draft.orderSlot &&
-                    draft.works.length > 0 && !!draft.comment.trim()
+                    draft.works.length > 0
 
   async function handleSubmit() {
     if (!canSubmit || submitting) return
@@ -324,7 +327,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
       const utmParams = new URLSearchParams(window.location.search)
       const order = await createHandymanOrder({
         telegram_id: user.telegram_id,
-        description: draft.comment.trim(),
+        ...(draft.comment.trim() && { description: draft.comment.trim() }),
         works: draft.works,
         address_id: draft.addressId,
         order_date: draft.orderDate,
@@ -394,18 +397,20 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
             onClick={() => setShowAddressDropdown(v => !v)}
             class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${
               showAddressDropdown
-                ? 'border-[#44973A]'
+                ? 'border-gray-300'
                 : draft.address
-                  ? 'border-[#44973A] bg-[#F0F9EE] dark:bg-[#1a3a2a]'
+                  ? 'border-gray-200'
                   : 'border-gray-200'
             }`}
           >
             <div class="flex-1 min-w-0">
               {draft.address ? (
                 <>
-                  <p class="text-sm font-medium text-[#44973A] truncate">{draft.address}</p>
-                  {draft.addressDetails && (
-                    <p class="text-xs text-gray-400 mt-0.5 truncate">{draft.addressDetails}</p>
+                  <p class="text-sm font-medium text-gray-900 truncate">
+                    {draft.addressLabel || draft.address}
+                  </p>
+                  {draft.addressLabel && (
+                    <p class="text-xs text-gray-400 mt-0.5 truncate">{draft.address}</p>
                   )}
                 </>
               ) : (
@@ -435,6 +440,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
                       patch({
                         addressId: addr.id,
                         address: addr.address,
+                        addressLabel: addr.label ?? '',
                         addressDetails: addr.notes ?? '',
                       })
                       setShowAddressDropdown(false)

@@ -12,10 +12,10 @@ export function AddressOption({ address, label, housingType = 'apt', active = fa
       type="button"
       onClick={onClick}
       class={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${
-        active ? 'bg-green-50' : 'active:bg-gray-50'
+        active ? 'bg-gray-50' : 'active:bg-gray-50'
       }`}
     >
-      <span class={`shrink-0 ${active ? 'text-[#44973A]' : 'text-gray-300'}`}>
+      <span class={`shrink-0 ${active ? 'text-gray-500' : 'text-gray-300'}`}>
         {housingType === 'house' ? (
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M2 8.5L9 2l7 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -32,13 +32,13 @@ export function AddressOption({ address, label, housingType = 'apt', active = fa
         )}
       </span>
       <div class="flex-1 min-w-0">
-        <p class={`text-sm font-medium truncate ${active ? 'text-[#44973A]' : 'text-gray-900'}`}>
+        <p class={`text-sm font-medium truncate text-gray-900`}>
           {label || address}
         </p>
         {label && <p class="text-xs text-gray-400 mt-0.5 truncate">{address}</p>}
       </div>
       {active && (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="shrink-0 text-[#44973A]">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="shrink-0 text-gray-400">
           <path d="M3 8l4 4 6-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       )}

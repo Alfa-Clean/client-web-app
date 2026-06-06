@@ -22,6 +22,7 @@ import { HouseOrderStatusScreen } from './HouseOrderStatusScreen'
 import { ChatScreen } from './ChatScreen'
 import { ActiveChistomatyScreen } from './ActiveChistomatyScreen'
 import { ActiveHandymanOrderScreen } from './ActiveHandymanOrderScreen'
+import { OrderEditScreen } from './OrderEditScreen'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL } from './ActiveChistomatyScreen'
 
@@ -425,7 +426,7 @@ type ActiveOrderEntry =
 // ─── Hub Screen ───────────────────────────────────────────────────────────────
 
 type View =
-  | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman'
+  | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman' | 'order_edit'
   | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order'; executorId: string | null; executorName: string; senderId: string; backView: 'active_order' | 'active_handyman' }
 
 interface Props {
@@ -434,9 +435,11 @@ interface Props {
 
 export function HubScreen({ user }: Props) {
   const [view, setView] = useState<View>('hub')
-  const [activeOrder, setActiveOrder] = useState<Order | null | 'loading'>('loading')
+  const [activeOrders, setActiveOrders] = useState<Order[] | 'loading'>('loading')
+  const [focusedOrder, setFocusedOrder] = useState<Order | null>(null)
   const [activeChistomatyOrder] = useState<ChistomatyOrder | null>(null)
-  const [activeHandymanOrder, setActiveHandymanOrder] = useState<HandymanOrder | null>(null)
+  const [activeHandymanOrders, setActiveHandymanOrders] = useState<HandymanOrder[]>([])
+  const [focusedHandymanOrder, setFocusedHandymanOrder] = useState<HandymanOrder | null>(null)
   const [showActiveSheet, setShowActiveSheet] = useState(false)
   const [historyOrders, setHistoryOrders] = useState<Order[]>([])
   const [toast, setToast] = useState<string | null>(null)
@@ -446,18 +449,17 @@ export function HubScreen({ user }: Props) {
   useEffect(() => {
     getUserOrders(user.telegram_id)
       .then(res => {
-        const active = res.items.find(o => ACTIVE_STATUSES.has(o.status)) ?? null
-        setActiveOrder(active)
+        const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
+        setActiveOrders(actives)
         setHistoryOrders(res.items.filter(o => HISTORY_STATUSES.has(o.status)))
-        if (active) startPolling()
+        if (actives.length > 0) startPolling()
       })
-      .catch(() => setActiveOrder(null))
+      .catch(() => setActiveOrders([]))
     getActiveHandymanOrders(user.telegram_id)
       .then(res => {
-        console.log('[handyman] active orders response:', res)
-        setActiveHandymanOrder(res.items[0] ?? null)
+        setActiveHandymanOrders(Array.isArray(res.items) ? res.items : [])
       })
-      .catch(e => console.error('[handyman] active orders error:', e))
+      .catch(() => setActiveHandymanOrders([]))
     return stopPolling
   }, [user.telegram_id])
 
@@ -466,9 +468,10 @@ export function HubScreen({ user }: Props) {
     pollRef.current = setInterval(async () => {
       try {
         const res = await getUserOrders(user.telegram_id)
-        const active = res.items.find(o => ACTIVE_STATUSES.has(o.status)) ?? null
-        setActiveOrder(active)
-        if (!active) stopPolling()
+        const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
+        setActiveOrders(actives)
+        setFocusedOrder(prev => prev ? (actives.find(o => o.id === prev.id) ?? null) : null)
+        if (actives.length === 0) stopPolling()
       } catch {}
     }, 12000)
   }
@@ -480,6 +483,20 @@ export function HubScreen({ user }: Props) {
   function showToast(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(null), 2500)
+  }
+
+  function refreshOrders() {
+    getUserOrders(user.telegram_id)
+      .then(res => {
+        const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
+        setActiveOrders(actives)
+        setHistoryOrders(res.items.filter(o => HISTORY_STATUSES.has(o.status)))
+        if (actives.length > 0) startPolling()
+      })
+      .catch(() => {})
+    getActiveHandymanOrders(user.telegram_id)
+      .then(res => { setActiveHandymanOrders(Array.isArray(res.items) ? res.items : []) })
+      .catch(() => {})
   }
 
   if (typeof view === 'object' && view.name === 'chat') {
@@ -495,38 +512,46 @@ export function HubScreen({ user }: Props) {
     )
   }
 
-  if (view === 'active_order' && activeOrder && activeOrder !== 'loading') {
-    const onOrderDone = () => { stopPolling(); setActiveOrder(null); setView('hub') }
+  if (view === 'active_order' && focusedOrder) {
+    const onOrderDone = () => {
+      setActiveOrders(prev => prev === 'loading' ? [] : prev.filter(o => o.id !== focusedOrder.id))
+      setFocusedOrder(null)
+      setView('hub')
+    }
 
-    if (activeOrder.housing_type === 'house') {
+    if (focusedOrder.housing_type === 'house') {
       return (
         <HouseOrderStatusScreen
-          order={activeOrder}
+          order={focusedOrder}
           onBack={() => setView('hub')}
           onChatClick={() => setView({
             name: 'chat',
-            orderId: activeOrder.id,
+            orderId: focusedOrder.id,
             contextType: 'cleaning_order',
-            executorId: activeOrder.foreman_id ?? null,
-            executorName: activeOrder.foreman_name ?? 'Бригадир',
+            executorId: focusedOrder.foreman_id ?? null,
+            executorName: focusedOrder.foreman_name ?? 'Бригадир',
             senderId: String(user.telegram_id),
             backView: 'active_order',
           })}
           onOrderCancelled={onOrderDone}
           onOrderAccepted={onOrderDone}
-          onOrderUpdated={updated => setActiveOrder(updated)}
+          onOrderUpdated={updated => {
+            setFocusedOrder(updated)
+            setActiveOrders(prev => prev === 'loading' ? [updated] : prev.map(o => o.id === updated.id ? updated : o))
+          }}
+          onEditClick={() => setView('order_edit')}
         />
       )
     }
 
     return (
       <ActiveOrderScreen
-        order={activeOrder}
+        order={focusedOrder}
         onBack={() => setView('hub')}
         onChatClick={(orderId, executorId, executorName) => setView({
           name: 'chat',
           orderId,
-          contextType: activeOrder.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order',
+          contextType: focusedOrder.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order',
           executorId,
           executorName,
           senderId: String(user.telegram_id),
@@ -535,7 +560,22 @@ export function HubScreen({ user }: Props) {
         onOrderCancelled={onOrderDone}
         onOrderAccepted={onOrderDone}
         onSupportClick={() => showToast('Скоро появится')}
-        onEditClick={() => showToast('Скоро появится')}
+        onEditClick={() => setView('order_edit')}
+      />
+    )
+  }
+
+  if (view === 'order_edit' && focusedOrder) {
+    return (
+      <OrderEditScreen
+        order={focusedOrder}
+        telegramId={user.telegram_id}
+        onBack={() => setView('active_order')}
+        onSaved={updated => {
+          setFocusedOrder(updated)
+          setActiveOrders(prev => prev === 'loading' ? [updated] : prev.map(o => o.id === updated.id ? updated : o))
+          setView('active_order')
+        }}
       />
     )
   }
@@ -550,11 +590,15 @@ export function HubScreen({ user }: Props) {
     )
   }
 
-  if (view === 'active_handyman' && activeHandymanOrder) {
-    const onHandymanDone = () => { setActiveHandymanOrder(null); setView('hub') }
+  if (view === 'active_handyman' && focusedHandymanOrder) {
+    const onHandymanDone = () => {
+      setActiveHandymanOrders(prev => prev.filter(o => o.id !== focusedHandymanOrder.id))
+      setFocusedHandymanOrder(null)
+      setView('hub')
+    }
     return (
       <ActiveHandymanOrderScreen
-        order={activeHandymanOrder}
+        order={focusedHandymanOrder}
         onBack={() => setView('hub')}
         onChatClick={(orderId, executorId, executorName) => setView({
           name: 'chat',
@@ -573,11 +617,11 @@ export function HubScreen({ user }: Props) {
   }
 
   if (view === 'cleaning') {
-    return <OrderScreen user={user} onBack={() => setView('hub')} />
+    return <OrderScreen user={user} onBack={() => { refreshOrders(); setView('hub') }} />
   }
 
   if (view === 'handyman') {
-    return <HandymanOrderScreen user={user} onBack={() => setView('hub')} />
+    return <HandymanOrderScreen user={user} onBack={() => { refreshOrders(); setView('hub') }} />
   }
 
   if (view === 'chistomaty') {
@@ -595,16 +639,16 @@ export function HubScreen({ user }: Props) {
   }
 
   const activeEntries: ActiveOrderEntry[] = [
-    ...(activeOrder && activeOrder !== 'loading' ? [{ type: 'cleaning' as const, order: activeOrder }] : []),
+    ...(activeOrders !== 'loading' ? activeOrders.map(o => ({ type: 'cleaning' as const, order: o })) : []),
     ...(activeChistomatyOrder ? [{ type: 'chistomaty' as const, order: activeChistomatyOrder }] : []),
-    ...(activeHandymanOrder   ? [{ type: 'handyman'   as const, order: activeHandymanOrder }] : []),
+    ...activeHandymanOrders.map(o => ({ type: 'handyman' as const, order: o })),
   ]
 
   function renderBanner(entry: ActiveOrderEntry, onClick: (v: View) => void) {
     switch (entry.type) {
-      case 'cleaning':   return <ActiveOrderBanner    key={entry.order.id} order={entry.order} onClick={() => onClick('active_order')} />
+      case 'cleaning':   return <ActiveOrderBanner    key={entry.order.id} order={entry.order} onClick={() => { setFocusedOrder(entry.order); onClick('active_order') }} />
       case 'chistomaty': return <ChistomatyOrderBanner key={entry.order.id} order={entry.order} onClick={() => onClick('active_chistomaty')} />
-      case 'handyman':   return <HandymanOrderBanner   key={entry.order.id} order={entry.order} onClick={() => onClick('active_handyman')} />
+      case 'handyman':   return <HandymanOrderBanner   key={entry.order.id} order={entry.order} onClick={() => { setFocusedHandymanOrder(entry.order); onClick('active_handyman') }} />
     }
   }
 

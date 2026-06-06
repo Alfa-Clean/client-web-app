@@ -82,7 +82,7 @@ export function createOrder(data: OrderPayload): Promise<Order> {
 }
 
 export interface HandymanOrderPayload {
-  description: string
+  description?: string
   works: string[]
   order_date: string
   order_slot: string
@@ -186,4 +186,22 @@ export function getActiveHandymanOrders(telegramId: number): Promise<{ items: Ha
 
 export function cancelHandymanOrder(orderId: string): Promise<HandymanOrder> {
   return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}/cancel`, { method: 'POST' })
+}
+
+export interface OrderPatchPayload {
+  order_date?: string
+  order_slot?: string
+  address?: string
+  entrance?: string | null
+  floor?: number | null
+  apartment?: string | null
+  intercom?: string | null
+  addons?: AddonItem[]
+}
+
+export function patchOrder(orderId: string, data: OrderPatchPayload): Promise<Order> {
+  return apiFetch<Order>(`/cleaning/orders/${orderId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
 }
