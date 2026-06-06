@@ -25,6 +25,7 @@ interface Draft {
   serviceType: ServiceType
   housingType: HousingType
   address: string
+  addressLabel?: string | null
   addressDetails: string
   rooms: number
   bathrooms: number
@@ -250,6 +251,7 @@ export function OrderScreen({ user, onBack }: Props) {
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
   const [infoSheet, setInfoSheet] = useState<ServiceType | null>(null)
   const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
+  const [addonsOpen, setAddonsOpen] = useState(false)
   const [done, setDone] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
@@ -353,6 +355,7 @@ export function OrderScreen({ user, onBack }: Props) {
     setSavedAddresses(Array.isArray(updated) ? updated : savedAddresses)
     patch({
       address: newAddr.address,
+      addressLabel: newAddr.label ?? null,
       addressDetails: newAddr.notes ?? '',
       totalRooms: newAddr.rooms ?? undefined,
       totalBathrooms: newAddr.bathrooms ?? undefined,
@@ -455,7 +458,7 @@ export function OrderScreen({ user, onBack }: Props) {
       )}
 
       {/* Scrollable form */}
-      <div class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6">
+      <div class="flex-1 overflow-y-auto px-4 py-6 pb-28 flex flex-col gap-6">
 
         {/* Адрес */}
         <div class="relative">
@@ -464,19 +467,35 @@ export function OrderScreen({ user, onBack }: Props) {
             type="button"
             onClick={() => setShowAddressDropdown(v => !v)}
             class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${
-              showAddressDropdown
-                ? 'border-[#44973A]'
-                : draft.address
-                  ? 'border-[#44973A] bg-[#F0F9EE] dark:bg-[#1a3a2a]'
-                  : 'border-gray-200'
+              showAddressDropdown ? 'border-[#44973A]' : 'border-gray-200'
             }`}
           >
+            {draft.address && (
+              <span class="shrink-0 text-gray-400 mr-3">
+                {draft.housingType === 'house' ? (
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M2 8.5L9 2l7 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M4 7v8h10V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="6.5" y="11" width="5" height="4" rx="0.5" stroke="currentColor" stroke-width="1.3"/>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M6 2v14" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/>
+                    <path d="M12 2v14" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/>
+                    <path d="M2 7h14M2 12h14" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 2"/>
+                  </svg>
+                )}
+              </span>
+            )}
             <div class="flex-1 min-w-0">
               {draft.address ? (
                 <>
-                  <p class="text-sm font-medium text-[#44973A] truncate">{draft.address}</p>
-                  {draft.addressDetails && (
-                    <p class="text-xs text-gray-400 mt-0.5 truncate">{draft.addressDetails}</p>
+                  <p class="text-sm font-medium text-gray-900 truncate">
+                    {draft.addressLabel || draft.address}
+                  </p>
+                  {draft.addressLabel && (
+                    <p class="text-xs text-gray-400 mt-0.5 truncate">{draft.address}</p>
                   )}
                 </>
               ) : (
@@ -509,6 +528,7 @@ export function OrderScreen({ user, onBack }: Props) {
                     onClick={() => {
                       patch({
                         address: addr.address,
+                        addressLabel: addr.label ?? null,
                         addressDetails: addr.notes ?? '',
                         totalRooms: addr.rooms ?? undefined,
                         totalBathrooms: addr.bathrooms ?? undefined,
@@ -637,6 +657,7 @@ export function OrderScreen({ user, onBack }: Props) {
           const groups: Array<{ category: AddonCategory; items: Addon[] }> = addonCategories
             .map(cat => ({ category: cat, items: addons.filter(a => a.category_id === cat.id) }))
             .filter(g => g.items.length > 0)
+          const selectedCount = draft.addons.length
 
           function AddonRow({ addon }: { addon: Addon }) {
             const item = draft.addons.find(x => x.id === addon.id)
@@ -657,24 +678,22 @@ export function OrderScreen({ user, onBack }: Props) {
 
             return (
               <div class="w-full flex items-center justify-between px-4 py-3 gap-3">
-                <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                  <span class={`text-sm font-medium truncate ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
-                    {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
-                  </span>
+                <span class={`text-sm font-medium truncate flex-1 min-w-0 ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
+                  {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
+                </span>
+                <div class="flex items-center gap-2 shrink-0">
                   {description && (
                     <button
                       type="button"
                       onClick={() => setInfoAddon(addon)}
-                      class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 active:text-gray-500 transition-colors"
+                      class="w-5 h-5 flex items-center justify-center text-gray-300 active:text-gray-500 transition-colors"
                     >
                       <Info size={14} />
                     </button>
                   )}
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
                   {on ? (
                     <>
-                      <span class="text-xs text-gray-400 mr-1">
+                      <span class="text-xs text-gray-400">
                         +{(addon.price * qty).toLocaleString('ru-RU')}
                       </span>
                       <button
@@ -711,23 +730,50 @@ export function OrderScreen({ user, onBack }: Props) {
           }
 
           return (
-            <div class="flex flex-col gap-4">
-              {groups.map(({ category, items }) => (
-                <div key={category.id}>
-                  <SectionLabel>
-                    {category.translations[lang] ?? category.translations['ru'] ?? category.id}
-                  </SectionLabel>
-                  <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-                    {items.map(addon => <AddonRow key={addon.id} addon={addon} />)}
-                  </div>
+            <div class="bg-[#F0F9EE] rounded-2xl border border-[#c8e6c0] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAddonsOpen(v => !v)}
+                class="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-[#e4f4df] transition-colors"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-[#2D6126]">Дополнительные услуги</span>
+                  {selectedCount > 0 && (
+                    <span class="text-xs font-semibold text-white bg-[#44973A] rounded-full w-5 h-5 flex items-center justify-center">
+                      {selectedCount}
+                    </span>
+                  )}
                 </div>
-              ))}
-              {uncategorized.length > 0 && (
-                <div>
-                  {groups.length > 0 && <SectionLabel>Дополнения</SectionLabel>}
-                  <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-                    {uncategorized.map(addon => <AddonRow key={addon.id} addon={addon} />)}
-                  </div>
+                <svg
+                  width="20" height="20" viewBox="0 0 20 20" fill="none"
+                  class={`shrink-0 text-[#44973A] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
+                >
+                  <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </button>
+
+              {addonsOpen && (
+                <div class="border-t border-[#c8e6c0] bg-white flex flex-col gap-4 py-4">
+                  {groups.map(({ category, items }) => (
+                    <div key={category.id}>
+                      <div class="px-4">
+                        <SectionLabel>
+                          {category.translations[lang] ?? category.translations['ru'] ?? category.id}
+                        </SectionLabel>
+                      </div>
+                      <div class="divide-y divide-gray-50">
+                        {items.map(addon => <AddonRow key={addon.id} addon={addon} />)}
+                      </div>
+                    </div>
+                  ))}
+                  {uncategorized.length > 0 && (
+                    <div>
+                      {groups.length > 0 && <div class="px-4"><SectionLabel>Дополнения</SectionLabel></div>}
+                      <div class="divide-y divide-gray-50">
+                        {uncategorized.map(addon => <AddonRow key={addon.id} addon={addon} />)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -915,7 +961,7 @@ export function OrderScreen({ user, onBack }: Props) {
       </BottomSheet>
 
       {/* Sticky CTA */}
-      <div class="bg-white border-t border-gray-100 px-4 py-4">
+      <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
         <button
           type="button"
           onClick={handleSubmit}
