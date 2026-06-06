@@ -309,6 +309,8 @@ const ru: Strings = {
   promo_invalid_wrong_service_type: 'Промокод не применяется к этому типу уборки',
   promo_invalid_already_used: 'Вы уже использовали этот промокод',
   promo_error_on_submit: 'Промокод стал недействителен. Заказ оформлен без скидки.',
+  open_in_telegram: 'Открой в Telegram',
+  open_in_telegram_hint: 'Это приложение работает только внутри Telegram.',
 }
 
 const uz: Strings = {
@@ -602,6 +604,8 @@ const uz: Strings = {
   promo_invalid_wrong_service_type: 'Promokod bu turdagi tozalashga tegishli emas',
   promo_invalid_already_used: 'Bu promokodni allaqachon ishlatgansiz',
   promo_error_on_submit: 'Promokod yaroqsiz bo\'lib qoldi. Buyurtma chegirmasiz rasmiylashtirildi.',
+  open_in_telegram: 'Telegramda oching',
+  open_in_telegram_hint: 'Bu ilova faqat Telegram ichida ishlaydi.',
 }
 
 const en: Strings = {
@@ -895,6 +899,8 @@ const en: Strings = {
   promo_invalid_wrong_service_type: 'Promo code does not apply to this service type',
   promo_invalid_already_used: 'You have already used this promo code',
   promo_error_on_submit: 'Promo code became invalid. Order placed without discount.',
+  open_in_telegram: 'Open in Telegram',
+  open_in_telegram_hint: 'This app only works inside Telegram.',
 }
 
 export const locales: Record<Lang, Strings> = { ru, uz, en }

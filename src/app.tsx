@@ -2,12 +2,23 @@ import { useEffect } from 'preact/hooks'
 import { loginWithTelegram, loginWithServiceKey } from './api/auth'
 import { apiFetch, ApiError, clearToken } from './api/client'
 import { useUser } from './hooks/useUser'
-import { LocaleProvider } from './i18n/index'
+import { LocaleProvider, useLocale } from './i18n/index'
 import { RegistrationScreen } from './screens/RegistrationScreen'
 import { HubScreen } from './screens/HubScreen'
 import type { User } from './types'
 
 const tg = (window as any).Telegram?.WebApp
+
+function NotInTelegram() {
+  const { t } = useLocale()
+  return (
+    <div class="h-screen flex flex-col items-center justify-center gap-3 px-8 text-center">
+      <p class="text-5xl font-bold" style="color:#44973A">Chaqqon</p>
+      <p class="text-lg font-semibold text-gray-800 mt-4">{t('open_in_telegram')}</p>
+      <p class="text-sm text-gray-400">{t('open_in_telegram_hint')}</p>
+    </div>
+  )
+}
 
 export function App() {
   const { user, saveUser } = useUser()
@@ -79,12 +90,15 @@ export function App() {
   }
 
   const devTgId = import.meta.env.DEV ? Number(import.meta.env.VITE_DEV_TG_ID) || 0 : 0
+  const hasTelegram = !!(tg?.initData || (import.meta.env.DEV && devTgId))
 
   return (
     <LocaleProvider telegramLang={telegramLang}>
-      {user
-        ? <HubScreen user={user} />
-        : <RegistrationScreen onRegistered={handleRegister} devTelegramId={devTgId} />
+      {!hasTelegram
+        ? <NotInTelegram />
+        : user
+          ? <HubScreen user={user} />
+          : <RegistrationScreen onRegistered={handleRegister} devTelegramId={devTgId} />
       }
     </LocaleProvider>
   )
