@@ -17,7 +17,7 @@ export function uploadOrderAttachment(
   form.append('file', file, file.name)
   form.append('sender_type', 'client')
   form.append('sender_id', senderId)
-  return apiFetch<OrderAttachment>(`/cleaning/orders/${orderId}/attachments`, {
+  return apiFetch<OrderAttachment>(`/orders/${orderId}/attachments`, {
     method: 'POST',
     body: form,
   })

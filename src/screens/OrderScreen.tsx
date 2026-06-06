@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { Info } from 'lucide-react'
+import { uploadOrderAttachment } from '../api/attachments'
 import type { User } from '../types'
 import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
-import type { Addon } from '../api/addons'
-import { getAddons } from '../api/addons'
+import type { Addon, AddonCategory } from '../api/addons'
+import { getAddons, getAddonCategories } from '../api/addons'
+import type { ServiceType, AddonItem } from '../api/orders'
 import { createOrder } from '../api/orders'
 import type { PromoInvalidReason } from '../api/promos'
 import { validatePromo } from '../api/promos'
@@ -16,7 +19,6 @@ import { AddressFormScreen } from './AddressFormScreen'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ServiceType = 'standard' | 'general'
 type HousingType = 'apt' | 'house'
 
 interface Draft {
@@ -30,7 +32,7 @@ interface Draft {
   totalBathrooms?: number
   orderDate: string
   orderSlot: string
-  addons: string[]
+  addons: AddonItem[]
   comment: string
 }
 
@@ -38,6 +40,8 @@ interface Draft {
 
 const TZ_OFFSET = 5
 const DRAFT_KEY = 'chaqqon_order_draft'
+const MAX_ATTACH_SIZE = 20 * 1024 * 1024
+const MAX_ATTACH_COUNT = 10
 
 const EMPTY_DRAFT: Draft = {
   serviceType: 'standard',
@@ -59,14 +63,15 @@ function calcPrice(
   rooms: number,
   bathrooms: number,
   addonsList: Addon[],
-  selectedAddons: string[],
+  selectedAddons: AddonItem[],
 ): number {
-  const base: Record<ServiceType, number> = { standard: 100000, general: 150000 }
-  const perRoom: Record<ServiceType, number> = { standard: 30000, general: 50000 }
-  const perBath: Record<ServiceType, number> = { standard: 20000, general: 30000 }
-  const addonsTotal = addonsList
-    .filter(a => selectedAddons.includes(a.id))
-    .reduce((s, a) => s + a.price, 0)
+  const base: Record<ServiceType, number> = { standard: 100000, general: 150000, afterrepair: 200000 }
+  const perRoom: Record<ServiceType, number> = { standard: 30000, general: 50000, afterrepair: 60000 }
+  const perBath: Record<ServiceType, number> = { standard: 20000, general: 30000, afterrepair: 40000 }
+  const addonsTotal = selectedAddons.reduce((s, { id, qty = 1 }) => {
+    const addon = addonsList.find(a => a.id === id)
+    return s + (addon ? addon.price * qty : 0)
+  }, 0)
   return base[serviceType] + perRoom[serviceType] * rooms + perBath[serviceType] * bathrooms + addonsTotal
 }
 
@@ -191,11 +196,13 @@ function Counter({
   value,
   min,
   max,
+  total,
   onChange,
 }: {
   value: number
   min: number
   max: number
+  total?: number
   onChange: (v: number) => void
 }) {
   return (
@@ -208,7 +215,9 @@ function Counter({
       >
         −
       </button>
-      <span class="text-lg font-semibold text-gray-900 w-6 text-center">{value}</span>
+      <span class="text-lg font-semibold text-gray-900 text-center">
+        {total != null ? `${value}/${total}` : value}
+      </span>
       <button
         type="button"
         onClick={() => onChange(Math.min(max, value + 1))}
@@ -232,6 +241,7 @@ export function OrderScreen({ user, onBack }: Props) {
   const { t, lang } = useLocale()
   const [draft, setDraft] = useState<Draft>(loadSavedDraft() ?? EMPTY_DRAFT)
   const [addons, setAddons] = useState<Addon[]>([])
+  const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([])
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -239,7 +249,12 @@ export function OrderScreen({ user, onBack }: Props) {
   const [showAddressSheet, setShowAddressSheet] = useState(false)
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
   const [infoSheet, setInfoSheet] = useState<ServiceType | null>(null)
+  const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
   const [done, setDone] = useState(false)
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [promoInput, setPromoInput] = useState('')
   const [promoValidating, setPromoValidating] = useState(false)
@@ -250,6 +265,7 @@ export function OrderScreen({ user, onBack }: Props) {
 
   useEffect(() => {
     getAddons().catch(() => []).then(a => setAddons(Array.isArray(a) ? a : []))
+    getAddonCategories().catch(() => []).then(c => setAddonCategories(Array.isArray(c) ? c : []))
     getAddresses(user.telegram_id).catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
 
@@ -296,6 +312,31 @@ export function OrderScreen({ user, onBack }: Props) {
     setPromoError(null)
     setPromoInput('')
     promoInputRef.current?.focus()
+  }
+
+  function handleFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement
+    const files = Array.from(input.files ?? [])
+    input.value = ''
+    setMediaError(null)
+    const remaining = MAX_ATTACH_COUNT - attachments.length
+    if (remaining <= 0) return
+    const valid: File[] = []
+    for (const f of files.slice(0, remaining)) {
+      if (f.size > MAX_ATTACH_SIZE) { setMediaError(t('order_media_size_error')); continue }
+      if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) { setMediaError(t('order_media_type_error')); continue }
+      valid.push(f)
+    }
+    if (valid.length === 0) return
+    setAttachments(prev => [...prev, ...valid])
+    setPreviewUrls(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))])
+  }
+
+  function removeAttachment(idx: number) {
+    URL.revokeObjectURL(previewUrls[idx])
+    setAttachments(prev => prev.filter((_, i) => i !== idx))
+    setPreviewUrls(prev => prev.filter((_, i) => i !== idx))
+    setMediaError(null)
   }
 
   function patch(fields: Partial<Draft>) {
@@ -345,7 +386,7 @@ export function OrderScreen({ user, onBack }: Props) {
         ? `${draft.address}, ${draft.addressDetails}`
         : draft.address
       const utmParams = new URLSearchParams(window.location.search)
-      await createOrder({
+      const order = await createOrder({
         telegram_id: user.telegram_id,
         phone: user.phone,
         service_type: draft.serviceType,
@@ -364,6 +405,9 @@ export function OrderScreen({ user, onBack }: Props) {
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
       })
+      for (const file of attachments) {
+        await uploadOrderAttachment(order.id, file, String(user.telegram_id)).catch(() => {})
+      }
       clearDraft()
       setDone(true)
     } catch (e: unknown) {
@@ -502,7 +546,7 @@ export function OrderScreen({ user, onBack }: Props) {
                 key={type}
                 type="button"
                 onClick={() => patch({ serviceType: type })}
-                class={`flex-1 relative py-3 px-4 rounded-2xl border-2 text-left transition-colors ${
+                class={`flex-1 relative flex flex-col justify-start py-3 px-4 rounded-2xl border-2 text-left transition-colors ${
                   draft.serviceType === type
                     ? 'border-[#44973A] bg-[#F0F9EE]'
                     : 'border-gray-200 bg-white'
@@ -538,6 +582,7 @@ export function OrderScreen({ user, onBack }: Props) {
                   value={draft.rooms}
                   min={1}
                   max={draft.totalRooms ?? 10}
+                  total={draft.totalRooms}
                   onChange={v => patch({ rooms: v })}
                 />
               </div>
@@ -587,44 +632,107 @@ export function OrderScreen({ user, onBack }: Props) {
         </div>
 
         {/* Дополнения */}
-        {addons.length > 0 && (
-          <div>
-            <SectionLabel>Дополнения</SectionLabel>
-            <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-              {addons.map(addon => {
-                const on = draft.addons.includes(addon.id)
-                return (
-                  <button
-                    key={addon.id}
-                    type="button"
-                    onClick={() => patch({
-                      addons: on
-                        ? draft.addons.filter(x => x !== addon.id)
-                        : [...draft.addons, addon.id],
-                    })}
-                    class="w-full flex items-center justify-between px-4 py-3.5 transition-colors active:bg-gray-50 text-left"
-                  >
-                    <span class={`text-sm font-medium ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
-                      {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
-                    </span>
-                    <div class="flex items-center gap-3">
+        {addons.length > 0 && draft.serviceType !== 'general' && (() => {
+          const uncategorized = addons.filter(a => !a.category_id)
+          const groups: Array<{ category: AddonCategory; items: Addon[] }> = addonCategories
+            .map(cat => ({ category: cat, items: addons.filter(a => a.category_id === cat.id) }))
+            .filter(g => g.items.length > 0)
+
+          function AddonRow({ addon }: { addon: Addon }) {
+            const item = draft.addons.find(x => x.id === addon.id)
+            const qty = item?.qty ?? 0
+            const on = qty > 0
+
+            function setQty(next: number) {
+              if (next <= 0) {
+                patch({ addons: draft.addons.filter(x => x.id !== addon.id) })
+              } else if (item) {
+                patch({ addons: draft.addons.map(x => x.id === addon.id ? { ...x, qty: next } : x) })
+              } else {
+                patch({ addons: [...draft.addons, { id: addon.id, qty: next }] })
+              }
+            }
+
+            const description = addon.description_translations?.[lang] ?? addon.description_translations?.['ru']
+
+            return (
+              <div class="w-full flex items-center justify-between px-4 py-3 gap-3">
+                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                  <span class={`text-sm font-medium truncate ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
+                    {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
+                  </span>
+                  {description && (
+                    <button
+                      type="button"
+                      onClick={() => setInfoAddon(addon)}
+                      class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 active:text-gray-500 transition-colors"
+                    >
+                      <Info size={14} />
+                    </button>
+                  )}
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  {on ? (
+                    <>
+                      <span class="text-xs text-gray-400 mr-1">
+                        +{(addon.price * qty).toLocaleString('ru-RU')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQty(qty - 1)}
+                        class="w-7 h-7 rounded-full bg-gray-100 text-gray-700 text-base font-light flex items-center justify-center active:bg-gray-200 transition-colors"
+                      >
+                        −
+                      </button>
+                      <span class="text-sm font-semibold text-gray-900 w-5 text-center">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQty(qty + 1)}
+                        class="w-7 h-7 rounded-full bg-[#44973A] text-white text-base font-light flex items-center justify-center active:opacity-80 transition-colors"
+                      >
+                        +
+                      </button>
+                    </>
+                  ) : (
+                    <>
                       <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
-                      <div class={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-                        on ? 'bg-[#44973A] border-[#44973A]' : 'border-gray-300'
-                      }`}>
-                        {on && (
-                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                            <path d="M1 4l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
+                      <button
+                        type="button"
+                        onClick={() => setQty(1)}
+                        class="w-7 h-7 rounded-full bg-gray-100 text-gray-500 text-base font-light flex items-center justify-center active:bg-gray-200 transition-colors"
+                      >
+                        +
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )
+          }
+
+          return (
+            <div class="flex flex-col gap-4">
+              {groups.map(({ category, items }) => (
+                <div key={category.id}>
+                  <SectionLabel>
+                    {category.translations[lang] ?? category.translations['ru'] ?? category.id}
+                  </SectionLabel>
+                  <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+                    {items.map(addon => <AddonRow key={addon.id} addon={addon} />)}
+                  </div>
+                </div>
+              ))}
+              {uncategorized.length > 0 && (
+                <div>
+                  {groups.length > 0 && <SectionLabel>Дополнения</SectionLabel>}
+                  <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+                    {uncategorized.map(addon => <AddonRow key={addon.id} addon={addon} />)}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Промокод */}
         <div>
@@ -680,12 +788,74 @@ export function OrderScreen({ user, onBack }: Props) {
         {/* Комментарии к заказу */}
         <div>
           <SectionLabel>Комментарии к заказу</SectionLabel>
-          <textarea
-            rows={3}
-            placeholder={t('order_comment_placeholder')}
-            value={draft.comment}
-            onInput={e => patch({ comment: (e.target as HTMLTextAreaElement).value })}
-            class="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#44973A] transition-colors resize-none"
+          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#44973A] transition-colors">
+            <textarea
+              rows={3}
+              placeholder={t('order_comment_placeholder')}
+              value={draft.comment}
+              onInput={e => patch({ comment: (e.target as HTMLTextAreaElement).value })}
+              class="w-full px-4 pt-3 pb-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none bg-transparent"
+            />
+            {previewUrls.length > 0 && (
+              <div class="flex gap-2 overflow-x-auto px-3 pb-2">
+                {previewUrls.map((url, idx) => {
+                  const isVideo = attachments[idx]?.type.startsWith('video/')
+                  return (
+                    <div key={url} class="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                      {isVideo ? (
+                        <video src={url} muted preload="metadata" class="w-full h-full object-cover" />
+                      ) : (
+                        <img src={url} alt="" class="w-full h-full object-cover" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(idx)}
+                        class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center"
+                      >
+                        <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+                          <path d="M1 1l6 6M7 1L1 7" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                      {isVideo && (
+                        <div class="absolute bottom-0.5 left-0.5 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center">
+                          <svg width="6" height="7" viewBox="0 0 8 9" fill="none">
+                            <path d="M1.5 1.5l5 3-5 3V1.5z" fill="white"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div class="flex items-center justify-between px-3 pb-2 pt-1 border-t border-gray-100">
+              {mediaError ? (
+                <p class="text-xs text-red-500">{mediaError}</p>
+              ) : (
+                <span class="text-xs text-gray-300">
+                  {attachments.length > 0 ? `${attachments.length} / ${MAX_ATTACH_COUNT}` : ''}
+                </span>
+              )}
+              {attachments.length < MAX_ATTACH_COUNT && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  class="w-8 h-8 flex items-center justify-center rounded-full active:bg-gray-100 transition-colors text-gray-400 active:text-gray-600"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            class="hidden"
+            onChange={handleFilesSelected}
           />
         </div>
 
@@ -698,12 +868,20 @@ export function OrderScreen({ user, onBack }: Props) {
 
       <BottomSheet open={infoSheet !== null} onClose={() => setInfoSheet(null)}>
         {infoSheet && (
-          <div class="px-5 pt-2 pb-8">
+          <div class="px-5 pt-2 pb-6">
             <p class="text-base font-bold text-gray-900 mb-1">{t(`svc_${infoSheet}`)}</p>
             <p class="text-xs text-gray-400 mb-4">{t(`svc_${infoSheet}_desc`)}</p>
-            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-line mb-6">
               {t(`svc_${infoSheet}_info`)}
             </div>
+            <button
+              type="button"
+              onClick={() => setInfoSheet(null)}
+              class="w-full py-4 rounded-2xl text-sm font-semibold text-white"
+              style="background:#44973A"
+            >
+              {t('dialog_ok')}
+            </button>
           </div>
         )}
       </BottomSheet>
@@ -713,6 +891,27 @@ export function OrderScreen({ user, onBack }: Props) {
           onSubmit={handleAddressCreated}
           onBack={() => setShowAddressSheet(false)}
         />
+      </BottomSheet>
+
+      <BottomSheet open={!!infoAddon} onClose={() => setInfoAddon(null)}>
+        {infoAddon && (
+          <div class="px-5 pt-2 pb-6">
+            <p class="text-base font-semibold text-gray-900 mb-3">
+              {infoAddon.translations[lang] ?? infoAddon.translations['ru'] ?? infoAddon.id}
+            </p>
+            <p class="text-sm text-gray-600 leading-relaxed mb-5">
+              {infoAddon.description_translations[lang] ?? infoAddon.description_translations['ru']}
+            </p>
+            <button
+              type="button"
+              onClick={() => setInfoAddon(null)}
+              class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
+              style="background:#44973A"
+            >
+              {t('dialog_ok')}
+            </button>
+          </div>
+        )}
       </BottomSheet>
 
       {/* Sticky CTA */}

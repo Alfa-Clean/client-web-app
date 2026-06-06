@@ -24,7 +24,7 @@ export interface Order {
   address: string
   order_date: string
   order_slot: string
-  addons: string[]
+  addons: AddonItem[]
   created_at: string
   executor_id?: string | null
   executor_name?: string | null
@@ -42,20 +42,32 @@ export interface Order {
   cleaner_total?: number | null
 }
 
+export interface AddonItem {
+  id: string
+  qty?: number
+}
+
+export type ServiceType = 'standard' | 'general' | 'afterrepair'
+
 export interface OrderPayload {
-  telegram_id: number
+  telegram_id?: number | null
   phone: string
-  service_type: string
-  housing_type: 'apt' | 'house'
+  service_type: ServiceType
+  housing_type?: 'apt' | 'house'
   rooms: number
   bathrooms: number
   price: number
   address: string
   order_date: string
   order_slot: string
-  source: 'bot'
-  addons: string[]
+  source?: 'bot' | 'manual'
+  addons?: AddonItem[]
   comment?: string
+  special_instructions?: string
+  entrance?: string
+  floor?: number
+  apartment?: string
+  intercom?: string
   promo_code?: string
   utm_source?: string
   utm_medium?: string

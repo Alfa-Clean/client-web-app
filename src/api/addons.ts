@@ -3,6 +3,7 @@ import { apiFetch } from './client'
 export interface Addon {
   id: string
   translations: Record<string, string>
+  description_translations: Record<string, string>
   price: number
   category_id?: string | null
 }
