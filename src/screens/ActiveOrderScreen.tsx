@@ -45,6 +45,8 @@ interface Props {
   onOrderAccepted: () => void
   onSupportClick: () => void
   onEditClick: () => void
+  /** Передаётся при открытии из истории — показывает кнопку «Повторить заказ». */
+  onRepeat?: () => void
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -57,6 +59,7 @@ export function ActiveOrderScreen({
   onOrderAccepted,
   onSupportClick,
   onEditClick,
+  onRepeat,
 }: Props) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
@@ -236,8 +239,17 @@ export function ActiveOrderScreen({
           />
         </div>
 
-        {/* Accept / Cancel / Edit */}
+        {/* Accept / Cancel / Edit / Repeat */}
         <div class="flex flex-col gap-2">
+          {onRepeat && (
+            <button
+              type="button"
+              onClick={onRepeat}
+              class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
+            >
+              {t('btn_repeat')}
+            </button>
+          )}
           {order.status === 'awaiting_confirmation' && (
             <button
               type="button"

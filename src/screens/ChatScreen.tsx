@@ -151,7 +151,11 @@ export function ChatScreen({
     if (!loading) {
       if (firstLoad.current) {
         firstLoad.current = false;
-        bottomRef.current?.scrollIntoView();
+        requestAnimationFrame(() => {
+          if (listRef.current) {
+            listRef.current.scrollTop = listRef.current.scrollHeight;
+          }
+        });
       } else {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }

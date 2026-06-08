@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useState, useEffect } from 'preact/hooks'
 import {
   MapPin, CalendarDays, Banknote, Wrench, MessageCircle,
   User as UserIcon, Clock, Car, DoorOpen, CheckCircle2,
@@ -7,7 +7,9 @@ import {
 import type { ComponentType } from 'preact'
 import type { JSX } from 'preact'
 import type { HandymanOrder } from '../api/orders'
-import { cancelHandymanOrder } from '../api/orders'
+import { cancelHandymanOrder, acceptHandymanOrder } from '../api/orders'
+import type { OrderAttachment } from '../api/attachments'
+import { getOrderAttachments } from '../api/attachments'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
@@ -40,6 +42,7 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress:           'Идут работы',
   awaiting_confirmation: 'Примите работу',
   completed:             'Завершён',
+  cancelled:             'Отменён',
 }
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -51,6 +54,9 @@ interface Props {
   onOrderCancelled: () => void
   onOrderAccepted: () => void
   onSupportClick: () => void
+  onEditClick?: () => void
+  /** Передаётся при открытии из истории — показывает кнопку «Повторить заказ». */
+  onRepeat?: () => void
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -60,22 +66,45 @@ export function ActiveHandymanOrderScreen({
   onBack,
   onChatClick,
   onOrderCancelled,
+  onOrderAccepted,
   onSupportClick,
+  onEditClick,
+  onRepeat,
 }: Props) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
   const { confirm, dialogProps } = useConfirm()
   const [order, setOrder] = useState(initialOrder)
   const [loading, setLoading] = useState(false)
+  const [attachments, setAttachments] = useState<OrderAttachment[]>([])
+
+  useEffect(() => {
+    getOrderAttachments(order.id).then(a => setAttachments(Array.isArray(a) ? a : [])).catch(() => {})
+  }, [order.id])
 
   const statusIdx = STATUS_TIMELINE.indexOf(order.status)
   const StatusIcon = STATUS_ICON[order.status] ?? Wrench
   const canCancel = CANCEL_ALLOWED.has(order.status)
   const canChat = CHAT_STATUSES.has(order.status) && !!order.executor_id
+  const canEdit = order.status === 'new' || order.status === 'assigned'
+  const canAccept = order.status === 'awaiting_confirmation'
+  const canRepeat = !!onRepeat
 
   function fmtDate(iso: string): string {
     const [y, m, d] = iso.split('-').map(Number)
     return new Intl.DateTimeFormat(LOCALE_MAP[lang], { day: 'numeric', month: 'long' }).format(new Date(y, m - 1, d))
+  }
+
+  async function handleAccept() {
+    const ok = await confirm(t('confirm_accept_work_handyman'), { title: t('confirm_accept_work_title'), confirmVariant: 'normal' })
+    if (!ok) return
+    setLoading(true)
+    try {
+      await acceptHandymanOrder(order.id)
+      onOrderAccepted()
+    } catch {
+      setLoading(false)
+    }
   }
 
   async function handleCancel() {
@@ -166,11 +195,46 @@ export function ActiveHandymanOrderScreen({
           </div>
         )}
 
+        {/* Works */}
+        {order.works && order.works.length > 0 && (
+          <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3.5">
+            <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-2">{t('step_addons')}</p>
+            <div class="flex flex-col gap-1.5">
+              {order.works.map(w => (
+                <div key={w.work_id} class="flex items-center gap-2">
+                  <div class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                  <p class="text-sm text-gray-800">{w.translations[lang] ?? w.translations['ru'] ?? w.work_id}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Description */}
-        <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3.5">
-          <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-1.5">Описание работ</p>
-          <p class="text-sm text-gray-800 leading-relaxed">{order.description}</p>
-        </div>
+        {order.description && (
+          <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3.5">
+            <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-1.5">{t('handyman_comment_label')}</p>
+            <p class="text-sm text-gray-800 leading-relaxed">{order.description}</p>
+          </div>
+        )}
+
+        {/* Media */}
+        {attachments.length > 0 && (
+          <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3.5">
+            <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-2">{t('handyman_media_label')}</p>
+            <div class="grid grid-cols-3 gap-2">
+              {attachments.map(att => (
+                <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" class="block aspect-square rounded-xl overflow-hidden bg-gray-100">
+                  {att.media_type.startsWith('video/') ? (
+                    <video src={att.url} class="w-full h-full object-cover" muted />
+                  ) : (
+                    <img src={att.url} alt="" class="w-full h-full object-cover" />
+                  )}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Details */}
         <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
@@ -211,18 +275,48 @@ export function ActiveHandymanOrderScreen({
 
       </div>
 
-      {/* Cancel button */}
-      {canCancel && (
-        <div class="bg-white border-t border-gray-100 px-4 py-4">
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={loading}
-            class="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold text-red-500 bg-red-50 active:bg-red-100 transition-colors disabled:opacity-40"
-          >
-            <X size={16} />
-            Отменить заказ
-          </button>
+      {/* Bottom buttons */}
+      {(canAccept || canEdit || canCancel || canRepeat) && (
+        <div class="bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-2">
+          {canRepeat && (
+            <button
+              type="button"
+              onClick={onRepeat}
+              class="w-full bg-amber-500 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
+            >
+              {t('btn_repeat')}
+            </button>
+          )}
+          {canAccept && (
+            <button
+              type="button"
+              onClick={handleAccept}
+              disabled={loading}
+              class="w-full bg-amber-500 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
+            >
+              {t('home_accept_work')}
+            </button>
+          )}
+          {canEdit && onEditClick && (
+            <button
+              type="button"
+              onClick={onEditClick}
+              class="w-full border-2 border-blue-500 text-blue-600 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-blue-50"
+            >
+              {t('edit_order_title')}
+            </button>
+          )}
+          {canCancel && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={loading}
+              class="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold text-red-500 bg-red-50 active:bg-red-100 transition-colors disabled:opacity-40"
+            >
+              <X size={16} />
+              Отменить заказ
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -27,6 +27,12 @@ export interface AddonCategory {
   sort_order: number
 }
 
+export interface HandymanWorkCategory {
+  id: string
+  translations: Record<string, string>
+  sort_order: number
+}
+
 export function addonLabel(addon: Addon, lang: string): string {
   return addon.translations[lang] ?? addon.translations['ru'] ?? addon.id
 }
@@ -41,4 +47,8 @@ export function getAddonCategories(): Promise<AddonCategory[]> {
 
 export function getHandymanWorks(): Promise<HandymanWork[]> {
   return apiFetch<HandymanWork[]>('/handyman/works?is_active=true')
+}
+
+export function getHandymanWorkCategories(): Promise<HandymanWorkCategory[]> {
+  return apiFetch<HandymanWorkCategory[]>('/handyman/work-categories')
 }

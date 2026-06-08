@@ -91,19 +91,21 @@ function AddonRow({ addon, qty, lang, onSetQty, onInfo }: AddonRowProps) {
   const hasDescription = !!(addon.description_translations?.[lang] || addon.description_translations?.['ru'])
   return (
     <div class="w-full flex items-center justify-between px-4 py-3 gap-3">
-      <span class={`text-sm font-medium truncate flex-1 min-w-0 ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
-        {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
-      </span>
-      <div class="flex items-center gap-2 shrink-0">
+      <div class="flex-1 min-w-0 flex items-center gap-1.5">
+        <span class={`text-sm font-medium truncate ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
+          {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
+        </span>
         {hasDescription && (
           <button
             type="button"
             onClick={() => onInfo(addon)}
-            class="w-5 h-5 flex items-center justify-center text-gray-300 active:text-gray-500 transition-colors"
+            class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 active:text-gray-600 transition-colors"
           >
             <Info size={14} />
           </button>
         )}
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
         {on ? (
           <>
             <span class="text-xs text-gray-400">+{(addon.price * qty).toLocaleString('ru-RU')}</span>
@@ -267,6 +269,17 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
         confirmVariant="green"
       />
 
+      {showCalendar && (
+        <CalendarPicker
+          availableDates={availableDates}
+          value={date}
+          lang={lang}
+          cancelLabel={t('dialog_cancel')}
+          onSelect={handleCalendarSelect}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
+
     <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
 
       {/* Addon info sheet */}
@@ -290,20 +303,6 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
           </div>
         )}
       </BottomSheet>
-
-      {/* Calendar sheet */}
-      {showCalendar && (
-        <BottomSheet onClose={() => setShowCalendar(false)}>
-          <CalendarPicker
-            availableDates={availableDates}
-            value={date}
-            lang={lang}
-            cancelLabel={t('dialog_cancel')}
-            onSelect={handleCalendarSelect}
-            onClose={() => setShowCalendar(false)}
-          />
-        </BottomSheet>
-      )}
 
       {/* Header */}
       <div class="bg-white px-4 pt-12 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">

@@ -27,6 +27,7 @@ const ru: Strings = {
   btn_delete: 'Удалить',
   btn_loading: 'Загрузка...',
   btn_saving: 'Сохранение...',
+  btn_repeat: 'Повторить',
   err_save: 'Ошибка сохранения',
 
   // Home
@@ -86,7 +87,7 @@ const ru: Strings = {
   step_rooms: 'Количество комнат',
   step_bathrooms: 'Количество санузлов',
   step_datetime: 'Дата и время',
-  step_addons: 'Дополнительно',
+  step_addons: 'Работы',
   step_confirm: 'Подтверждение',
 
   // Service types
@@ -208,6 +209,7 @@ const ru: Strings = {
   home_accept_work: 'Принять работу',
   confirm_accept_work_title: 'Подтверждение выполнения',
   confirm_accept_work: 'Клинер завершил уборку. Подтвердите, что работа выполнена.',
+  confirm_accept_work_handyman: 'Мастер завершил работу. Подтвердите, что работа выполнена.',
   rating_title: 'Как прошла уборка?',
   rating_subtitle: 'Ваш отзыв поможет нам стать лучше',
   rating_comment_placeholder: 'Оставить комментарий (необязательно)',
@@ -351,6 +353,7 @@ const uz: Strings = {
   btn_delete: 'O\'chirish',
   btn_loading: 'Yuklanmoqda...',
   btn_saving: 'Saqlanmoqda...',
+  btn_repeat: 'Takrorlash',
   err_save: 'Saqlashda xatolik',
 
   home_welcome: 'Xush kelibsiz',
@@ -519,6 +522,7 @@ const uz: Strings = {
   home_accept_work: 'Ishni qabul qilish',
   confirm_accept_work_title: 'Bajarilishini tasdiqlash',
   confirm_accept_work: 'Kliner tozalashni tugatdi. Ish bajarilganligini tasdiqlang.',
+  confirm_accept_work_handyman: 'Usta ishni tugatdi. Ish bajarilganligini tasdiqlang.',
   rating_title: 'Tozalash qanday o\'tdi?',
   rating_subtitle: 'Fikringiz bizni yaxshilashga yordam beradi',
   rating_comment_placeholder: 'Izoh qoldiring (ixtiyoriy)',
@@ -662,6 +666,7 @@ const en: Strings = {
   btn_delete: 'Delete',
   btn_loading: 'Loading...',
   btn_saving: 'Saving...',
+  btn_repeat: 'Repeat',
   err_save: 'Save error',
 
   home_welcome: 'Welcome',
@@ -830,6 +835,7 @@ const en: Strings = {
   home_accept_work: 'Accept work',
   confirm_accept_work_title: 'Confirm completion',
   confirm_accept_work: 'The cleaner has finished cleaning. Please confirm the work is complete.',
+  confirm_accept_work_handyman: 'The master has finished the work. Please confirm the work is complete.',
   rating_title: 'How was the cleaning?',
   rating_subtitle: 'Your feedback helps us improve',
   rating_comment_placeholder: 'Leave a comment (optional)',

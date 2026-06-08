@@ -8,6 +8,10 @@ export interface OrderAttachment {
   created_at: string
 }
 
+export function getOrderAttachments(orderId: string): Promise<OrderAttachment[]> {
+  return apiFetch<OrderAttachment[]>(`/orders/${orderId}/attachments`)
+}
+
 export function uploadOrderAttachment(
   orderId: string,
   file: File,

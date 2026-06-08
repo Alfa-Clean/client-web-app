@@ -6,7 +6,7 @@ import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
 import type { Addon, AddonCategory } from '../api/addons'
 import { getAddons, getAddonCategories } from '../api/addons'
-import type { ServiceType, AddonItem } from '../api/orders'
+import type { ServiceType, AddonItem, Order } from '../api/orders'
 import { createOrder } from '../api/orders'
 import type { PromoInvalidReason } from '../api/promos'
 import { validatePromo } from '../api/promos'
@@ -159,6 +159,24 @@ function clearDraft() {
   localStorage.removeItem(DRAFT_KEY)
 }
 
+// Префилл черновика из прошлого заказа («Повторить заказ»).
+// Дату/слот намеренно оставляем пустыми — клиент выбирает новые.
+function draftFromOrder(o: Order): Draft {
+  return {
+    serviceType: (o.service_type as ServiceType) || 'standard',
+    housingType: o.housing_type ?? 'apt',
+    address: o.address,
+    addressLabel: null,
+    addressDetails: '',
+    rooms: o.rooms,
+    bathrooms: o.bathrooms,
+    orderDate: '',
+    orderSlot: '',
+    addons: (o.addons ?? []).map(a => ({ id: a.id, qty: a.qty ?? 1 })),
+    comment: o.comment ?? '',
+  }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: string }) {
@@ -236,11 +254,14 @@ function Counter({
 interface Props {
   user: User
   onBack: () => void
+  repeatFrom?: Order | null
 }
 
-export function OrderScreen({ user, onBack }: Props) {
+export function OrderScreen({ user, onBack, repeatFrom }: Props) {
   const { t, lang } = useLocale()
-  const [draft, setDraft] = useState<Draft>(loadSavedDraft() ?? EMPTY_DRAFT)
+  const [draft, setDraft] = useState<Draft>(
+    () => repeatFrom ? draftFromOrder(repeatFrom) : (loadSavedDraft() ?? EMPTY_DRAFT),
+  )
   const [addons, setAddons] = useState<Addon[]>([])
   const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([])
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])

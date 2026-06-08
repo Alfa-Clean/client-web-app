@@ -91,13 +91,14 @@ export function App() {
 
   const devTgId = import.meta.env.DEV ? Number(import.meta.env.VITE_DEV_TG_ID) || 0 : 0
   const hasTelegram = !!(tg?.initData || (import.meta.env.DEV && devTgId))
+  const startParam: string = tg?.initDataUnsafe?.start_param ?? ''
 
   return (
     <LocaleProvider telegramLang={telegramLang}>
       {!hasTelegram
         ? <NotInTelegram />
         : user
-          ? <HubScreen user={user} />
+          ? <HubScreen user={user} startParam={startParam} />
           : <RegistrationScreen onRegistered={handleRegister} devTelegramId={devTgId} />
       }
     </LocaleProvider>

@@ -5,9 +5,10 @@ import { validatePromo } from '../api/promos'
 import type { User } from '../types'
 import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
-import type { HandymanWork } from '../api/addons'
-import { getHandymanWorks } from '../api/addons'
+import type { HandymanWork, HandymanWorkCategory } from '../api/addons'
+import { getHandymanWorks, getHandymanWorkCategories } from '../api/addons'
 import { createHandymanOrder } from '../api/orders'
+import type { HandymanOrder, WorkItem } from '../api/orders'
 import { uploadOrderAttachment } from '../api/attachments'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
@@ -25,7 +26,7 @@ interface Draft {
   addressDetails: string
   orderDate: string
   orderSlot: string
-  works: string[]
+  works: WorkItem[]
   comment: string
 }
 
@@ -48,10 +49,11 @@ const EMPTY_DRAFT: Draft = {
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
-function calcPrice(addonsList: HandymanWork[], selectedHandymanWorks: string[]): number {
-  const addonsTotal = addonsList
-    .filter(a => selectedHandymanWorks.includes(a.id))
-    .reduce((s, a) => s + a.price, 0)
+function calcPrice(addonsList: HandymanWork[], works: WorkItem[]): number {
+  const addonsTotal = works.reduce((s, { id, qty }) => {
+    const addon = addonsList.find(a => a.id === id)
+    return s + (addon ? addon.price * qty : 0)
+  }, 0)
   return BASE_PRICE + addonsTotal
 }
 
@@ -126,7 +128,11 @@ function loadSavedDraft(): Draft | null {
     const parsed = JSON.parse(raw)
     const saved = parsed?.draft
     if (!saved) return null
-    return { ...EMPTY_DRAFT, ...saved, works: saved.works ?? saved.addons ?? [] }
+    const rawWorks: unknown[] = saved.works ?? saved.addons ?? []
+    const works: WorkItem[] = rawWorks.map((w: unknown) =>
+      typeof w === 'string' ? { id: w, qty: 1 } : (w as WorkItem)
+    )
+    return { ...EMPTY_DRAFT, ...saved, works }
   } catch {
     return null
   }
@@ -138,6 +144,18 @@ function saveDraft(draft: Draft) {
 
 function clearDraft() {
   localStorage.removeItem(DRAFT_KEY)
+}
+
+// Префилл черновика из прошлого заказа («Повторить заказ»).
+// Дату/слот оставляем пустыми — клиент выбирает новые.
+function draftFromOrder(o: HandymanOrder): Draft {
+  return {
+    ...EMPTY_DRAFT,
+    addressId: o.address_id ?? '',
+    address: o.address ?? '',
+    works: o.works?.map(w => ({ id: w.work_id, qty: w.qty ?? 1 })) ?? [],
+    comment: o.description ?? '',
+  }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -169,15 +187,19 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 interface Props {
   user: User
   onBack: () => void
+  repeatFrom?: HandymanOrder | null
 }
 
 const MAX_ATTACH_SIZE = 20 * 1024 * 1024
 const MAX_ATTACH_COUNT = 10
 
-export function HandymanOrderScreen({ user, onBack }: Props) {
+export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
   const { t, lang } = useLocale()
-  const [draft, setDraft] = useState<Draft>(loadSavedDraft() ?? EMPTY_DRAFT)
+  const [draft, setDraft] = useState<Draft>(
+    () => repeatFrom ? draftFromOrder(repeatFrom) : (loadSavedDraft() ?? EMPTY_DRAFT),
+  )
   const [addons, setHandymanWorks] = useState<HandymanWork[]>([])
+  const [workCategories, setWorkCategories] = useState<HandymanWorkCategory[]>([])
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -200,6 +222,7 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
 
   useEffect(() => {
     getHandymanWorks().catch(() => []).then(a => setHandymanWorks(Array.isArray(a) ? a : []))
+    getHandymanWorkCategories().catch(() => []).then(c => setWorkCategories(Array.isArray(c) ? c : []))
     getAddresses(user.telegram_id).catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
 
@@ -503,62 +526,106 @@ export function HandymanOrderScreen({ user, onBack }: Props) {
           )}
         </div>
 
-        {/* Дополнения */}
-        {addons.length > 0 && (
-          <div>
-            <SectionLabel>{t('step_addons')}</SectionLabel>
-            <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-              {addons.map(addon => {
-                const on = draft.works.includes(addon.id)
-                return (
-                  <div key={addon.id} class="flex items-center px-4 py-3.5 gap-2">
-                    <div class="flex-1 min-w-0 flex items-center gap-1.5">
-                      <p
-                        class={`text-sm font-medium truncate cursor-pointer ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}
-                        onClick={() => patch({
-                          works: on
-                            ? draft.works.filter(x => x !== addon.id)
-                            : [...draft.works, addon.id],
-                        })}
-                      >
-                        {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
-                      </p>
-                      {(addon.description_translations[lang] ?? addon.description_translations['ru']) && (
-                        <button
-                          type="button"
-                          onClick={() => setInfoAddon(addon)}
-                          class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 active:text-gray-500 transition-colors"
-                        >
-                          <Info size={14} />
-                        </button>
-                      )}
-                    </div>
-                    <div class="flex items-center gap-3 shrink-0">
-                      <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
+        {/* Работы */}
+        {addons.length > 0 && (() => {
+          const uncategorized = addons.filter(a => !a.category_id)
+          const groups: Array<{ category: HandymanWorkCategory; items: HandymanWork[] }> = workCategories
+            .map(cat => ({ category: cat, items: addons.filter(a => a.category_id === cat.id) }))
+            .filter(g => g.items.length > 0)
+
+          function WorkRow({ addon }: { addon: HandymanWork }) {
+            const qty = draft.works.find(w => w.id === addon.id)?.qty ?? 0
+            const on = qty > 0
+            const hasDesc = !!(addon.description_translations[lang] ?? addon.description_translations['ru'])
+
+            function setQty(newQty: number) {
+              if (newQty <= 0) {
+                patch({ works: draft.works.filter(w => w.id !== addon.id) })
+              } else if (on) {
+                patch({ works: draft.works.map(w => w.id === addon.id ? { ...w, qty: newQty } : w) })
+              } else {
+                patch({ works: [...draft.works, { id: addon.id, qty: newQty }] })
+              }
+            }
+
+            return (
+              <div class="flex items-center px-4 py-3.5 gap-2">
+                <div class="flex-1 min-w-0 flex items-center gap-1.5">
+                  <p
+                    class={`text-sm font-medium truncate cursor-pointer ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}
+                    onClick={() => setQty(on ? 0 : 1)}
+                  >
+                    {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
+                  </p>
+                  {hasDesc && (
+                    <button
+                      type="button"
+                      onClick={() => setInfoAddon(addon)}
+                      class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 active:text-gray-500 transition-colors"
+                    >
+                      <Info size={14} />
+                    </button>
+                  )}
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
+                  {on ? (
+                    <div class="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => patch({
-                          works: on
-                            ? draft.works.filter(x => x !== addon.id)
-                            : [...draft.works, addon.id],
-                        })}
-                        class={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-                          on ? 'bg-[#44973A] border-[#44973A]' : 'border-gray-300'
-                        }`}
+                        onClick={() => setQty(qty - 1)}
+                        class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-sm font-bold leading-none active:bg-gray-200 transition-colors"
                       >
-                        {on && (
-                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                            <path d="M1 4l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                          </svg>
-                        )}
+                        –
+                      </button>
+                      <span class="text-sm font-semibold text-gray-900 w-5 text-center">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQty(qty + 1)}
+                        class="w-6 h-6 rounded-full bg-[#44973A] flex items-center justify-center text-white text-sm font-bold leading-none active:bg-[#2D6126] transition-colors"
+                      >
+                        +
                       </button>
                     </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setQty(1)}
+                      class="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center transition-colors"
+                    />
+                  )}
+                </div>
+              </div>
+            )
+          }
+
+          return (
+            <div>
+              <SectionLabel>{t('step_addons')}</SectionLabel>
+              <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                {groups.map(({ category, items }, gi) => (
+                  <div key={category.id}>
+                    {(gi > 0 || uncategorized.length > 0) && <div class="h-px bg-gray-100" />}
+                    <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 px-4 pt-3 pb-1">
+                      {category.translations[lang] ?? category.translations['ru'] ?? category.id}
+                    </p>
+                    <div class="divide-y divide-gray-50">
+                      {items.map(addon => <WorkRow key={addon.id} addon={addon} />)}
+                    </div>
                   </div>
-                )
-              })}
+                ))}
+                {uncategorized.length > 0 && (
+                  <div>
+                    {groups.length > 0 && <div class="h-px bg-gray-100" />}
+                    <div class="divide-y divide-gray-50">
+                      {uncategorized.map(addon => <WorkRow key={addon.id} addon={addon} />)}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Промокод */}
         <div>

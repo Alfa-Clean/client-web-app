@@ -83,7 +83,7 @@ export function createOrder(data: OrderPayload): Promise<Order> {
 
 export interface HandymanOrderPayload {
   description?: string
-  works: string[]
+  works: WorkItem[]
   order_date: string
   order_slot: string
   telegram_id?: number | null
@@ -163,6 +163,17 @@ export function getBrigadierOrders(executorId: string): Promise<{ items: Order[]
   )
 }
 
+export interface WorkItem {
+  id: string
+  qty: number
+}
+
+export interface HandymanOrderWork {
+  work_id: string
+  qty: number
+  translations: Record<string, string>
+}
+
 export interface HandymanOrder {
   id: string
   order_num: number
@@ -170,12 +181,29 @@ export interface HandymanOrder {
   description: string
   price: number
   address: string
+  address_id?: string | null
   order_date: string
   order_slot: string
   created_at: string
   executor_id?: string | null
   executor_name?: string | null
   telegram_id?: number | null
+  works?: HandymanOrderWork[]
+}
+
+export interface HandymanOrderPatchPayload {
+  order_date?: string
+  order_slot?: string
+  address_id?: string
+  description?: string
+  works?: WorkItem[]
+}
+
+export function patchHandymanOrder(orderId: string, data: HandymanOrderPatchPayload): Promise<HandymanOrder> {
+  return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
 }
 
 export function getActiveHandymanOrders(telegramId: number): Promise<{ items: HandymanOrder[]; total: number }> {
@@ -184,8 +212,18 @@ export function getActiveHandymanOrders(telegramId: number): Promise<{ items: Ha
   )
 }
 
+export function getHandymanOrderHistory(telegramId: number): Promise<{ items: HandymanOrder[]; total: number }> {
+  return apiFetch<{ items: HandymanOrder[]; total: number }>(
+    `/handyman/orders?telegram_id=${telegramId}&active=false`,
+  )
+}
+
 export function cancelHandymanOrder(orderId: string): Promise<HandymanOrder> {
   return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}/cancel`, { method: 'POST' })
+}
+
+export function acceptHandymanOrder(orderId: string): Promise<HandymanOrder> {
+  return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}/client-confirm`, { method: 'POST' })
 }
 
 export interface OrderPatchPayload {

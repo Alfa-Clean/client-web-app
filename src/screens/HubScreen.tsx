@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { Sparkles, User as UserIcon, Sun, Moon, MessageCircle, ChevronRight, Shirt, Pencil, Trash2, Plus, Wrench } from 'lucide-react'
 import type { User } from '../types'
 import type { Order, HandymanOrder } from '../api/orders'
-import { getUserOrders, getActiveHandymanOrders } from '../api/orders'
+import { getUserOrders, getActiveHandymanOrders, getHandymanOrderHistory } from '../api/orders'
 import { getAddresses, createAddress, updateAddress, deleteAddress } from '../api/addresses'
 import type { Address, AddressPayload } from '../api/addresses'
 
@@ -23,6 +23,7 @@ import { ChatScreen } from './ChatScreen'
 import { ActiveChistomatyScreen } from './ActiveChistomatyScreen'
 import { ActiveHandymanOrderScreen } from './ActiveHandymanOrderScreen'
 import { OrderEditScreen } from './OrderEditScreen'
+import { HandymanOrderEditScreen } from './HandymanOrderEditScreen'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL } from './ActiveChistomatyScreen'
 
@@ -79,8 +80,19 @@ export function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: (
       onClick={onClick}
       class="mx-4 mb-4 w-[calc(100%-32px)] bg-[#44973A] rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left"
     >
-      <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-        <Sparkles size={20} class="text-white" />
+      <div class="w-10 h-10 shrink-0 flex items-center justify-center relative">
+        {order.status === 'new' ? (
+          <div class="relative w-10 h-10 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full bg-white/20 animate-ping" />
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center animate-pulse" style="color:white">
+              <Sparkles size={20} />
+            </div>
+          </div>
+        ) : (
+          <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" style="color:white">
+            <Sparkles size={20} />
+          </div>
+        )}
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-white font-bold text-sm leading-tight">{label}</p>
@@ -133,11 +145,21 @@ export function HandymanOrderBanner({ order, onClick }: { order: HandymanOrder; 
       onClick={onClick}
       class="mx-4 mb-4 w-[calc(100%-32px)] bg-amber-500 rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left"
     >
-      <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-        <Wrench size={20} class="text-white" />
+      <div class="w-10 h-10 shrink-0 flex items-center justify-center">
+        {order.status === 'new' ? (
+          <div class="relative w-10 h-10 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full bg-white/20 animate-ping" />
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center animate-pulse" style="color:white">
+              <Wrench size={20} />
+            </div>
+          </div>
+        ) : (
+          <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center" style="color:white">
+            <Wrench size={20} />
+          </div>
+        )}
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-white/60 text-[10px] font-medium mb-0.5">Хэндимен</p>
         <p class="text-white font-bold text-sm leading-tight">{label}</p>
         <p class="text-white/70 text-xs truncate mt-0.5">{order.address}</p>
       </div>
@@ -175,11 +197,15 @@ function CombinedOrdersBanner({ count, onClick }: { count: number; onClick: () =
 
 // ─── Order History Item ───────────────────────────────────────────────────────
 
-function OrderHistoryItem({ order }: { order: Order }) {
+function OrderHistoryItem({ order, onClick }: { order: Order; onClick: () => void }) {
   const c = STATUS_COLORS[order.status] ?? { bg: '#F3F4F6', text: '#6B7280' }
   const label = STATUS_HISTORY_LABEL[order.status] ?? order.status
   return (
-    <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3.5 flex items-center gap-3">
+    <button
+      type="button"
+      onClick={onClick}
+      class="w-full bg-white rounded-2xl border border-gray-100 px-4 py-3.5 flex items-center gap-3 text-left active:bg-gray-50 transition-colors"
+    >
       <div
         class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: c.bg }}
@@ -202,7 +228,44 @@ function OrderHistoryItem({ order }: { order: Order }) {
           <p class="text-sm font-semibold text-gray-900">{formatPrice(order.price)}</p>
         </div>
       </div>
-    </div>
+      <ChevronRight size={16} class="text-gray-300 shrink-0" />
+    </button>
+  )
+}
+
+function HandymanHistoryItem({ order, onClick }: { order: HandymanOrder; onClick: () => void }) {
+  const c = STATUS_COLORS[order.status] ?? { bg: '#F3F4F6', text: '#6B7280' }
+  const label = STATUS_HISTORY_LABEL[order.status] ?? order.status
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      class="w-full bg-white rounded-2xl border border-gray-100 px-4 py-3.5 flex items-center gap-3 text-left active:bg-gray-50 transition-colors"
+    >
+      <div
+        class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background: c.bg }}
+      >
+        <Wrench size={18} style={{ color: c.text }} />
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-sm font-semibold text-gray-900">Хэндимен</p>
+          <span
+            class="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+            style={{ background: c.bg, color: c.text }}
+          >
+            {label}
+          </span>
+        </div>
+        <p class="text-xs text-gray-500 truncate mt-0.5">{order.address}</p>
+        <div class="flex items-center justify-between mt-1">
+          <p class="text-[11px] text-gray-400">{formatOrderDate(order.order_date)}</p>
+          <p class="text-sm font-semibold text-gray-900">{formatPrice(order.price)}</p>
+        </div>
+      </div>
+      <ChevronRight size={16} class="text-gray-300 shrink-0" />
+    </button>
   )
 }
 
@@ -423,18 +486,43 @@ type ActiveOrderEntry =
   | { type: 'chistomaty'; order: ChistomatyOrder }
   | { type: 'handyman';   order: HandymanOrder }
 
+// ─── Deep link parsing ────────────────────────────────────────────────────────
+
+type DeepLink =
+  | { type: 'wizard'; target: 'cleaning' | 'handyman' | 'chistomaty' }
+  | { type: 'order'; id: string }
+  | { type: 'handyman_order'; id: string }
+  | { type: 'chat_cleaning'; id: string }
+  | { type: 'chat_handyman'; id: string }
+
+function parseDeepLink(param: string): DeepLink | null {
+  if (!param) return null
+  if (param === 'cleaning')  return { type: 'wizard', target: 'cleaning' }
+  if (param === 'handyman')  return { type: 'wizard', target: 'handyman' }
+  if (param === 'chistomaty') return { type: 'wizard', target: 'chistomaty' }
+  if (param.startsWith('cleaning_chat_')) return { type: 'chat_cleaning', id: param.slice(14) }
+  if (param.startsWith('handyman_chat_')) return { type: 'chat_handyman', id: param.slice(14) }
+  if (param.startsWith('cleaning_')) return { type: 'order', id: param.slice(9) }
+  if (param.startsWith('handyman_')) return { type: 'handyman_order', id: param.slice(9) }
+  return null
+}
+
 // ─── Hub Screen ───────────────────────────────────────────────────────────────
 
 type View =
-  | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman' | 'order_edit'
+  | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman' | 'order_edit' | 'handyman_order_edit'
   | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order'; executorId: string | null; executorName: string; senderId: string; backView: 'active_order' | 'active_handyman' }
 
 interface Props {
   user: User
+  startParam?: string
 }
 
-export function HubScreen({ user }: Props) {
-  const [view, setView] = useState<View>('hub')
+export function HubScreen({ user, startParam = '' }: Props) {
+  const deepLink = parseDeepLink(startParam)
+  const initialView: View = deepLink?.type === 'wizard' ? deepLink.target : 'hub'
+
+  const [view, setView] = useState<View>(initialView)
   const [activeOrders, setActiveOrders] = useState<Order[] | 'loading'>('loading')
   const [focusedOrder, setFocusedOrder] = useState<Order | null>(null)
   const [activeChistomatyOrder] = useState<ChistomatyOrder | null>(null)
@@ -442,9 +530,14 @@ export function HubScreen({ user }: Props) {
   const [focusedHandymanOrder, setFocusedHandymanOrder] = useState<HandymanOrder | null>(null)
   const [showActiveSheet, setShowActiveSheet] = useState(false)
   const [historyOrders, setHistoryOrders] = useState<Order[]>([])
+  const [historyHandymanOrders, setHistoryHandymanOrders] = useState<HandymanOrder[]>([])
+  const [repeatCleaning, setRepeatCleaning] = useState<Order | null>(null)
+  const [repeatHandyman, setRepeatHandyman] = useState<HandymanOrder | null>(null)
+  const [detailFromHistory, setDetailFromHistory] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const deepLinkHandled = useRef(false)
 
   useEffect(() => {
     getUserOrders(user.telegram_id)
@@ -453,13 +546,61 @@ export function HubScreen({ user }: Props) {
         setActiveOrders(actives)
         setHistoryOrders(res.items.filter(o => HISTORY_STATUSES.has(o.status)))
         if (actives.length > 0) startPolling()
+
+        if (!deepLinkHandled.current && deepLink?.type === 'order') {
+          deepLinkHandled.current = true
+          const target = actives.find(o => o.id === deepLink.id)
+          if (target) { setFocusedOrder(target); setView('active_order') }
+        }
+        if (!deepLinkHandled.current && deepLink?.type === 'chat_cleaning') {
+          deepLinkHandled.current = true
+          const target = actives.find(o => o.id === deepLink.id)
+          if (target) {
+            setFocusedOrder(target)
+            setView({
+              name: 'chat',
+              orderId: target.id,
+              contextType: 'cleaning_order',
+              executorId: target.foreman_id ?? target.executor_id ?? null,
+              executorName: target.foreman_name ?? target.executor_name ?? 'Исполнитель',
+              senderId: String(user.telegram_id),
+              backView: 'active_order',
+            })
+          }
+        }
       })
       .catch(() => setActiveOrders([]))
     getActiveHandymanOrders(user.telegram_id)
       .then(res => {
-        setActiveHandymanOrders(Array.isArray(res.items) ? res.items : [])
+        const items = Array.isArray(res.items) ? res.items : []
+        setActiveHandymanOrders(items)
+
+        if (!deepLinkHandled.current && deepLink?.type === 'handyman_order') {
+          deepLinkHandled.current = true
+          const target = items.find(o => o.id === deepLink.id)
+          if (target) { setFocusedHandymanOrder(target); setView('active_handyman') }
+        }
+        if (!deepLinkHandled.current && deepLink?.type === 'chat_handyman') {
+          deepLinkHandled.current = true
+          const target = items.find(o => o.id === deepLink.id)
+          if (target) {
+            setFocusedHandymanOrder(target)
+            setView({
+              name: 'chat',
+              orderId: target.id,
+              contextType: 'handyman_order',
+              executorId: target.executor_id ?? null,
+              executorName: target.executor_name ?? 'Мастер',
+              senderId: String(user.telegram_id),
+              backView: 'active_handyman',
+            })
+          }
+        }
       })
       .catch(() => setActiveHandymanOrders([]))
+    getHandymanOrderHistory(user.telegram_id)
+      .then(res => setHistoryHandymanOrders(Array.isArray(res.items) ? res.items : []))
+      .catch(() => setHistoryHandymanOrders([]))
     return stopPolling
   }, [user.telegram_id])
 
@@ -485,6 +626,12 @@ export function HubScreen({ user }: Props) {
     setTimeout(() => setToast(null), 2500)
   }
 
+  function backToHub() {
+    setView('hub')
+    const total = (activeOrders !== 'loading' ? activeOrders.length : 0) + activeHandymanOrders.length
+    if (total >= 3) setShowActiveSheet(true)
+  }
+
   function refreshOrders() {
     getUserOrders(user.telegram_id)
       .then(res => {
@@ -496,6 +643,9 @@ export function HubScreen({ user }: Props) {
       .catch(() => {})
     getActiveHandymanOrders(user.telegram_id)
       .then(res => { setActiveHandymanOrders(Array.isArray(res.items) ? res.items : []) })
+      .catch(() => {})
+    getHandymanOrderHistory(user.telegram_id)
+      .then(res => setHistoryHandymanOrders(Array.isArray(res.items) ? res.items : []))
       .catch(() => {})
   }
 
@@ -519,11 +669,27 @@ export function HubScreen({ user }: Props) {
       setView('hub')
     }
 
+    // Открытие из истории: общий экран деталей, без чата, с кнопкой «Повторить».
+    if (detailFromHistory) {
+      return (
+        <ActiveOrderScreen
+          order={focusedOrder}
+          onBack={() => { setDetailFromHistory(false); setFocusedOrder(null); setView('hub') }}
+          onChatClick={() => {}}
+          onOrderCancelled={() => {}}
+          onOrderAccepted={() => {}}
+          onSupportClick={() => showToast('Скоро появится')}
+          onEditClick={() => {}}
+          onRepeat={() => { setRepeatCleaning(focusedOrder); setDetailFromHistory(false); setFocusedOrder(null); setView('cleaning') }}
+        />
+      )
+    }
+
     if (focusedOrder.housing_type === 'house') {
       return (
         <HouseOrderStatusScreen
           order={focusedOrder}
-          onBack={() => setView('hub')}
+          onBack={backToHub}
           onChatClick={() => setView({
             name: 'chat',
             orderId: focusedOrder.id,
@@ -547,7 +713,7 @@ export function HubScreen({ user }: Props) {
     return (
       <ActiveOrderScreen
         order={focusedOrder}
-        onBack={() => setView('hub')}
+        onBack={backToHub}
         onChatClick={(orderId, executorId, executorName) => setView({
           name: 'chat',
           orderId,
@@ -580,6 +746,21 @@ export function HubScreen({ user }: Props) {
     )
   }
 
+  if (view === 'handyman_order_edit' && focusedHandymanOrder) {
+    return (
+      <HandymanOrderEditScreen
+        order={focusedHandymanOrder}
+        telegramId={user.telegram_id}
+        onBack={() => setView('active_handyman')}
+        onSaved={updated => {
+          setFocusedHandymanOrder(updated)
+          setActiveHandymanOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
+          setView('active_handyman')
+        }}
+      />
+    )
+  }
+
   if (view === 'active_chistomaty' && activeChistomatyOrder) {
     return (
       <ActiveChistomatyScreen
@@ -596,10 +777,26 @@ export function HubScreen({ user }: Props) {
       setFocusedHandymanOrder(null)
       setView('hub')
     }
+
+    // Открытие из истории: тот же экран, без чата, с кнопкой «Повторить».
+    if (detailFromHistory) {
+      return (
+        <ActiveHandymanOrderScreen
+          order={focusedHandymanOrder}
+          onBack={() => { setDetailFromHistory(false); setFocusedHandymanOrder(null); setView('hub') }}
+          onChatClick={() => {}}
+          onOrderCancelled={() => {}}
+          onOrderAccepted={() => {}}
+          onSupportClick={() => showToast('Скоро появится')}
+          onRepeat={() => { setRepeatHandyman(focusedHandymanOrder); setDetailFromHistory(false); setFocusedHandymanOrder(null); setView('handyman') }}
+        />
+      )
+    }
+
     return (
       <ActiveHandymanOrderScreen
         order={focusedHandymanOrder}
-        onBack={() => setView('hub')}
+        onBack={backToHub}
         onChatClick={(orderId, executorId, executorName) => setView({
           name: 'chat',
           orderId,
@@ -611,17 +808,18 @@ export function HubScreen({ user }: Props) {
         })}
         onOrderCancelled={onHandymanDone}
         onOrderAccepted={onHandymanDone}
-        onSupportClick={() => { setView('hub'); showToast('Скоро появится') }}
+        onSupportClick={() => showToast('Скоро появится')}
+        onEditClick={() => setView('handyman_order_edit')}
       />
     )
   }
 
   if (view === 'cleaning') {
-    return <OrderScreen user={user} onBack={() => { refreshOrders(); setView('hub') }} />
+    return <OrderScreen user={user} repeatFrom={repeatCleaning} onBack={() => { setRepeatCleaning(null); refreshOrders(); setView('hub') }} />
   }
 
   if (view === 'handyman') {
-    return <HandymanOrderScreen user={user} onBack={() => { refreshOrders(); setView('hub') }} />
+    return <HandymanOrderScreen user={user} repeatFrom={repeatHandyman} onBack={() => { setRepeatHandyman(null); refreshOrders(); setView('hub') }} />
   }
 
   if (view === 'chistomaty') {
@@ -644,11 +842,20 @@ export function HubScreen({ user }: Props) {
     ...activeHandymanOrders.map(o => ({ type: 'handyman' as const, order: o })),
   ]
 
+  type HistoryEntry =
+    | { type: 'cleaning'; order: Order; ts: number }
+    | { type: 'handyman'; order: HandymanOrder; ts: number }
+
+  const historyEntries: HistoryEntry[] = [
+    ...historyOrders.map(o => ({ type: 'cleaning' as const, order: o, ts: Date.parse(o.created_at || o.order_date) || 0 })),
+    ...historyHandymanOrders.map(o => ({ type: 'handyman' as const, order: o, ts: Date.parse(o.created_at || o.order_date) || 0 })),
+  ].sort((a, b) => b.ts - a.ts)
+
   function renderBanner(entry: ActiveOrderEntry, onClick: (v: View) => void) {
     switch (entry.type) {
-      case 'cleaning':   return <ActiveOrderBanner    key={entry.order.id} order={entry.order} onClick={() => { setFocusedOrder(entry.order); onClick('active_order') }} />
+      case 'cleaning':   return <ActiveOrderBanner    key={entry.order.id} order={entry.order} onClick={() => { setDetailFromHistory(false); setFocusedOrder(entry.order); onClick('active_order') }} />
       case 'chistomaty': return <ChistomatyOrderBanner key={entry.order.id} order={entry.order} onClick={() => onClick('active_chistomaty')} />
-      case 'handyman':   return <HandymanOrderBanner   key={entry.order.id} order={entry.order} onClick={() => { setFocusedHandymanOrder(entry.order); onClick('active_handyman') }} />
+      case 'handyman':   return <HandymanOrderBanner   key={entry.order.id} order={entry.order} onClick={() => { setDetailFromHistory(false); setFocusedHandymanOrder(entry.order); onClick('active_handyman') }} />
     }
   }
 
@@ -688,7 +895,7 @@ export function HubScreen({ user }: Props) {
         <div class="flex gap-3">
           <button
             type="button"
-            onClick={() => setView('cleaning')}
+            onClick={() => { setRepeatCleaning(null); setView('cleaning') }}
             class="flex-[2] relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
           >
             <img src="/service_tiles/cleaning.png" alt="Клининг" class="w-full h-full object-contain" />
@@ -698,7 +905,7 @@ export function HubScreen({ user }: Props) {
           <div class="flex-1 flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => setView('handyman')}
+              onClick={() => { setRepeatHandyman(null); setView('handyman') }}
               class="flex-1 relative bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
             >
               <img src="/service_tiles/handyman.png" alt="Хэндимен" class="w-full h-full object-contain" />
@@ -721,9 +928,19 @@ export function HubScreen({ user }: Props) {
         <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
           История заказов
         </p>
-        {historyOrders.length > 0 ? (
-          historyOrders.map(order => (
-            <OrderHistoryItem key={order.id} order={order} />
+        {historyEntries.length > 0 ? (
+          historyEntries.map(e => (
+            e.type === 'cleaning'
+              ? <OrderHistoryItem
+                  key={e.order.id}
+                  order={e.order}
+                  onClick={() => { setFocusedOrder(e.order); setDetailFromHistory(true); setView('active_order') }}
+                />
+              : <HandymanHistoryItem
+                  key={e.order.id}
+                  order={e.order}
+                  onClick={() => { setFocusedHandymanOrder(e.order); setDetailFromHistory(true); setView('active_handyman') }}
+                />
           ))
         ) : (
           <div class="bg-gray-50 rounded-2xl px-4 py-6 flex flex-col items-center gap-2">
