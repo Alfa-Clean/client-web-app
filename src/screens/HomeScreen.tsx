@@ -115,6 +115,7 @@ export function HomeScreen({ user }: Props) {
         onOrderCancelled={() => setView({ name: 'list' })}
         onOrderAccepted={() => setView({ name: 'list' })}
         onOrderUpdated={updated => setView({ name: 'house_order', order: updated })}
+        onEditClick={() => {}}
       />
     )
   }

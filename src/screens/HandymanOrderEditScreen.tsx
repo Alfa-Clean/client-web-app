@@ -9,7 +9,6 @@ import { ApiError } from '../api/client'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { CalendarPicker } from '../components/CalendarPicker'
-import { BottomSheet } from '../components/BottomSheet'
 import { AddressOption } from '../components/AddressOption'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
@@ -80,7 +79,7 @@ interface Props {
 export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
-  const { confirm, dialogProps } = useConfirm()
+  const { dialogProps } = useConfirm()
 
   const isAssigned = order.status === 'assigned'
 
