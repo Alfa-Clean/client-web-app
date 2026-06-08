@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { Info } from 'lucide-react'
 import type { Order, AddonItem, OrderPatchPayload } from '../api/orders'
 import { patchOrder } from '../api/orders'
-import { uploadOrderAttachment } from '../api/attachments'
+import type { OrderAttachment } from '../api/attachments'
+import { getOrderAttachments, uploadOrderAttachment } from '../api/attachments'
 import type { Addon, AddonCategory } from '../api/addons'
 import { getAddons, getAddonCategories } from '../api/addons'
 import type { Address } from '../api/addresses'
@@ -173,6 +174,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
 
   const [comment, setComment] = useState(order.comment ?? '')
+  const [savedAttachments, setSavedAttachments] = useState<OrderAttachment[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -184,6 +186,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    getOrderAttachments(order.id).then(setSavedAttachments).catch(() => {})
     Promise.all([
       getAddons().catch(() => []),
       getAddonCategories().catch(() => []),
@@ -546,6 +549,32 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
             onInput={e => setComment((e.target as HTMLTextAreaElement).value)}
             class="w-full px-4 pt-3 pb-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none bg-transparent"
           />
+          {(savedAttachments.length > 0 || previewUrls.length > 0) && (
+            <div class="flex gap-2 overflow-x-auto px-3 pb-2">
+              {savedAttachments.map(a => {
+                const isVideo = a.media_type.startsWith('video/')
+                return (
+                  <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                    class="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-100 block"
+                  >
+                    {isVideo ? (
+                      <video src={a.url} muted preload="metadata" class="w-full h-full object-cover" />
+                    ) : (
+                      <img src={a.url} alt="" class="w-full h-full object-cover" />
+                    )}
+                    {isVideo && (
+                      <div class="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" fill="black" fill-opacity="0.45"/>
+                          <path d="M10 8l6 4-6 4V8z" fill="white"/>
+                        </svg>
+                      </div>
+                    )}
+                  </a>
+                )
+              })}
+            </div>
+          )}
           {previewUrls.length > 0 && (
             <div class="flex gap-2 overflow-x-auto px-3 pb-2">
               {previewUrls.map((url, idx) => {

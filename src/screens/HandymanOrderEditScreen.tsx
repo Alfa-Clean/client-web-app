@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
+import type { OrderAttachment } from '../api/attachments'
+import { getOrderAttachments } from '../api/attachments'
 import type { HandymanOrder, WorkItem } from '../api/orders'
 import { patchHandymanOrder } from '../api/orders'
 import { getHandymanWorks, getHandymanWorkCategories } from '../api/addons'
@@ -96,12 +98,14 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
   const [worksList, setWorksList] = useState<HandymanWork[]>([])
   const [workCategories, setWorkCategories] = useState<HandymanWorkCategory[]>([])
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
+  const [savedAttachments, setSavedAttachments] = useState<OrderAttachment[]>([])
   const [showCalendar, setShowCalendar] = useState(false)
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    getOrderAttachments(order.id).then(a => setSavedAttachments(Array.isArray(a) ? a : [])).catch(() => {})
     getHandymanWorks().catch(() => []).then(w => setWorksList(Array.isArray(w) ? w : []))
     getHandymanWorkCategories().catch(() => []).then(c => setWorkCategories(Array.isArray(c) ? c : []))
     getAddresses(telegramId).catch(() => []).then(a => {
@@ -330,6 +334,37 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
               placeholder={t('handyman_comment_placeholder')}
               class="w-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none bg-transparent"
             />
+            {savedAttachments.length > 0 && (
+              <div class="mt-3 pt-3 border-t border-gray-100">
+                <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">
+                  {t('handyman_media_label')}
+                </p>
+                <div class="flex gap-2 flex-wrap">
+                  {savedAttachments.map(a => {
+                    const isVideo = a.media_type.startsWith('video/')
+                    return (
+                      <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                        class="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 block"
+                      >
+                        {isVideo ? (
+                          <video src={a.url} muted preload="metadata" class="w-full h-full object-cover" />
+                        ) : (
+                          <img src={a.url} alt="" class="w-full h-full object-cover" />
+                        )}
+                        {isVideo && (
+                          <div class="absolute inset-0 flex items-center justify-center bg-black/20">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" fill="black" fill-opacity="0.45"/>
+                              <path d="M10 8l6 4-6 4V8z" fill="white"/>
+                            </svg>
+                          </div>
+                        )}
+                      </a>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Works */}

@@ -10,6 +10,8 @@ import type { Order } from '../api/orders'
 import { cancelOrder, acceptOrder } from '../api/orders'
 import type { Addon } from '../api/addons'
 import { getAddons } from '../api/addons'
+import type { OrderAttachment } from '../api/attachments'
+import { getOrderAttachments } from '../api/attachments'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
@@ -67,11 +69,13 @@ export function ActiveOrderScreen({
   const [order] = useState(initialOrder)
   const [loading, setLoading] = useState(false)
   const [addonsCatalog, setAddonsCatalog] = useState<Addon[]>([])
+  const [attachments, setAttachments] = useState<OrderAttachment[]>([])
 
   useEffect(() => {
     if (order.addons.length > 0) {
       getAddons().then(setAddonsCatalog).catch(() => {})
     }
+    getOrderAttachments(order.id).then(setAttachments).catch(() => {})
   }, [])
 
   const statusIdx = STATUS_TIMELINE.indexOf(order.status)
@@ -213,6 +217,35 @@ export function ActiveOrderScreen({
           )}
           {order.comment && (
             <DetailRow icon={<MessageCircle size={15} />} label={t('history_comment_label')} value={order.comment} />
+          )}
+          {attachments.length > 0 && (
+            <div class="px-4 py-3">
+              <p class="text-xs text-gray-400 mb-2">{t('order_media_label')}</p>
+              <div class="flex gap-2 flex-wrap">
+                {attachments.map(a => {
+                  const isVideo = a.media_type.startsWith('video/')
+                  return (
+                    <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                      class="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 block"
+                    >
+                      {isVideo ? (
+                        <video src={a.url} muted preload="metadata" class="w-full h-full object-cover" />
+                      ) : (
+                        <img src={a.url} alt="" class="w-full h-full object-cover" />
+                      )}
+                      {isVideo && (
+                        <div class="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" fill="black" fill-opacity="0.45"/>
+                            <path d="M10 8l6 4-6 4V8z" fill="white"/>
+                          </svg>
+                        </div>
+                      )}
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
           )}
           <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-3">
