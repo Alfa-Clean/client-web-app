@@ -235,6 +235,7 @@ export interface OrderPatchPayload {
   apartment?: string | null
   intercom?: string | null
   addons?: AddonItem[]
+  comment?: string | null
 }
 
 export function patchOrder(orderId: string, data: OrderPatchPayload): Promise<Order> {

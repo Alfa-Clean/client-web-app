@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { Info } from 'lucide-react'
 import type { Order, AddonItem, OrderPatchPayload } from '../api/orders'
 import { patchOrder } from '../api/orders'
+import { uploadOrderAttachment } from '../api/attachments'
 import type { Addon, AddonCategory } from '../api/addons'
 import { getAddons, getAddonCategories } from '../api/addons'
 import type { Address } from '../api/addresses'
@@ -136,6 +137,9 @@ function AddonRow({ addon, qty, lang, onSetQty, onInfo }: AddonRowProps) {
   )
 }
 
+const MAX_ATTACH_SIZE = 20 * 1024 * 1024
+const MAX_ATTACH_COUNT = 10
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -168,6 +172,12 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
 
+  const [comment, setComment] = useState(order.comment ?? '')
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
+  const [mediaError, setMediaError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [showCalendar, setShowCalendar] = useState(false)
   const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
   const [saving, setSaving] = useState(false)
@@ -181,7 +191,10 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
     ]).then(([a, c, addrs]) => {
       setAddonsList(Array.isArray(a) ? a : [])
       setAddonCategories(Array.isArray(c) ? c : [])
-      setSavedAddresses(Array.isArray(addrs) ? addrs : [])
+      const list: Address[] = Array.isArray(addrs) ? addrs : []
+      setSavedAddresses(list)
+      const matched = list.find(x => x.address === order.address)
+      if (matched?.label) setAddressLabel(matched.label)
     })
   }, [telegramId])
 
@@ -231,6 +244,31 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
     }
   }
 
+  function handleFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement
+    const files = Array.from(input.files ?? [])
+    input.value = ''
+    setMediaError(null)
+    const remaining = MAX_ATTACH_COUNT - attachments.length
+    if (remaining <= 0) return
+    const valid: File[] = []
+    for (const f of files.slice(0, remaining)) {
+      if (f.size > MAX_ATTACH_SIZE) { setMediaError(t('order_media_size_error')); continue }
+      if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) { setMediaError(t('order_media_type_error')); continue }
+      valid.push(f)
+    }
+    if (valid.length === 0) return
+    setAttachments(prev => [...prev, ...valid])
+    setPreviewUrls(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))])
+  }
+
+  function removeAttachment(idx: number) {
+    URL.revokeObjectURL(previewUrls[idx])
+    setAttachments(prev => prev.filter((_, i) => i !== idx))
+    setPreviewUrls(prev => prev.filter((_, i) => i !== idx))
+    setMediaError(null)
+  }
+
   async function handleSave() {
     setSaving(true)
     setError(null)
@@ -241,7 +279,14 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
         if (slot !== order.order_slot) payload.order_slot = slot
         if (address.trim() !== order.address) payload.address = address.trim()
       }
+      const trimmedComment = comment.trim()
+      if (trimmedComment !== (order.comment ?? '').trim()) {
+        payload.comment = trimmedComment || null
+      }
       const updated = await patchOrder(order.id, payload)
+      for (const file of attachments) {
+        await uploadOrderAttachment(order.id, file, String(telegramId)).catch(() => {})
+      }
       onSaved(updated)
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -491,6 +536,77 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
             </div>
           </div>
         )}
+
+        {/* Comment & attachments */}
+        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#44973A] transition-colors">
+          <textarea
+            rows={3}
+            placeholder={t('order_comment_placeholder')}
+            value={comment}
+            onInput={e => setComment((e.target as HTMLTextAreaElement).value)}
+            class="w-full px-4 pt-3 pb-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none bg-transparent"
+          />
+          {previewUrls.length > 0 && (
+            <div class="flex gap-2 overflow-x-auto px-3 pb-2">
+              {previewUrls.map((url, idx) => {
+                const isVideo = attachments[idx]?.type.startsWith('video/')
+                return (
+                  <div key={url} class="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                    {isVideo ? (
+                      <video src={url} muted preload="metadata" class="w-full h-full object-cover" />
+                    ) : (
+                      <img src={url} alt="" class="w-full h-full object-cover" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(idx)}
+                      class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center"
+                    >
+                      <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+                        <path d="M1 1l6 6M7 1L1 7" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                      </svg>
+                    </button>
+                    {isVideo && (
+                      <div class="absolute bottom-0.5 left-0.5 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center">
+                        <svg width="6" height="7" viewBox="0 0 8 9" fill="none">
+                          <path d="M1.5 1.5l5 3-5 3V1.5z" fill="white"/>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <div class="flex items-center justify-between px-3 pb-2 pt-1 border-t border-gray-100">
+            {mediaError ? (
+              <p class="text-xs text-red-500">{mediaError}</p>
+            ) : (
+              <span class="text-xs text-gray-300">
+                {attachments.length > 0 ? `${attachments.length} / ${MAX_ATTACH_COUNT}` : ''}
+              </span>
+            )}
+            {attachments.length < MAX_ATTACH_COUNT && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                class="w-8 h-8 flex items-center justify-center rounded-full active:bg-gray-100 transition-colors text-gray-400 active:text-gray-600"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          class="hidden"
+          onChange={handleFilesSelected}
+        />
 
       </div>
 
