@@ -211,44 +211,6 @@ function Chip({
   )
 }
 
-function Counter({
-  value,
-  min,
-  max,
-  total,
-  onChange,
-}: {
-  value: number
-  min: number
-  max: number
-  total?: number
-  onChange: (v: number) => void
-}) {
-  return (
-    <div class="flex items-center gap-4">
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
-        class="w-9 h-9 rounded-full bg-gray-100 text-gray-700 text-xl font-light disabled:opacity-30 active:bg-gray-200 transition-colors flex items-center justify-center"
-      >
-        −
-      </button>
-      <span class="text-lg font-semibold text-gray-900 text-center">
-        {total != null ? `${value}/${total}` : value}
-      </span>
-      <button
-        type="button"
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={value >= max}
-        class="w-9 h-9 rounded-full bg-gray-100 text-gray-700 text-xl font-light disabled:opacity-30 active:bg-gray-200 transition-colors flex items-center justify-center"
-      >
-        +
-      </button>
-    </div>
-  )
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
@@ -378,6 +340,8 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
       address: newAddr.address,
       addressLabel: newAddr.label ?? null,
       addressDetails: newAddr.notes ?? '',
+      rooms: newAddr.rooms ?? draft.rooms,
+      bathrooms: newAddr.bathrooms ?? draft.bathrooms,
       totalRooms: newAddr.rooms ?? undefined,
       totalBathrooms: newAddr.bathrooms ?? undefined,
       housingType: newAddr.housing_type ?? 'apt',
@@ -385,7 +349,6 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
     setShowAddressSheet(false)
   }
 
-  const isApt = draft.housingType === 'apt'
   const price = calcPrice(draft.serviceType, draft.rooms, draft.bathrooms, addons, draft.addons)
   const discountedPrice = promoDiscountPct != null
     ? Math.floor(price - price * promoDiscountPct / 100)
@@ -551,6 +514,8 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
                         address: addr.address,
                         addressLabel: addr.label ?? null,
                         addressDetails: addr.notes ?? '',
+                        rooms: addr.rooms ?? draft.rooms,
+                        bathrooms: addr.bathrooms ?? draft.bathrooms,
                         totalRooms: addr.rooms ?? undefined,
                         totalBathrooms: addr.bathrooms ?? undefined,
                         housingType: addr.housing_type ?? draft.housingType,
@@ -612,24 +577,6 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
             ))}
           </div>
         </div>
-
-        {/* Комнаты + санузлы (только квартира) */}
-        {isApt && (
-          <div>
-            <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-              <div class="flex items-center justify-between px-4 py-3.5">
-                <p class="text-sm font-medium text-gray-700">{t('rooms_question')}</p>
-                <Counter
-                  value={draft.rooms}
-                  min={1}
-                  max={draft.totalRooms ?? 10}
-                  total={draft.totalRooms}
-                  onChange={v => patch({ rooms: v })}
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Дата и время */}
         <div>
