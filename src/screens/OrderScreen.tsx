@@ -1,5 +1,6 @@
+import type { JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { Info } from 'lucide-react'
+import { Info, MapPin, CalendarDays, Sparkles, MessageCircle, Banknote } from 'lucide-react'
 import { uploadOrderAttachment } from '../api/attachments'
 import type { User } from '../types'
 import type { Address } from '../api/addresses'
@@ -7,7 +8,7 @@ import { createAddress, getAddresses } from '../api/addresses'
 import type { Addon, AddonCategory } from '../api/addons'
 import { getAddons, getAddonCategories } from '../api/addons'
 import type { ServiceType, AddonItem, Order } from '../api/orders'
-import { createOrder } from '../api/orders'
+import { createOrder, cancelOrder } from '../api/orders'
 import type { PromoInvalidReason } from '../api/promos'
 import { validatePromo } from '../api/promos'
 import { useLocale } from '../i18n'
@@ -15,6 +16,10 @@ import type { Lang } from '../i18n/locales'
 import { CalendarPicker } from '../components/CalendarPicker'
 import { BottomSheet } from '../components/BottomSheet'
 import { AddressOption } from '../components/AddressOption'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { OnboardingOverlay } from '../components/OnboardingOverlay'
+import { useConfirm } from '../hooks/useConfirm'
+import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,8 +81,8 @@ function calcPrice(
   return base[serviceType] + perRoom[serviceType] * rooms + perBath[serviceType] * bathrooms + addonsTotal
 }
 
-function fmtPrice(p: number): string {
-  return p.toLocaleString('ru-RU') + ' сум'
+function fmtPrice(p: number, currency: string): string {
+  return p.toLocaleString('ru-RU') + ' ' + currency
 }
 
 // ─── Date / Slot helpers ──────────────────────────────────────────────────────
@@ -177,6 +182,21 @@ function draftFromOrder(o: Order): Draft {
   }
 }
 
+// Префилл черновика адресом, который клиент только что создал (шлюз без адресов на хабе).
+function draftFromAddress(a: Address): Draft {
+  return {
+    ...EMPTY_DRAFT,
+    address: a.address,
+    addressLabel: a.label ?? null,
+    addressDetails: a.notes ?? '',
+    rooms: a.rooms ?? EMPTY_DRAFT.rooms,
+    bathrooms: a.bathrooms ?? EMPTY_DRAFT.bathrooms,
+    totalRooms: a.rooms ?? undefined,
+    totalBathrooms: a.bathrooms ?? undefined,
+    housingType: a.housing_type ?? EMPTY_DRAFT.housingType,
+  }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: string }) {
@@ -217,12 +237,13 @@ interface Props {
   user: User
   onBack: () => void
   repeatFrom?: Order | null
+  initialAddress?: Address | null
 }
 
-export function OrderScreen({ user, onBack, repeatFrom }: Props) {
+export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props) {
   const { t, lang } = useLocale()
   const [draft, setDraft] = useState<Draft>(
-    () => repeatFrom ? draftFromOrder(repeatFrom) : (loadSavedDraft() ?? EMPTY_DRAFT),
+    () => repeatFrom ? draftFromOrder(repeatFrom) : initialAddress ? draftFromAddress(initialAddress) : (loadSavedDraft() ?? EMPTY_DRAFT),
   )
   const [addons, setAddons] = useState<Addon[]>([])
   const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([])
@@ -235,7 +256,7 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
   const [infoSheet, setInfoSheet] = useState<ServiceType | null>(null)
   const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
   const [addonsOpen, setAddonsOpen] = useState(false)
-  const [done, setDone] = useState(false)
+  const [doneOrder, setDoneOrder] = useState<Order | null>(null)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -247,6 +268,17 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
   const [promoError, setPromoError] = useState<string | null>(null)
   const [promoCode, setPromoCode] = useState<string | null>(null)
   const promoInputRef = useRef<HTMLInputElement>(null)
+
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding('cleaning'))
+  const addressRef = useRef<HTMLButtonElement>(null)
+  const serviceTypeRef = useRef<HTMLDivElement>(null)
+  const dateRef = useRef<HTMLDivElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
+
+  function finishOnboarding() {
+    markOnboardingSeen('cleaning')
+    setShowOnboarding(false)
+  }
 
   useEffect(() => {
     getAddons().catch(() => []).then(a => setAddons(Array.isArray(a) ? a : []))
@@ -396,7 +428,24 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
         await uploadOrderAttachment(order.id, file, String(user.telegram_id)).catch(() => {})
       }
       clearDraft()
-      setDone(true)
+      // POST /cleaning/orders возвращает только { id, order_num, status, created_at } —
+      // остальные поля берём из того, что реально было отправлено в заказе.
+      setDoneOrder({
+        id: order.id,
+        order_num: order.order_num,
+        status: order.status,
+        created_at: order.created_at,
+        service_type: draft.serviceType,
+        housing_type: draft.housingType,
+        rooms: draft.rooms,
+        bathrooms: draft.bathrooms,
+        price,
+        address,
+        order_date: draft.orderDate,
+        order_slot: draft.orderSlot,
+        addons: draft.addons,
+        comment: draft.comment.trim() || null,
+      })
     } catch (e: unknown) {
       if (e instanceof Error && e.message.includes('422') && promoCode) {
         setPromoCode(null)
@@ -411,8 +460,8 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
     }
   }
 
-  if (done) {
-    return <DoneScreen onBack={onBack} t={t} />
+  if (doneOrder) {
+    return <DoneScreen order={doneOrder} addonsCatalog={addons} lang={lang} onBack={onBack} t={t} />
   }
 
   return (
@@ -448,6 +497,7 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
         <div class="relative">
           {/* Trigger */}
           <button
+            ref={addressRef}
             type="button"
             onClick={() => setShowAddressDropdown(v => !v)}
             class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${
@@ -545,7 +595,7 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
         </div>
 
         {/* Тип уборки */}
-        <div>
+        <div ref={serviceTypeRef}>
           <div class="flex gap-2">
             {(['standard', 'general'] as ServiceType[]).map(type => (
               <button
@@ -579,8 +629,8 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
         </div>
 
         {/* Дата и время */}
-        <div>
-          <SectionLabel>Дата и время</SectionLabel>
+        <div ref={dateRef}>
+          <SectionLabel>{t('step_datetime')}</SectionLabel>
           <div class="flex gap-2 mb-3">
             {availableSet.has(todayIso) && (
               <Chip
@@ -708,7 +758,7 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
                     class="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-[#e4f4df] transition-colors"
                   >
                     <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-[#2D6126]">Дополнительные услуги</span>
+                      <span class="text-sm font-medium text-[#2D6126]">{t('edit_order_addons_label')}</span>
                       {selectedCount > 0 && (
                         <span class="text-xs font-semibold text-white bg-[#44973A] rounded-full w-5 h-5 flex items-center justify-center">
                           {selectedCount}
@@ -740,7 +790,7 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
                         ))}
                         {uncategorized.length > 0 && (
                           <div>
-                            {groups.length > 0 && <div class="px-4"><SectionLabel>Дополнения</SectionLabel></div>}
+                            {groups.length > 0 && <div class="px-4"><SectionLabel>{t('addons_group_label')}</SectionLabel></div>}
                             <div class="divide-y divide-gray-50">
                               {uncategorized.map(addon => <AddonRow key={addon.id} addon={addon} />)}
                             </div>
@@ -808,7 +858,7 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
 
         {/* Комментарии к заказу */}
         <div>
-          <SectionLabel>Комментарии к заказу</SectionLabel>
+          <SectionLabel>{t('order_comment_label')}</SectionLabel>
           <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#44973A] transition-colors">
             <textarea
               rows={3}
@@ -938,6 +988,7 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
       {/* Sticky CTA */}
       <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
         <button
+          ref={submitRef}
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit || submitting}
@@ -947,37 +998,154 @@ export function OrderScreen({ user, onBack, repeatFrom }: Props) {
           {submitting
             ? t('confirm_submitting')
             : promoDiscountPct != null
-              ? `${t('confirm_submit')} · ${fmtPrice(discountedPrice)}`
-              : `${t('confirm_submit')} · ${fmtPrice(price)}`
+              ? `${t('confirm_submit')} · ${fmtPrice(discountedPrice, t('currency'))}`
+              : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
           }
         </button>
       </div>
+
+      {showOnboarding && (
+        <OnboardingOverlay
+          steps={[
+            { ref: addressRef, title: t('onboarding_address_title'), description: t('onboarding_address_desc') },
+            { ref: serviceTypeRef, title: t('onboarding_type_title'), description: t('onboarding_type_desc') },
+            { ref: dateRef, title: t('onboarding_date_title'), description: t('onboarding_date_desc') },
+            { ref: submitRef, title: t('onboarding_submit_title'), description: t('onboarding_submit_desc') },
+          ]}
+          skipLabel={t('onboarding_skip')}
+          nextLabel={t('onboarding_next')}
+          doneLabel={t('onboarding_done')}
+          onFinish={finishOnboarding}
+        />
+      )}
     </div>
   )
 }
 
 // ─── Done screen ──────────────────────────────────────────────────────────────
 
-function DoneScreen({ onBack, t }: { onBack: () => void; t: TFn }) {
+function formatDoneDate(dateStr: string, slot: string, lang: Lang): string {
+  if (!dateStr) return slot
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const label = new Intl.DateTimeFormat(LOCALE_MAP[lang], { day: 'numeric', month: 'long' }).format(new Date(y, m - 1, d))
+  return slot ? `${label}, ${slot}` : label
+}
+
+function DoneScreen({
+  order,
+  addonsCatalog,
+  lang,
+  onBack,
+  t,
+}: {
+  order: Order
+  addonsCatalog: Addon[]
+  lang: Lang
+  onBack: () => void
+  t: TFn
+}) {
+  const { confirm, dialogProps } = useConfirm()
+  const [cancelling, setCancelling] = useState(false)
+
+  async function handleCancel() {
+    const ok = await confirm(t('confirm_cancel_new_order'), {
+      confirmVariant: 'normal',
+      cancelVariant: 'danger',
+      confirmLabel: t('dialog_btn_cancel_order'),
+      cancelLabel: t('dialog_btn_no'),
+    })
+    if (!ok) return
+    setCancelling(true)
+    await cancelOrder(order.id).catch(() => {})
+    setCancelling(false)
+    onBack()
+  }
+
   return (
-    <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center gap-5">
-      <div class="w-16 h-16 rounded-full bg-[#F0F9EE] flex items-center justify-center">
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <path d="M5 14l7 7 11-12" stroke="#44973A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+    <div class="min-h-screen bg-gray-50 flex flex-col">
+      <div class="flex-1 overflow-y-auto px-4 py-8 flex flex-col gap-5">
+        <div class="flex flex-col items-center text-center gap-3">
+          <div class="w-16 h-16 rounded-full bg-[#F0F9EE] flex items-center justify-center">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M5 14l7 7 11-12" stroke="#44973A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h2 class="text-lg font-bold text-gray-900">{t('done_title')}</h2>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+          <DoneDetailRow icon={<MapPin size={15} />} label={t('confirm_address')} value={order.address} />
+          <DoneDetailRow icon={<CalendarDays size={15} />} label={t('confirm_date')} value={formatDoneDate(order.order_date, order.order_slot, lang)} />
+          <DoneDetailRow icon={<Sparkles size={15} />} label={t('confirm_service')} value={t(`svc_${order.service_type}`) || order.service_type} />
+          {order.addons.length > 0 && (
+            <div class="flex items-start gap-3 px-4 py-3">
+              <span class="text-gray-400 mt-0.5 shrink-0"><Sparkles size={15} /></span>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-400 mb-1">{t('confirm_addons')}</p>
+                <ul class="flex flex-col gap-0.5">
+                  {order.addons.map(a => {
+                    const found = addonsCatalog.find(x => x.id === a.id)
+                    const name = found ? (found.translations[lang] ?? found.translations['ru'] ?? a.id) : a.id
+                    const qty = a.qty ?? 1
+                    return (
+                      <li key={a.id} class="flex items-center justify-between gap-2">
+                        <span class="text-sm text-gray-800">{name}</span>
+                        {qty > 1 && <span class="text-xs text-gray-400 shrink-0">× {qty}</span>}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            </div>
+          )}
+          {order.comment && (
+            <DoneDetailRow icon={<MessageCircle size={15} />} label={t('history_comment_label')} value={order.comment} />
+          )}
+          <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center gap-3">
+              <Banknote size={15} class="text-gray-400 shrink-0" />
+              <p class="text-sm text-gray-500">{t('confirm_total')}</p>
+            </div>
+            <p class="text-sm font-bold text-gray-900">{fmtPrice(order.price, t('currency'))}</p>
+          </div>
+        </div>
       </div>
-      <div>
-        <h2 class="text-lg font-bold text-gray-900 mb-1">{t('done_title')}</h2>
-        <p class="text-sm text-gray-400">{t('done_subtitle')}</p>
+      <ConfirmDialog
+        {...dialogProps}
+        confirmLabel={dialogProps.confirmLabel ?? t('dialog_ok')}
+        cancelLabel={dialogProps.cancelLabel ?? t('dialog_cancel')}
+      />
+
+      <div class="px-4 py-4 border-t border-gray-100 bg-white flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={onBack}
+          class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors"
+          style="background:#44973A"
+        >
+          {t('done_home')}
+        </button>
+        <button
+          type="button"
+          disabled={cancelling}
+          onClick={handleCancel}
+          class="w-full border-2 border-gray-300 text-gray-500 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-gray-50 disabled:opacity-50"
+        >
+          {t('home_cancel_order')}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onBack}
-        class="w-full max-w-xs py-4 rounded-2xl text-sm font-semibold text-white transition-colors"
-        style="background:#44973A"
-      >
-        {t('done_home')}
-      </button>
+    </div>
+  )
+}
+
+function DoneDetailRow({ icon, label, value }: { icon: JSX.Element; label: string; value: string }) {
+  return (
+    <div class="flex items-start gap-3 px-4 py-3">
+      <span class="text-gray-400 mt-0.5 shrink-0">{icon}</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs text-gray-400 mb-0.5">{label}</p>
+        <p class="text-sm text-gray-800 break-words">{value}</p>
+      </div>
     </div>
   )
 }

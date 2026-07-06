@@ -1,11 +1,14 @@
 import { useState } from 'preact/hooks'
-import { MessageCircle, X } from 'lucide-react'
+import { MessageCircle, X, AlertTriangle, HeadphonesIcon, ChevronRight } from 'lucide-react'
+import type { JSX } from 'preact'
 import type { Order } from '../api/orders'
-import { confirmPrice, rejectPrice, cancelOrder, acceptOrder } from '../api/orders'
+import { confirmPrice, rejectPrice, cancelOrder, acceptOrder, disputeOrder } from '../api/orders'
+import { getOrCreateConversation, sendConversationMedia } from '../api/conversations'
 import { useLocale } from '../i18n'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
 import { BottomSheet } from '../components/BottomSheet'
+import { DisputeSheet } from '../components/DisputeSheet'
 import { useExitBack } from '../hooks/useExitBack'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -17,24 +20,28 @@ const BLUE_BG = '#F0F9EE'
 
 interface Props {
   order: Order
+  senderId: string
   onBack: () => void
   onChatClick: () => void
   onOrderCancelled: () => void
   onOrderAccepted: () => void
   onOrderUpdated: (order: Order) => void
   onEditClick: () => void
+  onSupportClick: () => void
 }
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export function HouseOrderStatusScreen({
   order: initialOrder,
+  senderId,
   onBack,
   onChatClick,
   onOrderCancelled,
   onOrderAccepted,
   onOrderUpdated,
   onEditClick,
+  onSupportClick,
 }: Props) {
   const { t } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
@@ -43,6 +50,7 @@ export function HouseOrderStatusScreen({
   const [loading, setLoading] = useState(false)
   const [counterSheetOpen, setCounterSheetOpen] = useState(false)
   const [counterPrice, setCounterPrice] = useState('')
+  const [showDispute, setShowDispute] = useState(false)
 
   function update(o: Order) {
     setOrder(o)
@@ -99,6 +107,20 @@ export function HouseOrderStatusScreen({
     onOrderAccepted()
   }
 
+  async function handleDisputeSubmit(reason: string, files: File[]) {
+    const result = await disputeOrder(order.id, reason)
+    update({ ...order, status: result.status })
+    setShowDispute(false)
+    if (files.length > 0) {
+      const conv = await getOrCreateConversation('cleaning_dispute', order.id).catch(() => null)
+      if (conv) {
+        for (const file of files) {
+          await sendConversationMedia(conv.id, file, senderId).catch(() => {})
+        }
+      }
+    }
+  }
+
   return (
     <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
       <ConfirmDialog
@@ -106,6 +128,13 @@ export function HouseOrderStatusScreen({
         confirmLabel={dialogProps.confirmLabel ?? t('dialog_ok')}
         cancelLabel={dialogProps.cancelLabel ?? t('dialog_cancel')}
       />
+
+      {showDispute && (
+        <DisputeSheet
+          onSubmit={handleDisputeSubmit}
+          onClose={() => setShowDispute(false)}
+        />
+      )}
 
       {/* Counter-price bottom sheet */}
       {
@@ -166,8 +195,10 @@ export function HouseOrderStatusScreen({
           onCounterPrice={() => setCounterSheetOpen(true)}
           onCancel={handleCancel}
           onAcceptWork={handleAcceptWork}
+          onDispute={() => setShowDispute(true)}
           onChat={onChatClick}
           onEdit={onEditClick}
+          onSupport={onSupportClick}
         />
       </div>
     </div>
@@ -184,11 +215,13 @@ interface ContentProps {
   onCounterPrice: () => void
   onCancel: () => void
   onAcceptWork: () => void
+  onDispute: () => void
   onChat: () => void
   onEdit: () => void
+  onSupport: () => void
 }
 
-function StatusContent({ order, loading, onConfirmPrice, onRejectPrice, onCounterPrice, onCancel, onAcceptWork, onChat, onEdit }: ContentProps) {
+function StatusContent({ order, loading, onConfirmPrice, onRejectPrice, onCounterPrice, onCancel, onAcceptWork, onDispute, onChat, onEdit, onSupport }: ContentProps) {
   const { t } = useLocale()
 
   switch (order.status) {
@@ -205,7 +238,9 @@ function StatusContent({ order, loading, onConfirmPrice, onRejectPrice, onCounte
     case 'in_progress':
       return <ViewA6 order={order} onChat={onChat} />
     case 'awaiting_confirmation':
-      return <ViewA7 order={order} onAccept={onAcceptWork} loading={loading} onChat={onChat} />
+      return <ViewA7 order={order} onAccept={onAcceptWork} onDispute={onDispute} loading={loading} onChat={onChat} />
+    case 'disputed':
+      return <ViewDisputed onChat={onChat} onSupport={onSupport} />
     default:
       return (
         <div class="bg-white rounded-2xl border border-gray-100 p-5 text-center">
@@ -453,7 +488,7 @@ function ViewA6({ order, onChat }: { order: Order; onChat: () => void }) {
 
 // ─── A7 — Подтверждение завершения ⭐ ────────────────────────────────────────
 
-function ViewA7({ order, onAccept, loading, onChat }: { order: Order; onAccept: () => void; loading: boolean; onChat: () => void }) {
+function ViewA7({ order, onAccept, onDispute, loading, onChat }: { order: Order; onAccept: () => void; onDispute: () => void; loading: boolean; onChat: () => void }) {
   const { t } = useLocale()
   const members = order.team_members ?? []
   return (
@@ -480,11 +515,52 @@ function ViewA7({ order, onAccept, loading, onChat }: { order: Order; onAccept: 
         </button>
         <button
           type="button"
+          disabled={loading}
+          onClick={onDispute}
+          class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-red-50 disabled:opacity-50"
+        >
+          {t('btn_dispute_order')}
+        </button>
+        <button
+          type="button"
           onClick={onChat}
           class="w-full py-3.5 rounded-2xl text-sm font-medium border border-gray-200 text-gray-600 active:bg-gray-50 transition-colors"
         >
           {t('house_complaints')}
         </button>
+      </div>
+    </>
+  )
+}
+
+// ─── Disputed — спор открыт ───────────────────────────────────────────────────
+
+function ViewDisputed({ onChat, onSupport }: { onChat: () => void; onSupport: () => void }) {
+  const { t } = useLocale()
+  return (
+    <>
+      <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="bg-red-500 px-5 pt-6 pb-5 flex flex-col items-center gap-3 text-center">
+          <div class="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+            <AlertTriangle size={28} class="text-white" />
+          </div>
+          <p class="text-white text-lg font-bold">{t('status_disputed')}</p>
+        </div>
+        <div class="px-5 py-4">
+          <p class="text-sm text-gray-600 leading-relaxed">{t('disputed_message')}</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
+        <ActionRow
+          icon={<MessageCircle size={18} class="text-red-500" />}
+          label={t('house_btn_write_foreman')}
+          onClick={onChat}
+        />
+        <ActionRow
+          icon={<HeadphonesIcon size={18} class="text-gray-500" />}
+          label={t('support_title')}
+          onClick={onSupport}
+        />
       </div>
     </>
   )
@@ -587,6 +663,20 @@ function AddressRow({ address }: { address: string }) {
   )
 }
 
+function ActionRow({ icon, label, onClick }: { icon: JSX.Element; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      class="w-full flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors text-left"
+    >
+      <span class="shrink-0">{icon}</span>
+      <p class="flex-1 text-sm font-medium text-gray-900">{label}</p>
+      <ChevronRight size={15} class="text-gray-300 shrink-0" />
+    </button>
+  )
+}
+
 function CancelBtn({ onCancel, loading }: { onCancel: () => void; loading: boolean }) {
   const { t } = useLocale()
   return (
@@ -604,4 +694,4 @@ function CancelBtn({ onCancel, loading }: { onCancel: () => void; loading: boole
 // ─── Exported atoms (used in UIKit) ──────────────────────────────────────────
 
 export { PulsingDot, ForemanCard, ForemanAvatar, StarRating, TeamAvatarRow, AddressRow }
-export { ViewA1, ViewA2, ViewA3, ViewA4, ViewA5, ViewA6, ViewA7 }
+export { ViewA1, ViewA2, ViewA3, ViewA4, ViewA5, ViewA6, ViewA7, ViewDisputed }

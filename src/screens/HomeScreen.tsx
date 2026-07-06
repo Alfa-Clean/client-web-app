@@ -101,6 +101,7 @@ export function HomeScreen({ user }: Props) {
     return (
       <HouseOrderStatusScreen
         order={view.order}
+        senderId={String(user.telegram_id)}
         onBack={() => setView({ name: 'list' })}
         onChatClick={() =>
           setView({
@@ -116,6 +117,7 @@ export function HomeScreen({ user }: Props) {
         onOrderAccepted={() => setView({ name: 'list' })}
         onOrderUpdated={updated => setView({ name: 'house_order', order: updated })}
         onEditClick={() => {}}
+        onSupportClick={() => {}}
       />
     )
   }

@@ -520,7 +520,7 @@ function MemberRow({ name, role }: { name: string; role: string }) {
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium text-gray-900 truncate">{name}</p>
-        <p class="text-xs text-gray-400">{isForeman ? t('house_foreman_badge') : 'Клинер'}</p>
+        <p class="text-xs text-gray-400">{isForeman ? t('house_foreman_badge') : t('role_cleaner')}</p>
       </div>
       <ChevronRight size={14} class="text-gray-300 shrink-0" />
     </div>

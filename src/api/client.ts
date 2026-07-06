@@ -4,10 +4,13 @@ const TOKEN_KEY = 'chaqqon_token'
 
 export class ApiError extends Error {
   status: number
+  /** Текст из тела ответа `{"detail": "..."}`, если сервер его прислал. */
+  detail?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, detail?: string) {
     super(message)
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -33,6 +36,17 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+/** Стирает все локальные данные приложения (токен, профиль, тема, язык, черновики). */
+export function clearAllUserData() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('chaqqon_')) localStorage.removeItem(key)
+    }
+  } catch {
+    // localStorage недоступен — игнорируем
+  }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
   const isFormData = init?.body instanceof FormData
@@ -47,7 +61,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   })
 
   if (!res.ok) {
-    throw new ApiError(res.status, `${res.status} ${res.statusText}`)
+    let detail: string | undefined
+    try {
+      const body = await res.json()
+      if (typeof body?.detail === 'string') detail = body.detail
+    } catch {
+      // тело не JSON или пустое — игнорируем
+    }
+    throw new ApiError(res.status, `${res.status} ${res.statusText}`, detail)
   }
 
   return res.json() as Promise<T>

@@ -2,20 +2,23 @@ import { useEffect, useState } from 'preact/hooks'
 import {
   MapPin, CalendarDays, Banknote, Sparkles, MessageCircle,
   User as UserIcon, Clock, Car, DoorOpen, CheckCircle2, PartyPopper,
-  HeadphonesIcon, ChevronRight,
+  HeadphonesIcon, ChevronRight, AlertTriangle,
 } from 'lucide-react'
 import type { ComponentType } from 'preact'
 import type { JSX } from 'preact'
 import type { Order } from '../api/orders'
-import { cancelOrder, acceptOrder } from '../api/orders'
+import { cancelOrder, acceptOrder, rateOrder, disputeOrder } from '../api/orders'
 import type { Addon } from '../api/addons'
 import { getAddons } from '../api/addons'
 import type { OrderAttachment } from '../api/attachments'
-import { getOrderAttachments } from '../api/attachments'
+import { getOrderAttachments, uploadOrderAttachment } from '../api/attachments'
+import { getOrCreateConversation, sendConversationMedia } from '../api/conversations'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { RatingSheet } from '../components/RatingSheet'
+import { DisputeSheet } from '../components/DisputeSheet'
 import { useConfirm } from '../hooks/useConfirm'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -30,9 +33,10 @@ const STATUS_ICON: Record<string, ComponentType<any>> = {
   in_progress: Sparkles,
   awaiting_confirmation: CheckCircle2,
   completed: PartyPopper,
+  disputed: AlertTriangle,
 }
 
-const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
+const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', 'disputed'])
 const CANCEL_ALLOWED = new Set(['new', 'assigned', 'on_the_way'])
 
 const LOCALE_MAP: Record<Lang, string> = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-US' }
@@ -41,6 +45,7 @@ const LOCALE_MAP: Record<Lang, string> = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-US'
 
 interface Props {
   order: Order
+  senderId: string
   onBack: () => void
   onChatClick: (orderId: string, executorId: string | null, executorName: string) => void
   onOrderCancelled: () => void
@@ -49,12 +54,15 @@ interface Props {
   onEditClick: () => void
   /** Передаётся при открытии из истории — показывает кнопку «Повторить заказ». */
   onRepeat?: () => void
+  /** Уведомляет родителя об изменении заказа на месте (например, после открытия спора). */
+  onOrderUpdated?: (order: Order) => void
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ActiveOrderScreen({
   order: initialOrder,
+  senderId,
   onBack,
   onChatClick,
   onOrderCancelled,
@@ -62,12 +70,15 @@ export function ActiveOrderScreen({
   onSupportClick,
   onEditClick,
   onRepeat,
+  onOrderUpdated,
 }: Props) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
   const { confirm, dialogProps } = useConfirm()
-  const [order] = useState(initialOrder)
+  const [order, setOrder] = useState(initialOrder)
   const [loading, setLoading] = useState(false)
+  const [showRating, setShowRating] = useState(false)
+  const [showDispute, setShowDispute] = useState(false)
   const [addonsCatalog, setAddonsCatalog] = useState<Addon[]>([])
   const [attachments, setAttachments] = useState<OrderAttachment[]>([])
 
@@ -79,6 +90,7 @@ export function ActiveOrderScreen({
   }, [])
 
   const statusIdx = STATUS_TIMELINE.indexOf(order.status)
+  const isDisputed = order.status === 'disputed'
   const StatusIcon = STATUS_ICON[order.status] ?? Sparkles
 
 
@@ -110,16 +122,51 @@ export function ActiveOrderScreen({
     setLoading(true)
     await acceptOrder(order.id).catch(() => {})
     setLoading(false)
-    onOrderAccepted()
+    setShowRating(true)
+  }
+
+  async function handleDisputeSubmit(reason: string, files: File[]) {
+    const result = await disputeOrder(order.id, reason)
+    const updated = { ...order, status: result.status }
+    setOrder(updated)
+    onOrderUpdated?.(updated)
+    setShowDispute(false)
+    if (files.length > 0) {
+      const conv = await getOrCreateConversation('cleaning_dispute', order.id).catch(() => null)
+      if (conv) {
+        for (const file of files) {
+          await sendConversationMedia(conv.id, file, senderId).catch(() => {})
+        }
+      }
+    }
   }
 
   return (
-    <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+    <div class={`h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
       <ConfirmDialog
         {...dialogProps}
         confirmLabel={dialogProps.confirmLabel ?? t('dialog_ok')}
         cancelLabel={dialogProps.cancelLabel ?? t('dialog_cancel')}
       />
+
+      {showDispute && (
+        <DisputeSheet
+          onSubmit={handleDisputeSubmit}
+          onClose={() => setShowDispute(false)}
+        />
+      )}
+
+      {showRating && (
+        <RatingSheet
+          onSubmit={async (score, comment, files) => {
+            await rateOrder(order.id, score, comment || undefined).catch(() => {})
+            for (const file of files) {
+              await uploadOrderAttachment(order.id, file, senderId).catch(() => {})
+            }
+          }}
+          onClose={() => { setShowRating(false); onOrderAccepted() }}
+        />
+      )}
 
       {/* Header */}
       <div class="bg-white px-4 pt-12 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
@@ -137,11 +184,11 @@ export function ActiveOrderScreen({
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 pb-6">
+      <div class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
 
         {/* Status hero */}
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div class="bg-green-600 px-5 pt-6 pb-5">
+          <div class={`px-5 pt-6 pb-5 ${isDisputed ? 'bg-red-500' : 'bg-green-600'}`}>
             <div class="flex items-center gap-4">
               <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
                 <StatusIcon size={28} class="text-white" />
@@ -163,30 +210,36 @@ export function ActiveOrderScreen({
             </div>
           </div>
 
-          {/* Timeline */}
-          <div class="px-5 py-4">
-            <div class="relative flex items-center justify-between">
-              <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-gray-200" />
-              <div
-                class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-green-500 transition-all duration-500"
-                style={`width:${statusIdx / (STATUS_TIMELINE.length - 1) * 100}%`}
-              />
-              {STATUS_TIMELINE.map((s, i) => (
+          {isDisputed ? (
+            <div class="px-5 py-4">
+              <p class="text-sm text-gray-600 leading-relaxed">{t('disputed_message')}</p>
+            </div>
+          ) : (
+            /* Timeline */
+            <div class="px-5 py-4">
+              <div class="relative flex items-center justify-between">
+                <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-gray-200" />
                 <div
-                  key={s}
-                  class={`relative z-10 w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${
-                    i < statusIdx  ? 'bg-green-500' :
-                    i === statusIdx ? 'bg-green-600 ring-4 ring-green-100' :
-                    'bg-gray-200'
-                  }`}
+                  class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-green-500 transition-all duration-500"
+                  style={`width:${statusIdx / (STATUS_TIMELINE.length - 1) * 100}%`}
                 />
-              ))}
+                {STATUS_TIMELINE.map((s, i) => (
+                  <div
+                    key={s}
+                    class={`relative z-10 w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${
+                      i < statusIdx  ? 'bg-green-500' :
+                      i === statusIdx ? 'bg-green-600 ring-4 ring-green-100' :
+                      'bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div class="flex justify-between mt-2">
+                <p class="text-[10px] text-gray-400">{t('status_new')}</p>
+                <p class="text-[10px] text-gray-400">{t('status_completed')}</p>
+              </div>
             </div>
-            <div class="flex justify-between mt-2">
-              <p class="text-[10px] text-gray-400">{t('status_new')}</p>
-              <p class="text-[10px] text-gray-400">{t('status_completed')}</p>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Order details */}
@@ -267,13 +320,15 @@ export function ActiveOrderScreen({
           )}
           <ActionRow
             icon={<HeadphonesIcon size={18} class="text-gray-500" />}
-            label="Поддержка"
+            label={t('support_title')}
             onClick={onSupportClick}
           />
         </div>
+      </div>
 
-        {/* Accept / Cancel / Edit / Repeat */}
-        <div class="flex flex-col gap-2">
+      {/* Accept / Cancel / Edit / Repeat — вне скролла, не двигается при прокрутке контента */}
+      {(onRepeat || order.status === 'awaiting_confirmation' || order.status === 'new' || order.status === 'assigned' || CANCEL_ALLOWED.has(order.status)) && (
+        <div class="bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-2 shrink-0">
           {onRepeat && (
             <button
               type="button"
@@ -291,6 +346,15 @@ export function ActiveOrderScreen({
               class="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
             >
               {t('home_accept_work')}
+            </button>
+          )}
+          {order.status === 'awaiting_confirmation' && (
+            <button
+              type="button"
+              onClick={() => setShowDispute(true)}
+              class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-red-50"
+            >
+              {t('btn_dispute_order')}
             </button>
           )}
           {(order.status === 'new' || order.status === 'assigned') && (
@@ -313,7 +377,7 @@ export function ActiveOrderScreen({
             </button>
           )}
         </div>
-      </div>
+      )}
     </div>
   )
 }

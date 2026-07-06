@@ -456,7 +456,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
           >
             {saving
               ? t('edit_order_saving')
-              : `${t('edit_order_save')} · ${localPrice.toLocaleString('ru-RU')} сум`
+              : `${t('edit_order_save')} · ${localPrice.toLocaleString('ru-RU')} ${t('currency')}`
             }
           </button>
         </div>

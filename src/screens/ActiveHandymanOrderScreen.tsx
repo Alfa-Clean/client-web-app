@@ -2,18 +2,21 @@ import { useState, useEffect } from 'preact/hooks'
 import {
   MapPin, CalendarDays, Banknote, Wrench, MessageCircle,
   User as UserIcon, Clock, Car, DoorOpen, CheckCircle2,
-  X, ChevronRight, HeadphonesIcon,
+  X, ChevronRight, HeadphonesIcon, AlertTriangle,
 } from 'lucide-react'
 import type { ComponentType } from 'preact'
 import type { JSX } from 'preact'
 import type { HandymanOrder } from '../api/orders'
-import { cancelHandymanOrder, acceptHandymanOrder } from '../api/orders'
+import { cancelHandymanOrder, acceptHandymanOrder, rateHandymanOrder, disputeHandymanOrder } from '../api/orders'
 import type { OrderAttachment } from '../api/attachments'
-import { getOrderAttachments } from '../api/attachments'
+import { getOrderAttachments, uploadOrderAttachment } from '../api/attachments'
+import { getOrCreateConversation, sendConversationMedia } from '../api/conversations'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { RatingSheet } from '../components/RatingSheet'
+import { DisputeSheet } from '../components/DisputeSheet'
 import { useConfirm } from '../hooks/useConfirm'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,26 +32,28 @@ const STATUS_ICON: Record<string, ComponentType<any>> = {
   awaiting_confirmation: CheckCircle2,
 }
 
-const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation'])
+const CHAT_STATUSES = new Set(['assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation', 'disputed'])
 const CANCEL_ALLOWED = new Set(['new', 'assigned'])
 
 const LOCALE_MAP: Record<Lang, string> = { ru: 'ru-RU', uz: 'uz-UZ', en: 'en-US' }
 
-const STATUS_LABEL: Record<string, string> = {
-  new:                   'Ищем мастера...',
-  assigned:              'Мастер назначен',
-  on_the_way:            'Мастер едет к вам',
-  arrived:               'Мастер прибыл',
-  in_progress:           'Идут работы',
-  awaiting_confirmation: 'Примите работу',
-  completed:             'Завершён',
-  cancelled:             'Отменён',
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  new:                   'handyman_status_new',
+  assigned:              'handyman_status_assigned',
+  on_the_way:            'handyman_status_on_the_way',
+  arrived:               'handyman_status_arrived',
+  in_progress:           'handyman_status_in_progress',
+  awaiting_confirmation: 'handyman_status_awaiting_confirmation',
+  completed:             'handyman_status_completed',
+  cancelled:             'handyman_status_cancelled',
+  disputed:              'handyman_status_disputed',
 }
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
   order: HandymanOrder
+  senderId: string
   onBack: () => void
   onChatClick: (orderId: string, executorId: string | null, executorName: string) => void
   onOrderCancelled: () => void
@@ -57,12 +62,15 @@ interface Props {
   onEditClick?: () => void
   /** Передаётся при открытии из истории — показывает кнопку «Повторить заказ». */
   onRepeat?: () => void
+  /** Уведомляет родителя об изменении заказа на месте (например, после открытия спора). */
+  onOrderUpdated?: (order: HandymanOrder) => void
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export function ActiveHandymanOrderScreen({
   order: initialOrder,
+  senderId,
   onBack,
   onChatClick,
   onOrderCancelled,
@@ -70,12 +78,15 @@ export function ActiveHandymanOrderScreen({
   onSupportClick,
   onEditClick,
   onRepeat,
+  onOrderUpdated,
 }: Props) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
   const { confirm, dialogProps } = useConfirm()
   const [order, setOrder] = useState(initialOrder)
   const [loading, setLoading] = useState(false)
+  const [showRating, setShowRating] = useState(false)
+  const [showDispute, setShowDispute] = useState(false)
   const [attachments, setAttachments] = useState<OrderAttachment[]>([])
 
   useEffect(() => {
@@ -83,12 +94,16 @@ export function ActiveHandymanOrderScreen({
   }, [order.id])
 
   const statusIdx = STATUS_TIMELINE.indexOf(order.status)
-  const StatusIcon = STATUS_ICON[order.status] ?? Wrench
+  const isDisputed = order.status === 'disputed'
+  const StatusIcon = isDisputed ? AlertTriangle : (STATUS_ICON[order.status] ?? Wrench)
   const canCancel = CANCEL_ALLOWED.has(order.status)
   const canChat = CHAT_STATUSES.has(order.status) && !!order.executor_id
   const canEdit = order.status === 'new' || order.status === 'assigned'
   const canAccept = order.status === 'awaiting_confirmation'
-  const canRepeat = !!onRepeat
+  const canDispute = order.status === 'awaiting_confirmation'
+  // «Повторить» доступно только для завершённых/отменённых заказов — для остальных статусов
+  // (new/assigned/...) есть «Изменить»/«Отменить», повторное оформление там не нужно.
+  const canRepeat = !!onRepeat && (order.status === 'completed' || order.status === 'cancelled')
 
   function fmtDate(iso: string): string {
     const [y, m, d] = iso.split('-').map(Number)
@@ -101,9 +116,26 @@ export function ActiveHandymanOrderScreen({
     setLoading(true)
     try {
       await acceptHandymanOrder(order.id)
-      onOrderAccepted()
+      setLoading(false)
+      setShowRating(true)
     } catch {
       setLoading(false)
+    }
+  }
+
+  async function handleDisputeSubmit(reason: string, files: File[]) {
+    const result = await disputeHandymanOrder(order.id, reason)
+    const updated = { ...order, status: result.status }
+    setOrder(updated)
+    onOrderUpdated?.(updated)
+    setShowDispute(false)
+    if (files.length > 0) {
+      const conv = await getOrCreateConversation('handyman_dispute', order.id).catch(() => null)
+      if (conv) {
+        for (const file of files) {
+          await sendConversationMedia(conv.id, file, senderId).catch(() => {})
+        }
+      }
     }
   }
 
@@ -122,13 +154,33 @@ export function ActiveHandymanOrderScreen({
 
   return (
     <div
-      class={`min-h-screen bg-gray-50 flex flex-col transition-transform duration-300 ${exiting ? 'translate-x-full' : 'translate-x-0'}`}
+      class={`h-screen bg-gray-50 flex flex-col transition-transform duration-300 ${exiting ? 'translate-x-full' : 'translate-x-0'}`}
     >
       <ConfirmDialog
         {...dialogProps}
         confirmLabel={dialogProps.confirmLabel ?? t('dialog_ok')}
         cancelLabel={dialogProps.cancelLabel ?? t('dialog_cancel')}
       />
+
+      {showDispute && (
+        <DisputeSheet
+          onSubmit={handleDisputeSubmit}
+          onClose={() => setShowDispute(false)}
+        />
+      )}
+
+      {showRating && (
+        <RatingSheet
+          title={t('rating_title_handyman')}
+          onSubmit={async (score, comment, files) => {
+            await rateHandymanOrder(order.id, score, comment || undefined).catch(() => {})
+            for (const file of files) {
+              await uploadOrderAttachment(order.id, file, senderId).catch(() => {})
+            }
+          }}
+          onClose={() => { setShowRating(false); onOrderAccepted() }}
+        />
+      )}
 
       {/* Header */}
       <div class="bg-white px-5 pt-12 pb-4 flex items-center border-b border-gray-100 relative">
@@ -140,26 +192,31 @@ export function ActiveHandymanOrderScreen({
           ‹
         </button>
         <h1 class="absolute inset-x-0 text-center text-base font-bold text-gray-900 pointer-events-none">
-          Хэндимен
+          {t('onboarding_handyman_title')}
         </h1>
       </div>
 
       <div class="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
 
         {/* Status hero */}
-        <div class="bg-amber-500 rounded-3xl px-5 py-6 flex flex-col items-center gap-3 text-center">
+        <div class={`rounded-3xl px-5 py-6 flex flex-col items-center gap-3 text-center ${isDisputed ? 'bg-red-500' : 'bg-amber-500'}`}>
           <div class="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-            <StatusIcon size={28} color="white" />
+            <StatusIcon size={28} class="text-white" />
           </div>
           <div>
             <p class="text-white font-bold text-lg leading-tight">
-              {STATUS_LABEL[order.status] ?? order.status}
+              {STATUS_LABEL_KEYS[order.status] ? t(STATUS_LABEL_KEYS[order.status]) : order.status}
             </p>
-            <p class="text-white/70 text-sm mt-0.5">Заказ № {order.order_num}</p>
+            <p class="text-white/70 text-sm mt-0.5">{t('history_order', { num: String(order.order_num) })}</p>
           </div>
         </div>
 
-        {/* Timeline */}
+        {isDisputed ? (
+          <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3.5">
+            <p class="text-sm text-gray-600 leading-relaxed">{t('disputed_message')}</p>
+          </div>
+        ) : (
+        /* Timeline */
         <div class="bg-white rounded-2xl border border-gray-100 px-4 py-4">
           <div class="flex items-center justify-between">
             {STATUS_TIMELINE.slice(0, -1).map((s, i) => {
@@ -181,6 +238,7 @@ export function ActiveHandymanOrderScreen({
             })}
           </div>
         </div>
+        )}
 
         {/* Executor */}
         {order.executor_name && (
@@ -189,7 +247,7 @@ export function ActiveHandymanOrderScreen({
               <UserIcon size={18} class="text-amber-600" />
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Мастер</p>
+              <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wide">{t('handyman_master_label')}</p>
               <p class="text-sm font-semibold text-gray-900 mt-0.5">{order.executor_name}</p>
             </div>
           </div>
@@ -252,7 +310,7 @@ export function ActiveHandymanOrderScreen({
           <div class="flex items-center gap-3 px-4 py-3.5">
             <Banknote size={16} class="text-gray-400 shrink-0" />
             <p class="text-sm font-semibold text-gray-900">
-              {order.price.toLocaleString('ru-RU')} сум
+              {order.price.toLocaleString('ru-RU')} {t('currency')}
             </p>
           </div>
         </div>
@@ -263,12 +321,12 @@ export function ActiveHandymanOrderScreen({
             <ActionRow
               icon={<MessageCircle size={18} class="text-amber-500" />}
               label={t('chat_contact_cleaner')}
-              onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name ?? 'Мастер')}
+              onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name ?? t('handyman_master_label'))}
             />
           )}
           <ActionRow
             icon={<HeadphonesIcon size={18} class="text-gray-500" />}
-            label="Поддержка"
+            label={t('support_title')}
             onClick={onSupportClick}
           />
         </div>
@@ -276,8 +334,8 @@ export function ActiveHandymanOrderScreen({
       </div>
 
       {/* Bottom buttons */}
-      {(canAccept || canEdit || canCancel || canRepeat) && (
-        <div class="bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-2">
+      {(canAccept || canDispute || canEdit || canCancel || canRepeat) && (
+        <div class="bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-2 shrink-0">
           {canRepeat && (
             <button
               type="button"
@@ -297,6 +355,15 @@ export function ActiveHandymanOrderScreen({
               {t('home_accept_work')}
             </button>
           )}
+          {canDispute && (
+            <button
+              type="button"
+              onClick={() => setShowDispute(true)}
+              class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-red-50"
+            >
+              {t('btn_dispute_order')}
+            </button>
+          )}
           {canEdit && onEditClick && (
             <button
               type="button"
@@ -314,7 +381,7 @@ export function ActiveHandymanOrderScreen({
               class="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold text-red-500 bg-red-50 active:bg-red-100 transition-colors disabled:opacity-40"
             >
               <X size={16} />
-              Отменить заказ
+              {t('home_cancel_order')}
             </button>
           )}
         </div>

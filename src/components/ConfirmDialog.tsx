@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact'
+import { createPortal } from 'preact/compat'
 
 interface Props {
   open: boolean
@@ -25,7 +26,7 @@ export function ConfirmDialog({
 }: Props) {
   if (!open) return null
 
-  return (
+  return createPortal(
     <div class="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={onCancel}>
       <div class="absolute inset-0 bg-black/50 animate-fade-in" />
       <div
@@ -84,6 +85,7 @@ export function ConfirmDialog({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

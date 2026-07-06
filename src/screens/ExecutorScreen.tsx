@@ -5,6 +5,7 @@ const Star = StarIcon as any
 import type { Executor, ExecutorRatings } from '../api/executors'
 import { getExecutor, getExecutorRatings } from '../api/executors'
 import { useExitBack } from '../hooks/useExitBack'
+import { useLocale } from '../i18n'
 
 interface Props {
   executorId: string
@@ -31,6 +32,7 @@ function formatDate(iso: string): string {
 }
 
 export function ExecutorScreen({ executorId, onBack }: Props) {
+  const { t } = useLocale()
   const [executor, setExecutor] = useState<Executor | null>(null)
   const [ratings, setRatings] = useState<ExecutorRatings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -47,14 +49,14 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
       {/* Header */}
       <div class="bg-white px-4 py-4 border-b border-gray-100 flex items-center gap-3">
         <button type="button" onClick={handleBack} class="text-blue-600 text-sm font-medium shrink-0">
-          ← Назад
+          {t('back')}
         </button>
-        <h1 class="text-base font-semibold text-gray-900 flex-1 truncate">Клинер</h1>
+        <h1 class="text-base font-semibold text-gray-900 flex-1 truncate">{t('role_cleaner')}</h1>
       </div>
 
       {loading && (
         <div class="flex-1 flex items-center justify-center">
-          <p class="text-sm text-gray-400">Загрузка...</p>
+          <p class="text-sm text-gray-400">{t('btn_loading')}</p>
         </div>
       )}
 
@@ -82,7 +84,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
                     {executor.avg_rating.toFixed(1)}
                   </span>
                   {ratings && (
-                    <span class="text-xs text-gray-400">({ratings.total} отзывов)</span>
+                    <span class="text-xs text-gray-400">({t('exec_reviews_count', { n: ratings.total })})</span>
                   )}
                 </div>
               )}
@@ -91,7 +93,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
                   ? 'bg-green-100 text-green-700'
                   : 'bg-gray-100 text-gray-500'
               }`}>
-                {executor.verification_status === 'verified' ? <><Check size={11} class="inline mr-0.5" />Проверен</> : 'На проверке'}
+                {executor.verification_status === 'verified' ? <><Check size={11} class="inline mr-0.5" />{t('exec_verified')}</> : t('exec_pending_verification')}
               </span>
             </div>
           </div>
@@ -100,7 +102,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
           <div class="mx-4 mt-4 bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
             {executor.specializations && executor.specializations.length > 0 && (
               <div class="px-4 py-3">
-                <p class="text-xs text-gray-400 mb-1.5">Специализации</p>
+                <p class="text-xs text-gray-400 mb-1.5">{t('exec_specializations')}</p>
                 <div class="flex flex-wrap gap-1.5">
                   {executor.specializations.map(s => (
                     <span key={s} class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">
@@ -112,7 +114,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
             )}
             {executor.districts && executor.districts.length > 0 && (
               <div class="px-4 py-3">
-                <p class="text-xs text-gray-400 mb-1.5">Районы работы</p>
+                <p class="text-xs text-gray-400 mb-1.5">{t('exec_work_areas')}</p>
                 <div class="flex flex-wrap gap-1.5">
                   {executor.districts.map(d => (
                     <span key={d} class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
@@ -123,17 +125,17 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
               </div>
             )}
             <div class="px-4 py-3 flex items-center justify-between">
-              <p class="text-xs text-gray-400">Работает с</p>
+              <p class="text-xs text-gray-400">{t('exec_works_since')}</p>
               <p class="text-sm text-gray-700">{formatDate(executor.created_at)}</p>
             </div>
           </div>
 
           {/* Ratings */}
           <div class="mx-4 mt-4 mb-6">
-            <p class="text-sm font-medium text-gray-500 mb-3">Отзывы</p>
+            <p class="text-sm font-medium text-gray-500 mb-3">{t('exec_reviews_title')}</p>
 
             {(!ratings || ratings.total === 0) && (
-              <p class="text-sm text-gray-400 text-center py-6">Отзывов пока нет</p>
+              <p class="text-sm text-gray-400 text-center py-6">{t('exec_no_reviews')}</p>
             )}
 
             {ratings && ratings.items.map((r, i) => (
@@ -146,7 +148,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
                   <p class="text-sm text-gray-700 leading-relaxed">{r.comment}</p>
                 )}
                 {!r.comment && (
-                  <p class="text-xs text-gray-400 italic">Без комментария</p>
+                  <p class="text-xs text-gray-400 italic">{t('exec_no_comment')}</p>
                 )}
               </div>
             ))}

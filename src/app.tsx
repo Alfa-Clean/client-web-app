@@ -1,11 +1,35 @@
 import { useEffect } from 'preact/hooks'
-import { loginWithTelegram, loginWithServiceKey } from './api/auth'
+import { refreshTelegramLogin } from './api/auth'
 import { apiFetch, ApiError, clearToken } from './api/client'
 import { useUser } from './hooks/useUser'
 import { LocaleProvider, useLocale } from './i18n/index'
 import { RegistrationScreen } from './screens/RegistrationScreen'
 import { HubScreen } from './screens/HubScreen'
+import { mockConfig, MOCK_ENABLED } from './devMock'
 import type { User } from './types'
+
+// Dev-симуляция Telegram Mini App: подписанный initData через /__dev/init-data
+// и минимальный мок window.Telegram.WebApp. Конфиг — mock-user.json (см. devMock.ts).
+if (MOCK_ENABLED && !(window as any).Telegram) {
+  ;(window as any).Telegram = {
+    WebApp: {
+      initData: '',
+      initDataUnsafe: {
+        user: {
+          id: mockConfig.telegram_id,
+          first_name: mockConfig.first_name,
+          last_name: mockConfig.last_name,
+          username: mockConfig.username,
+          language_code: mockConfig.language_code,
+          photo_url: mockConfig.photo_url || undefined,
+        },
+        start_param: mockConfig.start_param || '',
+      },
+      ready() {},
+      expand() {},
+    },
+  }
+}
 
 const tg = (window as any).Telegram?.WebApp
 
@@ -33,26 +57,17 @@ export function App() {
     }
 
     async function init() {
-      const initData: string = tg?.initData ?? ''
-      const devTgId = Number(import.meta.env.VITE_DEV_TG_ID)
-
-      if (initData) {
+      if (MOCK_ENABLED || tg?.initData) {
         try {
-          await loginWithTelegram(initData)
+          await refreshTelegramLogin()
         } catch (e) {
           console.error('[auth] loginWithTelegram failed:', e)
           return
         }
-      } else if (import.meta.env.DEV && devTgId) {
-        try {
-          await loginWithServiceKey(devTgId)
-        } catch (e) {
-          console.error('[auth] loginWithServiceKey failed:', e)
-        }
       }
 
-      if (user) return
-
+      // Всегда освежаем профиль с сервера — закэшированный user даёт мгновенный
+      // рендер, но мог устареть (имя/телефон менялись в БД). На 404 оставляем кэш.
       try {
         const client = await apiFetch<User>('/clients/me')
         saveUser(client)
@@ -82,15 +97,22 @@ export function App() {
       saveUser(client)
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        saveUser(newUser)
+        // Клиент уже существует — берём реальную запись с сервера,
+        // а не введённые поля (могут быть неполными/пустыми).
+        try {
+          const client = await apiFetch<User>('/clients/me')
+          saveUser(client)
+        } catch {
+          saveUser(newUser)
+        }
       } else {
         console.error('[register] failed:', e)
       }
     }
   }
 
-  const devTgId = import.meta.env.DEV ? Number(import.meta.env.VITE_DEV_TG_ID) || 0 : 0
-  const hasTelegram = !!(tg?.initData || (import.meta.env.DEV && devTgId))
+  const devTgId = MOCK_ENABLED ? mockConfig.telegram_id : 0
+  const hasTelegram = !!(tg?.initData || MOCK_ENABLED)
   const startParam: string = tg?.initDataUnsafe?.start_param ?? ''
 
   return (

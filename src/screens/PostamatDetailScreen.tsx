@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
 import type { Postamat } from './ChistomatyScreen'
+import { useLocale } from '../i18n'
 
 // ─── Mock cells ───────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ function CellCard({
   selected: boolean
   onSelect: (id: string) => void
 }) {
+  const { t } = useLocale()
   const isFree = cell.free
   const isSelectable = selecting && isFree
 
@@ -95,7 +97,7 @@ function CellCard({
         </p>
       )}
       <p class={`text-[10px] font-medium ${selected ? 'text-white/80' : isFree ? 'text-gray-500' : 'text-gray-300'}`}>
-        {isFree ? 'Свободна' : 'Занята'}
+        {isFree ? t('postamat_free') : t('postamat_occupied')}
       </p>
     </>
   )
@@ -127,6 +129,7 @@ interface Props {
 }
 
 export function PostamatDetailScreen({ postamat, onBack }: Props) {
+  const { t } = useLocale()
   const cells = makeCells(postamat.id)
   const clothesCells = cells.filter(c => c.type === 'clothes')
   const shoesCells = cells.filter(c => c.type === 'shoes')
@@ -168,7 +171,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
         </button>
         <div class="flex-1 min-w-0">
           <p class="text-base font-bold text-gray-900 truncate">{postamat.address}</p>
-          <p class="text-xs text-gray-400 mt-0.5">{postamat.distance} · {freeCells.length} ячеек свободно</p>
+          <p class="text-xs text-gray-400 mt-0.5">{postamat.distance} · {t('postamat_cells_free_suffix', { n: freeCells.length })}</p>
         </div>
       </div>
 
@@ -178,7 +181,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
         {/* Hint when selecting */}
         {selecting && (
           <p class="text-xs text-center text-gray-400 mb-4">
-            Выберите свободную ячейку
+            {t('postamat_choose_cell')}
           </p>
         )}
 
@@ -186,7 +189,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
         <div class="mb-5">
           <div class="flex items-center gap-2 mb-3">
             <ClothesIcon color="#44973A" />
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Одежда</p>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">{t('postamat_clothes')}</p>
           </div>
           <div class="grid grid-cols-3 gap-2.5">
             {clothesCells.map(c => (
@@ -205,7 +208,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
         <div>
           <div class="flex items-center gap-2 mb-3">
             <ShoesIcon color="#44973A" />
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Обувь</p>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">{t('postamat_shoes')}</p>
           </div>
           <div class="grid grid-cols-3 gap-2.5">
             {shoesCells.map(c => (
@@ -228,7 +231,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#44973A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            <p class="text-sm font-semibold text-[#44973A]">Забронировано</p>
+            <p class="text-sm font-semibold text-[#44973A]">{t('postamat_reserved')}</p>
           </div>
         ) : selecting ? (
           <div class="flex gap-3">
@@ -237,7 +240,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
               onClick={handleCancel}
               class="flex-1 py-4 rounded-2xl bg-gray-100 text-gray-700 text-sm font-semibold active:bg-gray-200 transition-colors"
             >
-              Отмена
+              {t('dialog_cancel')}
             </button>
             <button
               type="button"
@@ -245,7 +248,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
               disabled={selectedCells.size === 0}
               class="flex-[2] py-4 rounded-2xl bg-[#44973A] text-white text-sm font-semibold active:opacity-90 transition-opacity disabled:bg-[#BDE5B6]"
             >
-              Подтвердить
+              {t('postamat_confirm_btn')}
             </button>
           </div>
         ) : (
@@ -254,7 +257,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
             onClick={() => setSelecting(true)}
             class="w-full py-4 rounded-2xl bg-[#44973A] text-white text-sm font-semibold active:opacity-90 transition-opacity"
           >
-            Забронировать
+            {t('postamat_reserve_btn')}
           </button>
         )}
       </div>

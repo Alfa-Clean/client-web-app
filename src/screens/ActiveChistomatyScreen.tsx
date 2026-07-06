@@ -29,12 +29,12 @@ export const CHISTOMATY_TIMELINE: ChistomatyStatus[] = [
   'received', 'washing', 'drying', 'ready', 'collected',
 ]
 
-export const CHISTOMATY_STATUS_LABEL: Record<ChistomatyStatus, string> = {
-  received:  'Вещи приняты',
-  washing:   'Стирается',
-  drying:    'Сушится',
-  ready:     'Готово к выдаче',
-  collected: 'Вещи забраны',
+export const CHISTOMATY_STATUS_LABEL_KEYS: Record<ChistomatyStatus, string> = {
+  received:  'chistomaty_status_received',
+  washing:   'chistomaty_status_washing',
+  drying:    'chistomaty_status_drying',
+  ready:     'chistomaty_status_ready',
+  collected: 'chistomaty_status_collected',
 }
 
 export const CHISTOMATY_STATUS_ICON: Record<ChistomatyStatus, ComponentType<any>> = {
@@ -61,7 +61,7 @@ export function ActiveChistomatyScreen({ order, onBack, onSupportClick }: Props)
 
   const statusIdx = CHISTOMATY_TIMELINE.indexOf(order.status)
   const StatusIcon = CHISTOMATY_STATUS_ICON[order.status]
-  const statusLabel = CHISTOMATY_STATUS_LABEL[order.status]
+  const statusLabel = t(CHISTOMATY_STATUS_LABEL_KEYS[order.status])
 
   return (
     <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
@@ -77,7 +77,7 @@ export function ActiveChistomatyScreen({ order, onBack, onSupportClick }: Props)
         </button>
         <div class="flex-1 min-w-0 absolute inset-x-0 text-center pointer-events-none">
           <p class="text-base font-semibold text-gray-900">
-            Заказ №{order.order_num}
+            {t('history_order', { num: String(order.order_num) })}
           </p>
         </div>
       </div>
@@ -92,7 +92,7 @@ export function ActiveChistomatyScreen({ order, onBack, onSupportClick }: Props)
                 <StatusIcon size={28} class="text-white" />
               </div>
               <div class="flex-1 min-w-0">
-                <p class="text-white/70 text-xs mb-0.5">Чистоматы</p>
+                <p class="text-white/70 text-xs mb-0.5">{t('nav_chistomaty')}</p>
                 <p class="text-white text-lg font-bold leading-tight">{statusLabel}</p>
               </div>
             </div>
@@ -125,8 +125,8 @@ export function ActiveChistomatyScreen({ order, onBack, onSupportClick }: Props)
               })}
             </div>
             <div class="flex justify-between mt-2">
-              <p class="text-[10px] text-gray-400">Принято</p>
-              <p class="text-[10px] text-gray-400">Забрано</p>
+              <p class="text-[10px] text-gray-400">{t('chistomaty_received_label')}</p>
+              <p class="text-[10px] text-gray-400">{t('chistomaty_collected_label')}</p>
             </div>
           </div>
         </div>
@@ -135,18 +135,18 @@ export function ActiveChistomatyScreen({ order, onBack, onSupportClick }: Props)
         <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
           <DetailRow
             icon={<MapPin size={15} />}
-            label="Постамат"
+            label={t('chistomaty_postamat_label')}
             value={order.postamat_address}
           />
           <DetailRow
             icon={<Shirt size={15} />}
-            label="Вещей"
-            value={`${order.items_count} шт.`}
+            label={t('chistomaty_items_label')}
+            value={t('chistomaty_items_value', { n: order.items_count })}
           />
           {order.estimated_ready && (
             <DetailRow
               icon={<CalendarDays size={15} />}
-              label="Готово к"
+              label={t('chistomaty_ready_by_label')}
               value={order.estimated_ready}
             />
           )}
@@ -163,7 +163,7 @@ export function ActiveChistomatyScreen({ order, onBack, onSupportClick }: Props)
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <ActionRow
             icon={<HeadphonesIcon size={18} class="text-gray-500" />}
-            label="Поддержка"
+            label={t('support_title')}
             onClick={onSupportClick}
           />
         </div>

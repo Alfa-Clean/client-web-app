@@ -15,6 +15,8 @@ import type { Lang } from '../i18n/locales'
 import { CalendarPicker } from '../components/CalendarPicker'
 import { BottomSheet } from '../components/BottomSheet'
 import { AddressOption } from '../components/AddressOption'
+import { OnboardingOverlay } from '../components/OnboardingOverlay'
+import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,8 +59,8 @@ function calcPrice(addonsList: HandymanWork[], works: WorkItem[]): number {
   return BASE_PRICE + addonsTotal
 }
 
-function fmtPrice(p: number): string {
-  return p.toLocaleString('ru-RU') + ' сум'
+function fmtPrice(p: number, currency: string): string {
+  return p.toLocaleString('ru-RU') + ' ' + currency
 }
 
 // ─── Date / Slot helpers ──────────────────────────────────────────────────────
@@ -158,6 +160,17 @@ function draftFromOrder(o: HandymanOrder): Draft {
   }
 }
 
+// Префилл черновика адресом, который клиент только что создал (шлюз без адресов на хабе).
+function draftFromAddress(a: Address): Draft {
+  return {
+    ...EMPTY_DRAFT,
+    addressId: a.id,
+    address: a.address,
+    addressLabel: a.label ?? '',
+    addressDetails: a.notes ?? '',
+  }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: string }) {
@@ -188,15 +201,16 @@ interface Props {
   user: User
   onBack: () => void
   repeatFrom?: HandymanOrder | null
+  initialAddress?: Address | null
 }
 
 const MAX_ATTACH_SIZE = 20 * 1024 * 1024
 const MAX_ATTACH_COUNT = 10
 
-export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
+export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }: Props) {
   const { t, lang } = useLocale()
   const [draft, setDraft] = useState<Draft>(
-    () => repeatFrom ? draftFromOrder(repeatFrom) : (loadSavedDraft() ?? EMPTY_DRAFT),
+    () => repeatFrom ? draftFromOrder(repeatFrom) : initialAddress ? draftFromAddress(initialAddress) : (loadSavedDraft() ?? EMPTY_DRAFT),
   )
   const [addons, setHandymanWorks] = useState<HandymanWork[]>([])
   const [workCategories, setWorkCategories] = useState<HandymanWorkCategory[]>([])
@@ -220,8 +234,24 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
   const [promoError, setPromoError] = useState<string | null>(null)
   const promoInputRef = useRef<HTMLInputElement>(null)
 
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const addressRef = useRef<HTMLButtonElement>(null)
+  const dateRef = useRef<HTMLDivElement>(null)
+  const worksRef = useRef<HTMLDivElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
+
+  function finishOnboarding() {
+    markOnboardingSeen('handyman')
+    setShowOnboarding(false)
+  }
+
   useEffect(() => {
-    getHandymanWorks().catch(() => []).then(a => setHandymanWorks(Array.isArray(a) ? a : []))
+    getHandymanWorks().catch(() => []).then(a => {
+      setHandymanWorks(Array.isArray(a) ? a : [])
+      // Ждём загрузки работ, чтобы секция «Виды работ» успела отрендериться —
+      // иначе таргет для соответствующего шага онбординга ещё не смонтирован.
+      if (!hasSeenOnboarding('handyman')) setShowOnboarding(true)
+    })
     getHandymanWorkCategories().catch(() => []).then(c => setWorkCategories(Array.isArray(c) ? c : []))
     getAddresses(user.telegram_id).catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
@@ -416,6 +446,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
         {/* Адрес */}
         <div class="relative">
           <button
+            ref={addressRef}
             type="button"
             onClick={() => setShowAddressDropdown(v => !v)}
             class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${
@@ -486,7 +517,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
         </div>
 
         {/* Дата и время */}
-        <div>
+        <div ref={dateRef}>
           <SectionLabel>{t('step_datetime')}</SectionLabel>
           <div class="flex gap-2 mb-3">
             {availableSet.has(todayIso) && (
@@ -600,7 +631,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
           }
 
           return (
-            <div>
+            <div ref={worksRef}>
               <SectionLabel>{t('step_addons')}</SectionLabel>
               <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 {groups.map(({ category, items }, gi) => (
@@ -790,6 +821,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
       {/* Sticky CTA */}
       <div class="bg-white border-t border-gray-100 px-4 py-4">
         <button
+          ref={submitRef}
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit || submitting}
@@ -799,11 +831,26 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom }: Props) {
           {submitting
             ? t('confirm_submitting')
             : promoDiscountPct != null
-              ? `${t('confirm_submit')} · ${fmtPrice(discountedPrice)}`
-              : `${t('confirm_submit')} · ${fmtPrice(price)}`
+              ? `${t('confirm_submit')} · ${fmtPrice(discountedPrice, t('currency'))}`
+              : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
           }
         </button>
       </div>
+
+      {showOnboarding && (
+        <OnboardingOverlay
+          steps={[
+            { ref: addressRef, title: t('onboarding_handyman_address_title'), description: t('onboarding_handyman_address_desc') },
+            { ref: dateRef, title: t('onboarding_handyman_date_title'), description: t('onboarding_handyman_date_desc') },
+            { ref: worksRef, title: t('onboarding_handyman_works_title'), description: t('onboarding_handyman_works_desc') },
+            { ref: submitRef, title: t('onboarding_handyman_submit_title'), description: t('onboarding_handyman_submit_desc') },
+          ]}
+          skipLabel={t('onboarding_skip')}
+          nextLabel={t('onboarding_next')}
+          doneLabel={t('onboarding_done')}
+          onFinish={finishOnboarding}
+        />
+      )}
     </div>
   )
 }
@@ -820,7 +867,6 @@ function DoneScreen({ onBack, t }: { onBack: () => void; t: TFn }) {
       </div>
       <div>
         <h2 class="text-lg font-bold text-gray-900 mb-1">{t('done_title')}</h2>
-        <p class="text-sm text-gray-400">{t('done_subtitle')}</p>
       </div>
       <button
         type="button"

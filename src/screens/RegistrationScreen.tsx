@@ -2,8 +2,6 @@ import { useState } from 'preact/hooks'
 import type { User } from '../types'
 import { useLocale } from '../i18n'
 
-const tg = (window as any).Telegram?.WebApp
-
 interface Props {
   onRegistered: (user: User) => void
   devTelegramId?: number
@@ -12,6 +10,8 @@ interface Props {
 type Status = 'idle' | 'loading' | 'error'
 
 export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
+  // Читаем внутри компонента: к моменту рендера мок window.Telegram уже установлен.
+  const tg = (window as any).Telegram?.WebApp
   const [status, setStatus] = useState<Status>('idle')
   const [tgMajor, tgMinor] = ((tg?.version ?? '0.0') as string).split('.').map(Number)
   const canRequestContact = tgMajor > 6 || (tgMajor === 6 && tgMinor >= 9)

@@ -1,6 +1,6 @@
 import { apiFetch } from './client'
 
-export type ContextType = 'cleaning_order' | 'handyman_order' | 'support'
+export type ContextType = 'cleaning_order' | 'handyman_order' | 'support' | 'cleaning_dispute' | 'handyman_dispute'
 export type ConversationState = 'open' | 'closed'
 export type SenderType = 'client' | 'executor' | 'support' | 'system'
 export type MessageKind = 'text' | 'media' | 'event'
@@ -45,6 +45,11 @@ export function getOrCreateConversation(
     method: 'POST',
     body: JSON.stringify({ context_type: contextType, context_id: contextId }),
   })
+}
+
+/** Открывает (или возвращает уже существующий) "вечный" support-тред текущего клиента. Идемпотентно. */
+export function openSupportConversation(): Promise<Conversation> {
+  return apiFetch<Conversation>('/support/conversation', { method: 'POST' })
 }
 
 export function getConversationMessages(

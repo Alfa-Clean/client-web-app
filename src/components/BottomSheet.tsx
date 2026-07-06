@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
+import { createPortal } from 'preact/compat'
 
 interface Props {
   open: boolean
@@ -26,7 +27,7 @@ export function BottomSheet({ open, onClose, children }: Props) {
 
   if (!mounted) return null
 
-  return (
+  return createPortal(
     <div class="fixed inset-0 z-50 flex flex-col justify-end">
       {/* Backdrop */}
       <div
@@ -46,6 +47,7 @@ export function BottomSheet({ open, onClose, children }: Props) {
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

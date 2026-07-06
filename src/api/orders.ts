@@ -114,6 +114,13 @@ export function cancelOrder(orderId: string): Promise<Order> {
   return apiFetch<Order>(`/cleaning/orders/${orderId}/cancel`, { method: 'POST' })
 }
 
+export function disputeOrder(orderId: string, reason: string): Promise<{ id: string; status: string }> {
+  return apiFetch<{ id: string; status: string }>(`/cleaning/orders/${orderId}/dispute`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
 export function acceptOrder(orderId: string): Promise<Order> {
   return apiFetch<Order>(`/cleaning/orders/${orderId}/client-confirm`, { method: 'POST' })
 }
@@ -224,6 +231,22 @@ export function cancelHandymanOrder(orderId: string): Promise<HandymanOrder> {
 
 export function acceptHandymanOrder(orderId: string): Promise<HandymanOrder> {
   return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}/client-confirm`, { method: 'POST' })
+}
+
+export function disputeHandymanOrder(orderId: string, reason: string): Promise<{ id: string; status: string }> {
+  return apiFetch<{ id: string; status: string }>(`/handyman/orders/${orderId}/dispute`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+// Эндпоинт бэкенда пока не реализован — вызов завершится ошибкой и будет проглочен
+// (.catch на стороне экрана). Заработает автоматически, как только бэкенд добавит /rate.
+export function rateHandymanOrder(orderId: string, score: number, comment?: string): Promise<void> {
+  return apiFetch<void>(`/handyman/orders/${orderId}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ score, comment: comment || null }),
+  })
 }
 
 export interface OrderPatchPayload {

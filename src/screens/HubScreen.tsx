@@ -8,9 +8,14 @@ import type { Address, AddressPayload } from '../api/addresses'
 
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
+
+type TFunc = (key: string, params?: Record<string, string | number>) => string
 import { getTheme, setTheme } from '../hooks/useTheme'
+import { hasSeenOnboarding, markOnboardingSeen, resetOnboarding } from '../hooks/useOnboarding'
+import { clearAllUserData } from '../api/client'
 import { updateLanguage } from '../api/clients'
 import { BottomSheet } from '../components/BottomSheet'
+import { OnboardingOverlay } from '../components/OnboardingOverlay'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
 import { AddressFormScreen } from './AddressFormScreen'
@@ -24,12 +29,13 @@ import { ActiveChistomatyScreen } from './ActiveChistomatyScreen'
 import { ActiveHandymanOrderScreen } from './ActiveHandymanOrderScreen'
 import { OrderEditScreen } from './OrderEditScreen'
 import { HandymanOrderEditScreen } from './HandymanOrderEditScreen'
+import { SupportScreen } from './SupportScreen'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
-import { CHISTOMATY_STATUS_LABEL } from './ActiveChistomatyScreen'
+import { CHISTOMATY_STATUS_LABEL_KEYS } from './ActiveChistomatyScreen'
 
 const ACTIVE_STATUSES = new Set([
   'new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation',
-  'assessment', 'price_submitted', 'price_rejected', 'team_formation',
+  'assessment', 'price_submitted', 'price_rejected', 'team_formation', 'disputed',
 ])
 
 const HISTORY_STATUSES = new Set(['completed', 'cancelled'])
@@ -39,9 +45,9 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   cancelled:  { bg: '#FEF2F2', text: '#EF4444' },
 }
 
-const STATUS_HISTORY_LABEL: Record<string, string> = {
-  completed: 'Завершён',
-  cancelled:  'Отменён',
+const STATUS_HISTORY_LABEL_KEYS: Record<string, string> = {
+  completed: 'status_completed',
+  cancelled: 'status_cancelled',
 }
 
 function formatOrderDate(dateStr: string): string {
@@ -51,34 +57,35 @@ function formatOrderDate(dateStr: string): string {
   }).format(new Date(dateStr))
 }
 
-function formatPrice(price: number): string {
-  return price.toLocaleString('ru') + ' сум'
+function formatPrice(price: number, currency: string): string {
+  return price.toLocaleString('ru') + ' ' + currency
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  new:                   'Ищем клинера...',
-  assigned:              'Клинер назначен',
-  on_the_way:            'Клинер едет к вам',
-  arrived:               'Клинер прибыл',
-  in_progress:           'Идёт уборка',
-  awaiting_confirmation: 'Примите работу',
-  assessment:            'Бригадир едет',
-  price_submitted:       'Бригадир оценил работу',
-  price_rejected:        'Ожидаем новую цену',
-  team_formation:        'Команда формируется',
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  new:                   'hub_banner_status_new',
+  assigned:              'hub_banner_status_assigned',
+  on_the_way:            'hub_banner_status_on_the_way',
+  arrived:               'hub_banner_status_arrived',
+  in_progress:           'hub_banner_status_in_progress',
+  awaiting_confirmation: 'hub_banner_status_awaiting_confirmation',
+  assessment:            'hub_banner_status_assessment',
+  price_submitted:       'hub_banner_status_price_submitted',
+  price_rejected:        'hub_banner_status_price_rejected',
+  team_formation:        'hub_banner_status_team_formation',
+  disputed:              'hub_banner_status_disputed',
 }
 
 // ─── Active Order Banner ──────────────────────────────────────────────────────
 
-export const ACTIVE_ORDER_STATUS_LABEL = STATUS_LABEL
-
 export function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: () => void }) {
-  const label = STATUS_LABEL[order.status] ?? 'Активный заказ'
+  const { t } = useLocale()
+  const label = STATUS_LABEL_KEYS[order.status] ? t(STATUS_LABEL_KEYS[order.status]) : t('home_active_order_fallback')
+  const isDisputed = order.status === 'disputed'
   return (
     <button
       type="button"
       onClick={onClick}
-      class="mx-4 mb-4 w-[calc(100%-32px)] bg-[#44973A] rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left"
+      class={`mx-4 mb-4 w-[calc(100%-32px)] rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left ${isDisputed ? 'bg-red-500' : 'bg-[#44973A]'}`}
     >
       <div class="w-10 h-10 shrink-0 flex items-center justify-center relative">
         {order.status === 'new' ? (
@@ -106,7 +113,8 @@ export function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: (
 // ─── Chistomaty Order Banner ──────────────────────────────────────────────────
 
 export function ChistomatyOrderBanner({ order, onClick }: { order: ChistomatyOrder; onClick: () => void }) {
-  const label = CHISTOMATY_STATUS_LABEL[order.status]
+  const { t } = useLocale()
+  const label = t(CHISTOMATY_STATUS_LABEL_KEYS[order.status])
   return (
     <button
       type="button"
@@ -117,7 +125,7 @@ export function ChistomatyOrderBanner({ order, onClick }: { order: ChistomatyOrd
         <Shirt size={20} class="text-white" />
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-white/60 text-[10px] font-medium mb-0.5">Чистоматы</p>
+        <p class="text-white/60 text-[10px] font-medium mb-0.5">{t('nav_chistomaty')}</p>
         <p class="text-white font-bold text-sm leading-tight">{label}</p>
         <p class="text-white/70 text-xs truncate mt-0.5">{order.postamat_address}</p>
       </div>
@@ -128,22 +136,25 @@ export function ChistomatyOrderBanner({ order, onClick }: { order: ChistomatyOrd
 
 // ─── Handyman Order Banner ────────────────────────────────────────────────────
 
-const HANDYMAN_STATUS_LABEL: Record<string, string> = {
-  new:                   'Ищем мастера...',
-  assigned:              'Мастер назначен',
-  on_the_way:            'Мастер едет к вам',
-  arrived:               'Мастер прибыл',
-  in_progress:           'Идут работы',
-  awaiting_confirmation: 'Примите работу',
+const HANDYMAN_STATUS_LABEL_KEYS: Record<string, string> = {
+  new:                   'handyman_status_new',
+  assigned:              'handyman_status_assigned',
+  on_the_way:            'handyman_status_on_the_way',
+  arrived:               'handyman_status_arrived',
+  in_progress:           'handyman_status_in_progress',
+  awaiting_confirmation: 'handyman_status_awaiting_confirmation',
+  disputed:              'handyman_status_disputed',
 }
 
 export function HandymanOrderBanner({ order, onClick }: { order: HandymanOrder; onClick: () => void }) {
-  const label = HANDYMAN_STATUS_LABEL[order.status] ?? 'Активный заказ'
+  const { t } = useLocale()
+  const label = HANDYMAN_STATUS_LABEL_KEYS[order.status] ? t(HANDYMAN_STATUS_LABEL_KEYS[order.status]) : t('home_active_order_fallback')
+  const isDisputed = order.status === 'disputed'
   return (
     <button
       type="button"
       onClick={onClick}
-      class="mx-4 mb-4 w-[calc(100%-32px)] bg-amber-500 rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left"
+      class={`mx-4 mb-4 w-[calc(100%-32px)] rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left ${isDisputed ? 'bg-red-500' : 'bg-amber-500'}`}
     >
       <div class="w-10 h-10 shrink-0 flex items-center justify-center">
         {order.status === 'new' ? (
@@ -170,13 +181,18 @@ export function HandymanOrderBanner({ order, onClick }: { order: HandymanOrder; 
 
 // ─── Combined Active Orders Banner ───────────────────────────────────────────
 
-function pluralOrders(n: number): string {
-  if (n % 10 === 1 && n % 100 !== 11) return `${n} активный заказ`
-  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return `${n} активных заказа`
-  return `${n} активных заказов`
+function pluralOrders(n: number, t: TFunc, lang: Lang): string {
+  if (lang === 'ru') {
+    if (n % 10 === 1 && n % 100 !== 11) return t('active_orders_count_one', { n })
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return t('active_orders_count_few', { n })
+    return t('active_orders_count_many', { n })
+  }
+  if (lang === 'en') return t(n === 1 ? 'active_orders_count_one' : 'active_orders_count_few', { n })
+  return t('active_orders_count_few', { n })
 }
 
 function CombinedOrdersBanner({ count, onClick }: { count: number; onClick: () => void }) {
+  const { t, lang } = useLocale()
   return (
     <button
       type="button"
@@ -187,8 +203,8 @@ function CombinedOrdersBanner({ count, onClick }: { count: number; onClick: () =
         <span class="text-white font-bold text-lg leading-none">{count}</span>
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-white font-bold text-sm leading-tight">{pluralOrders(count)}</p>
-        <p class="text-white/60 text-xs mt-0.5">Нажмите, чтобы посмотреть все</p>
+        <p class="text-white font-bold text-sm leading-tight">{pluralOrders(count, t, lang)}</p>
+        <p class="text-white/60 text-xs mt-0.5">{t('hub_tap_to_view_all')}</p>
       </div>
       <span class="text-white/60 text-xl leading-none shrink-0">›</span>
     </button>
@@ -198,8 +214,9 @@ function CombinedOrdersBanner({ count, onClick }: { count: number; onClick: () =
 // ─── Order History Item ───────────────────────────────────────────────────────
 
 function OrderHistoryItem({ order, onClick }: { order: Order; onClick: () => void }) {
+  const { t } = useLocale()
   const c = STATUS_COLORS[order.status] ?? { bg: '#F3F4F6', text: '#6B7280' }
-  const label = STATUS_HISTORY_LABEL[order.status] ?? order.status
+  const label = STATUS_HISTORY_LABEL_KEYS[order.status] ? t(STATUS_HISTORY_LABEL_KEYS[order.status]) : order.status
   return (
     <button
       type="button"
@@ -214,7 +231,7 @@ function OrderHistoryItem({ order, onClick }: { order: Order; onClick: () => voi
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center justify-between gap-2">
-          <p class="text-sm font-semibold text-gray-900">Клининг</p>
+          <p class="text-sm font-semibold text-gray-900">{t('onboarding_cleaning_title')}</p>
           <span
             class="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
             style={{ background: c.bg, color: c.text }}
@@ -225,7 +242,7 @@ function OrderHistoryItem({ order, onClick }: { order: Order; onClick: () => voi
         <p class="text-xs text-gray-500 truncate mt-0.5">{order.address}</p>
         <div class="flex items-center justify-between mt-1">
           <p class="text-[11px] text-gray-400">{formatOrderDate(order.order_date)}</p>
-          <p class="text-sm font-semibold text-gray-900">{formatPrice(order.price)}</p>
+          <p class="text-sm font-semibold text-gray-900">{formatPrice(order.price, t('currency'))}</p>
         </div>
       </div>
       <ChevronRight size={16} class="text-gray-300 shrink-0" />
@@ -234,8 +251,9 @@ function OrderHistoryItem({ order, onClick }: { order: Order; onClick: () => voi
 }
 
 function HandymanHistoryItem({ order, onClick }: { order: HandymanOrder; onClick: () => void }) {
+  const { t } = useLocale()
   const c = STATUS_COLORS[order.status] ?? { bg: '#F3F4F6', text: '#6B7280' }
-  const label = STATUS_HISTORY_LABEL[order.status] ?? order.status
+  const label = STATUS_HISTORY_LABEL_KEYS[order.status] ? t(STATUS_HISTORY_LABEL_KEYS[order.status]) : order.status
   return (
     <button
       type="button"
@@ -250,7 +268,7 @@ function HandymanHistoryItem({ order, onClick }: { order: HandymanOrder; onClick
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex items-center justify-between gap-2">
-          <p class="text-sm font-semibold text-gray-900">Хэндимен</p>
+          <p class="text-sm font-semibold text-gray-900">{t('onboarding_handyman_title')}</p>
           <span
             class="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
             style={{ background: c.bg, color: c.text }}
@@ -261,23 +279,11 @@ function HandymanHistoryItem({ order, onClick }: { order: HandymanOrder; onClick
         <p class="text-xs text-gray-500 truncate mt-0.5">{order.address}</p>
         <div class="flex items-center justify-between mt-1">
           <p class="text-[11px] text-gray-400">{formatOrderDate(order.order_date)}</p>
-          <p class="text-sm font-semibold text-gray-900">{formatPrice(order.price)}</p>
+          <p class="text-sm font-semibold text-gray-900">{formatPrice(order.price, t('currency'))}</p>
         </div>
       </div>
       <ChevronRight size={16} class="text-gray-300 shrink-0" />
     </button>
-  )
-}
-
-// ─── Coming Soon Toast ────────────────────────────────────────────────────────
-
-function ComingSoonToast({ message }: { message: string }) {
-  return (
-    <div class="fixed bottom-8 left-4 right-4 z-50 flex justify-center pointer-events-none animate-toast-in">
-      <div class="bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl">
-        {message}
-      </div>
-    </div>
   )
 }
 
@@ -289,7 +295,31 @@ const LANGS: { id: Lang; flag: string; label: string }[] = [
   { id: 'en', flag: '🇬🇧', label: 'English' },
 ]
 
-function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () => void; onSupportToast: () => void }) {
+function ProfileAvatar({ firstName, lastName, photoUrl }: { firstName: string; lastName?: string; photoUrl?: string }) {
+  const [failed, setFailed] = useState(false)
+  const initials = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase()
+
+  if (photoUrl && !failed) {
+    return (
+      <img
+        src={photoUrl}
+        alt=""
+        onError={() => setFailed(true)}
+        class="w-14 h-14 rounded-full object-cover shrink-0 bg-gray-100"
+      />
+    )
+  }
+
+  return (
+    <div class="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+      {initials
+        ? <span class="text-lg font-semibold text-blue-500">{initials}</span>
+        : <UserIcon size={24} class="text-blue-500" />}
+    </div>
+  )
+}
+
+function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCleaningOnboarding, onStartHandymanOnboarding }: { user: User; onBack: () => void; onSupportClick: () => void; onStartOnboarding: () => void; onStartCleaningOnboarding: () => void; onStartHandymanOnboarding: () => void }) {
   const { t, lang, setLang } = useLocale()
   const [theme, setThemeState] = useState(getTheme())
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -322,6 +352,17 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
     setAddresses(prev => prev.filter(a => a.id !== addr.id))
   }
 
+  async function handleLogout() {
+    const ok = await confirm(t('menu_logout_confirm'), {
+      title: t('menu_logout_title'),
+      confirmVariant: 'danger',
+      confirmLabel: t('menu_logout'),
+    })
+    if (!ok) return
+    clearAllUserData()
+    window.location.reload()
+  }
+
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <ConfirmDialog
@@ -349,18 +390,22 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
         >
           ‹
         </button>
-        <p class="text-xl font-bold text-gray-900">Меню</p>
+        <p class="text-xl font-bold text-gray-900">{t('menu_title')}</p>
       </div>
 
       <div class="flex-1 px-4 py-5 flex flex-col gap-4">
         {/* User info */}
-        <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100 flex items-center gap-3">
-          <div class="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-            <UserIcon size={20} class="text-blue-500" />
-          </div>
+        <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100 flex items-center gap-4">
+          <ProfileAvatar
+            firstName={user.first_name}
+            lastName={user.last_name}
+            photoUrl={(window as any).Telegram?.WebApp?.initDataUnsafe?.user?.photo_url}
+          />
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-gray-900">{user.first_name}{user.last_name ? ` ${user.last_name}` : ''}</p>
-            {user.phone && <p class="text-xs text-gray-400 mt-0.5">{user.phone}</p>}
+            <p class="text-base font-semibold text-gray-900 truncate">{user.first_name}{user.last_name ? ` ${user.last_name}` : ''}</p>
+            {user.phone
+              ? <p class="text-sm text-gray-400 mt-0.5">{user.phone}</p>
+              : <p class="text-sm text-gray-300 mt-0.5">{t('profile_no_phone')}</p>}
           </div>
         </div>
 
@@ -407,7 +452,7 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
 
         {/* Theme */}
         <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100">
-          <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Тема</p>
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{t('settings_theme_label')}</p>
           <div class="flex gap-2">
             <button
               type="button"
@@ -419,7 +464,7 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
               }`}
             >
               <Sun size={16} />
-              Светлая
+              {t('theme_light')}
             </button>
             <button
               type="button"
@@ -431,14 +476,14 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
               }`}
             >
               <Moon size={16} />
-              Тёмная
+              {t('theme_dark')}
             </button>
           </div>
         </div>
 
         {/* Language */}
         <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100">
-          <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Язык</p>
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">{t('settings_language')}</p>
           <div class="flex gap-2">
             {LANGS.map(({ id, flag, label }) => (
               <button
@@ -464,16 +509,52 @@ function MenuScreen({ user, onBack, onSupportToast }: { user: User; onBack: () =
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <button
             type="button"
-            onClick={onSupportToast}
+            onClick={onSupportClick}
             class="w-full flex items-center gap-3 px-4 py-4 active:bg-gray-50 transition-colors text-left"
           >
             <div class="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
               <MessageCircle size={18} class="text-green-600" />
             </div>
-            <p class="flex-1 text-sm font-medium text-gray-900">Поддержка</p>
+            <p class="flex-1 text-sm font-medium text-gray-900">{t('support_title')}</p>
             <ChevronRight size={16} class="text-gray-300" />
           </button>
         </div>
+
+        {/* Dev-only: перезапуск онбординга */}
+        {import.meta.env.DEV && (
+          <div class="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={onStartOnboarding}
+              class="w-full border-2 border-blue-300 text-blue-600 font-medium py-3 rounded-2xl transition-all active:scale-95 text-sm"
+            >
+              {t('menu_dev_onboarding')}
+            </button>
+            <button
+              type="button"
+              onClick={onStartCleaningOnboarding}
+              class="w-full border-2 border-blue-300 text-blue-600 font-medium py-3 rounded-2xl transition-all active:scale-95 text-sm"
+            >
+              {t('menu_dev_onboarding_cleaning')}
+            </button>
+            <button
+              type="button"
+              onClick={onStartHandymanOnboarding}
+              class="w-full border-2 border-blue-300 text-blue-600 font-medium py-3 rounded-2xl transition-all active:scale-95 text-sm"
+            >
+              {t('menu_dev_onboarding_handyman')}
+            </button>
+          </div>
+        )}
+
+        {/* Logout */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-red-50"
+        >
+          {t('menu_logout')}
+        </button>
       </div>
     </div>
   )
@@ -509,9 +590,13 @@ function parseDeepLink(param: string): DeepLink | null {
 
 // ─── Hub Screen ───────────────────────────────────────────────────────────────
 
+type SupportBackView = 'hub' | 'menu' | 'active_order' | 'active_handyman' | 'active_chistomaty'
+type SupportView = { name: 'support'; backView: SupportBackView }
+
 type View =
   | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman' | 'order_edit' | 'handyman_order_edit'
-  | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order'; executorId: string | null; executorName: string; senderId: string; backView: 'active_order' | 'active_handyman' }
+  | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order' | 'support' | 'cleaning_dispute' | 'handyman_dispute'; executorId: string | null; executorName: string; senderId: string; backView: 'active_order' | 'active_handyman' | SupportView }
+  | SupportView
 
 interface Props {
   user: User
@@ -519,6 +604,7 @@ interface Props {
 }
 
 export function HubScreen({ user, startParam = '' }: Props) {
+  const { t } = useLocale()
   const deepLink = parseDeepLink(startParam)
   const initialView: View = deepLink?.type === 'wizard' ? deepLink.target : 'hub'
 
@@ -534,12 +620,28 @@ export function HubScreen({ user, startParam = '' }: Props) {
   const [repeatCleaning, setRepeatCleaning] = useState<Order | null>(null)
   const [repeatHandyman, setRepeatHandyman] = useState<HandymanOrder | null>(null)
   const [detailFromHistory, setDetailFromHistory] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [addressGateFor, setAddressGateFor] = useState<'cleaning' | 'handyman' | null>(null)
+  const [gateCreatedAddress, setGateCreatedAddress] = useState<Address | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const deepLinkHandled = useRef(false)
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const cleaningTileRef = useRef<HTMLButtonElement>(null)
+  const handymanTileRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
+    if (view === 'hub' && !hasSeenOnboarding('hub')) setShowOnboarding(true)
+  }, [view])
+
+  function finishOnboarding() {
+    markOnboardingSeen('hub')
+    setShowOnboarding(false)
+  }
+
+  useEffect(() => {
+    getAddresses(user.telegram_id).then(setAddresses).catch(() => {})
     getUserOrders(user.telegram_id)
       .then(res => {
         const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
@@ -562,7 +664,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
               orderId: target.id,
               contextType: 'cleaning_order',
               executorId: target.foreman_id ?? target.executor_id ?? null,
-              executorName: target.foreman_name ?? target.executor_name ?? 'Исполнитель',
+              executorName: target.foreman_name ?? target.executor_name ?? t('history_executor'),
               senderId: String(user.telegram_id),
               backView: 'active_order',
             })
@@ -590,7 +692,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
               orderId: target.id,
               contextType: 'handyman_order',
               executorId: target.executor_id ?? null,
-              executorName: target.executor_name ?? 'Мастер',
+              executorName: target.executor_name ?? t('handyman_master_label'),
               senderId: String(user.telegram_id),
               backView: 'active_handyman',
             })
@@ -611,7 +713,13 @@ export function HubScreen({ user, startParam = '' }: Props) {
         const res = await getUserOrders(user.telegram_id)
         const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
         setActiveOrders(actives)
-        setFocusedOrder(prev => prev ? (actives.find(o => o.id === prev.id) ?? null) : null)
+        // Не обнуляем focusedOrder, если заказ просто вышел из "активных" (например, принят и стал completed) —
+        // иначе фоновый поллинг может выбить пользователя с экрана заказа прямо во время открытого RatingSheet.
+        // Переход на хаб делают явные колбэки onOrderDone/onOrderAccepted.
+        setFocusedOrder(prev => {
+          if (!prev) return null
+          return actives.find(o => o.id === prev.id) ?? prev
+        })
         if (actives.length === 0) stopPolling()
       } catch {}
     }, 12000)
@@ -619,11 +727,6 @@ export function HubScreen({ user, startParam = '' }: Props) {
 
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-  }
-
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(null), 2500)
   }
 
   function backToHub() {
@@ -662,6 +765,24 @@ export function HubScreen({ user, startParam = '' }: Props) {
     )
   }
 
+  if (typeof view === 'object' && view.name === 'support') {
+    const supportBackView = view.backView
+    return (
+      <SupportScreen
+        onBack={() => setView(supportBackView)}
+        onOpenChat={() => setView({
+          name: 'chat',
+          orderId: 'support',
+          contextType: 'support',
+          executorId: null,
+          executorName: t('support_title'),
+          senderId: String(user.telegram_id),
+          backView: { name: 'support', backView: supportBackView },
+        })}
+      />
+    )
+  }
+
   if (view === 'active_order' && focusedOrder) {
     const onOrderDone = () => {
       setActiveOrders(prev => prev === 'loading' ? [] : prev.filter(o => o.id !== focusedOrder.id))
@@ -674,11 +795,12 @@ export function HubScreen({ user, startParam = '' }: Props) {
       return (
         <ActiveOrderScreen
           order={focusedOrder}
+          senderId={String(user.telegram_id)}
           onBack={() => { setDetailFromHistory(false); setFocusedOrder(null); setView('hub') }}
           onChatClick={() => {}}
           onOrderCancelled={() => {}}
           onOrderAccepted={() => {}}
-          onSupportClick={() => showToast('Скоро появится')}
+          onSupportClick={() => setView({ name: 'support', backView: 'active_order' })}
           onEditClick={() => {}}
           onRepeat={() => { setRepeatCleaning(focusedOrder); setDetailFromHistory(false); setFocusedOrder(null); setView('cleaning') }}
         />
@@ -689,13 +811,22 @@ export function HubScreen({ user, startParam = '' }: Props) {
       return (
         <HouseOrderStatusScreen
           order={focusedOrder}
+          senderId={String(user.telegram_id)}
           onBack={backToHub}
-          onChatClick={() => setView({
+          onChatClick={() => setView(focusedOrder.status === 'disputed' ? {
+            name: 'chat',
+            orderId: focusedOrder.id,
+            contextType: 'cleaning_dispute',
+            executorId: null,
+            executorName: t('status_disputed'),
+            senderId: String(user.telegram_id),
+            backView: 'active_order',
+          } : {
             name: 'chat',
             orderId: focusedOrder.id,
             contextType: 'cleaning_order',
             executorId: focusedOrder.foreman_id ?? null,
-            executorName: focusedOrder.foreman_name ?? 'Бригадир',
+            executorName: focusedOrder.foreman_name ?? t('house_foreman_badge'),
             senderId: String(user.telegram_id),
             backView: 'active_order',
           })}
@@ -706,6 +837,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
             setActiveOrders(prev => prev === 'loading' ? [updated] : prev.map(o => o.id === updated.id ? updated : o))
           }}
           onEditClick={() => setView('order_edit')}
+          onSupportClick={() => setView({ name: 'support', backView: 'active_order' })}
         />
       )
     }
@@ -713,8 +845,17 @@ export function HubScreen({ user, startParam = '' }: Props) {
     return (
       <ActiveOrderScreen
         order={focusedOrder}
+        senderId={String(user.telegram_id)}
         onBack={backToHub}
-        onChatClick={(orderId, executorId, executorName) => setView({
+        onChatClick={(orderId, executorId, executorName) => setView(focusedOrder.status === 'disputed' ? {
+          name: 'chat',
+          orderId,
+          contextType: 'cleaning_dispute',
+          executorId: null,
+          executorName: t('status_disputed'),
+          senderId: String(user.telegram_id),
+          backView: 'active_order',
+        } : {
           name: 'chat',
           orderId,
           contextType: focusedOrder.service_type === 'handyman' ? 'handyman_order' : 'cleaning_order',
@@ -725,8 +866,12 @@ export function HubScreen({ user, startParam = '' }: Props) {
         })}
         onOrderCancelled={onOrderDone}
         onOrderAccepted={onOrderDone}
-        onSupportClick={() => showToast('Скоро появится')}
+        onSupportClick={() => setView({ name: 'support', backView: 'active_order' })}
         onEditClick={() => setView('order_edit')}
+        onOrderUpdated={updated => {
+          setFocusedOrder(updated)
+          setActiveOrders(prev => prev === 'loading' ? [updated] : prev.map(o => o.id === updated.id ? updated : o))
+        }}
       />
     )
   }
@@ -766,7 +911,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
       <ActiveChistomatyScreen
         order={activeChistomatyOrder}
         onBack={() => setView('hub')}
-        onSupportClick={() => { setView('hub'); showToast('Скоро появится') }}
+        onSupportClick={() => setView({ name: 'support', backView: 'active_chistomaty' })}
       />
     )
   }
@@ -783,11 +928,12 @@ export function HubScreen({ user, startParam = '' }: Props) {
       return (
         <ActiveHandymanOrderScreen
           order={focusedHandymanOrder}
+          senderId={String(user.telegram_id)}
           onBack={() => { setDetailFromHistory(false); setFocusedHandymanOrder(null); setView('hub') }}
           onChatClick={() => {}}
           onOrderCancelled={() => {}}
           onOrderAccepted={() => {}}
-          onSupportClick={() => showToast('Скоро появится')}
+          onSupportClick={() => setView({ name: 'support', backView: 'active_handyman' })}
           onRepeat={() => { setRepeatHandyman(focusedHandymanOrder); setDetailFromHistory(false); setFocusedHandymanOrder(null); setView('handyman') }}
         />
       )
@@ -796,8 +942,17 @@ export function HubScreen({ user, startParam = '' }: Props) {
     return (
       <ActiveHandymanOrderScreen
         order={focusedHandymanOrder}
+        senderId={String(user.telegram_id)}
         onBack={backToHub}
-        onChatClick={(orderId, executorId, executorName) => setView({
+        onChatClick={(orderId, executorId, executorName) => setView(focusedHandymanOrder.status === 'disputed' ? {
+          name: 'chat',
+          orderId,
+          contextType: 'handyman_dispute',
+          executorId: null,
+          executorName: t('status_disputed'),
+          senderId: String(user.telegram_id),
+          backView: 'active_handyman',
+        } : {
           name: 'chat',
           orderId,
           contextType: 'handyman_order',
@@ -808,18 +963,53 @@ export function HubScreen({ user, startParam = '' }: Props) {
         })}
         onOrderCancelled={onHandymanDone}
         onOrderAccepted={onHandymanDone}
-        onSupportClick={() => showToast('Скоро появится')}
+        onSupportClick={() => setView({ name: 'support', backView: 'active_handyman' })}
         onEditClick={() => setView('handyman_order_edit')}
+        onOrderUpdated={updated => {
+          setFocusedHandymanOrder(updated)
+          setActiveHandymanOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
+        }}
+      />
+    )
+  }
+
+  if (addressGateFor) {
+    return (
+      <AddressFormScreen
+        onBack={() => setAddressGateFor(null)}
+        onSubmit={async data => {
+          const newAddr = await createAddress(user.telegram_id, data)
+          const updated = await getAddresses(user.telegram_id).catch(() => addresses)
+          setAddresses(Array.isArray(updated) ? updated : addresses)
+          const target = addressGateFor
+          setAddressGateFor(null)
+          setGateCreatedAddress(newAddr)
+          setView(target)
+        }}
       />
     )
   }
 
   if (view === 'cleaning') {
-    return <OrderScreen user={user} repeatFrom={repeatCleaning} onBack={() => { setRepeatCleaning(null); refreshOrders(); setView('hub') }} />
+    return (
+      <OrderScreen
+        user={user}
+        repeatFrom={repeatCleaning}
+        initialAddress={gateCreatedAddress}
+        onBack={() => { setRepeatCleaning(null); setGateCreatedAddress(null); refreshOrders(); setView('hub') }}
+      />
+    )
   }
 
   if (view === 'handyman') {
-    return <HandymanOrderScreen user={user} repeatFrom={repeatHandyman} onBack={() => { setRepeatHandyman(null); refreshOrders(); setView('hub') }} />
+    return (
+      <HandymanOrderScreen
+        user={user}
+        repeatFrom={repeatHandyman}
+        initialAddress={gateCreatedAddress}
+        onBack={() => { setRepeatHandyman(null); setGateCreatedAddress(null); refreshOrders(); setView('hub') }}
+      />
+    )
   }
 
   if (view === 'chistomaty') {
@@ -831,7 +1021,10 @@ export function HubScreen({ user, startParam = '' }: Props) {
       <MenuScreen
         user={user}
         onBack={() => setView('hub')}
-        onSupportToast={() => showToast('Скоро появится')}
+        onSupportClick={() => setView({ name: 'support', backView: 'menu' })}
+        onStartOnboarding={() => { resetOnboarding('hub'); setView('hub'); setShowOnboarding(true) }}
+        onStartCleaningOnboarding={() => { resetOnboarding('cleaning'); setRepeatCleaning(null); setView('cleaning') }}
+        onStartHandymanOnboarding={() => { resetOnboarding('handyman'); setRepeatHandyman(null); setView('handyman') }}
       />
     )
   }
@@ -865,6 +1058,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
       {/* Header */}
       <div class="px-5 pt-12 pb-5 flex items-center justify-between">
         <button
+          ref={menuBtnRef}
           type="button"
           onClick={() => setView('menu')}
           class="w-9 h-9 rounded-full bg-gray-100 flex flex-col items-center justify-center gap-1 active:bg-gray-200 transition-colors"
@@ -894,39 +1088,42 @@ export function HubScreen({ user, startParam = '' }: Props) {
       <div class="px-4 pb-6">
         <div class="flex gap-3">
           <button
+            ref={cleaningTileRef}
             type="button"
-            onClick={() => { setRepeatCleaning(null); setView('cleaning') }}
-            class="flex-[2] relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
+            onClick={() => { setRepeatCleaning(null); addresses.length === 0 ? setAddressGateFor('cleaning') : setView('cleaning') }}
+            class="flex-1 relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
           >
-            <img src="/service_tiles/cleaning.png" alt="Клининг" class="w-full h-full object-contain" />
-            <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">Клининг</p>
+            <img src="/service_tiles/cleaning.png" alt={t('onboarding_cleaning_title')} class="w-full h-full object-contain" />
+            <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">{t('onboarding_cleaning_title')}</p>
           </button>
 
-          <div class="flex-1 flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => { setRepeatHandyman(null); setView('handyman') }}
-              class="flex-1 relative bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
-            >
-              <img src="/service_tiles/handyman.png" alt="Хэндимен" class="w-full h-full object-contain" />
-              <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">Хэндимен</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('chistomaty')}
-              class="flex-1 relative bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
-            >
-              <img src="/service_tiles/chistomaty.png" alt="Чистоматы" class="w-full h-full object-contain" />
-              <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">Чистоматы</p>
-            </button>
-          </div>
+          <button
+            ref={handymanTileRef}
+            type="button"
+            onClick={() => { setRepeatHandyman(null); addresses.length === 0 ? setAddressGateFor('handyman') : setView('handyman') }}
+            class="flex-1 relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
+          >
+            <img src="/service_tiles/handyman.png" alt={t('onboarding_handyman_title')} class="w-full h-full object-contain" />
+            <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">{t('onboarding_handyman_title')}</p>
+          </button>
+
+          {/* Временно скрыто по просьбе заказчика
+          <button
+            type="button"
+            onClick={() => setView('chistomaty')}
+            class="flex-1 relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
+          >
+            <img src="/service_tiles/chistomaty.png" alt="Чистоматы" class="w-full h-full object-contain" />
+            <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">Чистоматы</p>
+          </button>
+          */}
         </div>
       </div>
 
       {/* Order history */}
       <div class="px-4 mt-6 pb-8 flex flex-col gap-2">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
-          История заказов
+          {t('history_orders_title')}
         </p>
         {historyEntries.length > 0 ? (
           historyEntries.map(e => (
@@ -944,20 +1141,32 @@ export function HubScreen({ user, startParam = '' }: Props) {
           ))
         ) : (
           <div class="bg-gray-50 rounded-2xl px-4 py-6 flex flex-col items-center gap-2">
-            <p class="text-sm font-semibold text-gray-700">Сделайте первый заказ</p>
-            <p class="text-xs text-gray-400 text-center">История ваших уборок появится здесь</p>
+            <p class="text-sm font-semibold text-gray-700">{t('history_empty_hint_title')}</p>
+            <p class="text-xs text-gray-400 text-center">{t('history_empty_hint_sub')}</p>
           </div>
         )}
       </div>
 
       <BottomSheet open={showActiveSheet} onClose={() => setShowActiveSheet(false)}>
         <div class="px-0 pt-2 pb-6">
-          <p class="text-base font-bold text-gray-900 px-5 mb-4">Активные заказы</p>
+          <p class="text-base font-bold text-gray-900 px-5 mb-4">{t('active_orders_title')}</p>
           {activeEntries.map(e => renderBanner(e, v => { setShowActiveSheet(false); setView(v) }))}
         </div>
       </BottomSheet>
 
-      {toast && <ComingSoonToast message={toast} />}
+      {showOnboarding && (
+        <OnboardingOverlay
+          steps={[
+            { ref: menuBtnRef, title: t('onboarding_menu_title'), description: t('onboarding_menu_desc') },
+            { ref: cleaningTileRef, title: t('onboarding_cleaning_title'), description: t('onboarding_cleaning_desc') },
+            { ref: handymanTileRef, title: t('onboarding_handyman_title'), description: t('onboarding_handyman_desc') },
+          ]}
+          skipLabel={t('onboarding_skip')}
+          nextLabel={t('onboarding_next')}
+          doneLabel={t('onboarding_done')}
+          onFinish={finishOnboarding}
+        />
+      )}
     </div>
   )
 }

@@ -28,6 +28,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set())
   const [showMap, setShowMap] = useState(true)
   const [geocoding, setGeocoding] = useState(false)
 
@@ -44,6 +45,13 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
 
   function setField(field: keyof AddressPayload, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
+    if (invalidFields.has(field)) {
+      setInvalidFields(prev => {
+        const next = new Set(prev)
+        next.delete(field)
+        return next
+      })
+    }
   }
 
   function setCount(field: 'rooms' | 'bathrooms', value: number) {
@@ -52,12 +60,24 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
 
   async function handleSubmit(e: Event) {
     e.preventDefault()
-    if (!form.address.trim()) { setError(t('addr_required')); return }
+    const invalid = new Set<string>()
+    if (!form.address.trim()) invalid.add('address')
     if (form.housing_type === 'apt') {
-      if (!form.entrance?.trim()) { setError(t('addr_entrance_required')); return }
-      if (!form.floor?.trim()) { setError(t('addr_floor_required')); return }
-      if (!form.apartment?.trim()) { setError(t('addr_apt_required')); return }
+      if (!form.entrance?.trim()) invalid.add('entrance')
+      if (!form.floor?.trim()) invalid.add('floor')
+      if (!form.apartment?.trim()) invalid.add('apartment')
     }
+    if (invalid.size > 0) {
+      setInvalidFields(invalid)
+      setError(
+        !form.address.trim() ? t('addr_required')
+          : !form.entrance?.trim() ? t('addr_entrance_required')
+          : !form.floor?.trim() ? t('addr_floor_required')
+          : t('addr_apt_required')
+      )
+      return
+    }
+    setInvalidFields(new Set())
     setLoading(true)
     setError(null)
     try {
@@ -129,13 +149,15 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
             </div>
           )}
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-medium text-gray-500">{t('addr_label')}</label>
+            <label class={`text-xs font-medium ${invalidFields.has('address') ? 'text-red-500' : 'text-gray-500'}`}>{t('addr_label')}</label>
             <input
               type="text"
               placeholder={t('addr_placeholder')}
               value={form.address}
               onInput={e => setField('address', (e.target as HTMLInputElement).value)}
-              class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400"
+              class={`bg-white border rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
+                invalidFields.has('address') ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-blue-400'
+              }`}
             />
           </div>
         </div>
@@ -184,12 +206,14 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
                 placeholder={t('addr_entrance_placeholder')}
                 value={form.entrance ?? ''}
                 onChange={v => setField('entrance', v)}
+                invalid={invalidFields.has('entrance')}
               />
               <Field
                 label={t('addr_floor_label') + '*'}
                 placeholder={t('addr_floor_placeholder')}
                 value={form.floor ?? ''}
                 onChange={v => setField('floor', v)}
+                invalid={invalidFields.has('floor')}
               />
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -198,6 +222,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
                 placeholder={t('addr_apt_placeholder')}
                 value={form.apartment ?? ''}
                 onChange={v => setField('apartment', v)}
+                invalid={invalidFields.has('apartment')}
               />
               <Field
                 label={t('addr_intercom_label')}
@@ -256,18 +281,21 @@ interface FieldProps {
   placeholder: string
   value: string
   onChange: (v: string) => void
+  invalid?: boolean
 }
 
-function Field({ label, placeholder, value, onChange }: FieldProps) {
+function Field({ label, placeholder, value, onChange, invalid }: FieldProps) {
   return (
     <div class="flex flex-col gap-1.5">
-      <label class="text-xs font-medium text-gray-500">{label}</label>
+      <label class={`text-xs font-medium ${invalid ? 'text-red-500' : 'text-gray-500'}`}>{label}</label>
       <input
         type="text"
         placeholder={placeholder}
         value={value}
         onInput={e => onChange((e.target as HTMLInputElement).value)}
-        class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400"
+        class={`bg-white border rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
+          invalid ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-blue-400'
+        }`}
       />
     </div>
   )

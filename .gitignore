@@ -15,6 +15,9 @@ dist-ssr
 .wrangler
 .dev.vars
 
+# Локальная debug-конфигурация мокового пользователя (шаблон: mock-user.example.json)
+mock-user.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { PostamatDetailScreen } from './PostamatDetailScreen'
+import { useLocale } from '../i18n'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ function ScanIcon() {
 // ─── Postamat List Item ───────────────────────────────────────────────────────
 
 function PostamatItem({ postamat, onClick }: { postamat: Postamat; onClick: () => void }) {
+  const { t } = useLocale()
   return (
     <button
       type="button"
@@ -102,7 +104,7 @@ function PostamatItem({ postamat, onClick }: { postamat: Postamat; onClick: () =
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-gray-900 truncate">{postamat.address}</p>
-        <p class="text-xs mt-0.5 font-medium text-[#44973A]">Свободен</p>
+        <p class="text-xs mt-0.5 font-medium text-[#44973A]">{t('chistomaty_free_label')}</p>
       </div>
       <span class="text-xs font-semibold text-[#44973A] shrink-0">{postamat.distance}</span>
     </button>
@@ -116,6 +118,7 @@ interface Props {
 }
 
 export function ChistomatyScreen({ onBack }: Props) {
+  const { t } = useLocale()
   const [selected, setSelected] = useState<Postamat | null>(null)
 
   if (selected) {
@@ -136,7 +139,7 @@ export function ChistomatyScreen({ onBack }: Props) {
         >
           ‹
         </button>
-        <p class="absolute inset-x-0 text-center text-base font-bold text-gray-900 pointer-events-none">Чистоматы</p>
+        <p class="absolute inset-x-0 text-center text-base font-bold text-gray-900 pointer-events-none">{t('nav_chistomaty')}</p>
       </div>
 
       {/* Map — 60vh */}
@@ -153,12 +156,12 @@ export function ChistomatyScreen({ onBack }: Props) {
           class="w-full flex items-center justify-center gap-2.5 py-3.5 mb-6 rounded-2xl border-2 border-gray-200 text-gray-700 font-semibold text-sm active:bg-gray-50 transition-colors"
         >
           <ScanIcon />
-          Отсканировать QR-код
+          {t('chistomaty_scan_qr')}
         </button>
 
         {/* Nearby list */}
         <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
-          Ближайшие чистоматы
+          {t('chistomaty_nearby')}
         </p>
         <div class="flex flex-col gap-2">
           {freePostamats.map(p => (

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Headphones } from "lucide-react";
 import type { ContextType, ConversationMessage, ConversationState } from "../api/conversations";
 import {
   getOrCreateConversation,
+  openSupportConversation,
   getConversationMessages,
   sendConversationMessage,
   sendConversationMedia,
 } from "../api/conversations";
+import { ApiError, clearToken } from "../api/client";
+import { refreshTelegramLogin } from "../api/auth";
 import { getExecutor } from "../api/executors";
 import { useLocale } from "../i18n";
 import { useExitBack } from "../hooks/useExitBack";
@@ -63,17 +66,41 @@ export function ChatScreen({
   const firstLoad = useRef(true);
   const convIdRef = useRef<string | null>(null);
 
+  const isSupport = contextType === "support";
+
+  async function openConversation() {
+    return isSupport
+      ? await openSupportConversation()
+      : await getOrCreateConversation(contextType, orderId);
+  }
+
   async function init() {
     try {
-      const conv = await getOrCreateConversation(contextType, orderId);
+      let conv;
+      try {
+        conv = await openConversation();
+      } catch (err) {
+        // Токен на руках мог устареть (роль/формат sub изменились на бэкенде
+        // после его выдачи) — переполучаем JWT и пробуем один раз ещё раз,
+        // прежде чем сдаться и просить перезайти вручную.
+        if (isSupport && err instanceof ApiError && err.status === 403) {
+          clearToken();
+          await refreshTelegramLogin();
+          conv = await openConversation();
+        } else {
+          throw err;
+        }
+      }
       convIdRef.current = conv.id;
       setConversationState(conv.state);
       await loadInitial(conv.id);
       if (conv.state === "open") {
         pollRef.current = setInterval(() => pollNew(conv.id), 4000);
       }
-    } catch {
-      setError(t("chat_load_error"));
+    } catch (err) {
+      setError(isSupport && err instanceof ApiError && err.status === 403
+        ? t("chat_relogin_required")
+        : t("chat_load_error"));
       setLoading(false);
     }
   }
@@ -230,10 +257,15 @@ export function ChatScreen({
   }
 
   function handleSendError(err: unknown) {
-    if ((err as { status?: number })?.status === 403) {
+    if (err instanceof ApiError && err.status === 403) {
       setConversationState("closed");
       if (pollRef.current) clearInterval(pollRef.current);
       setError(t("chat_closed_error"));
+    } else if (err instanceof ApiError && err.status === 400 && err.detail) {
+      // Контент-фильтр (номера телефонов/ссылки) — показываем текст сервера как есть.
+      setError(err.detail);
+    } else if (err instanceof ApiError && err.status === 503) {
+      setError(t("chat_media_unavailable"));
     } else {
       setError(t("chat_send_error"));
     }
@@ -289,7 +321,9 @@ export function ChatScreen({
           ‹
         </button>
         <div class="w-9 h-9 rounded-full bg-blue-100 shrink-0 overflow-hidden flex items-center justify-center">
-          {avatarUrl ? (
+          {isSupport ? (
+            <Headphones size={16} class="text-blue-600" />
+          ) : avatarUrl ? (
             <img src={avatarUrl} alt="" class="w-full h-full object-cover" />
           ) : (
             <span class="text-xs font-semibold text-blue-600">{getInitials(executorName)}</span>
@@ -369,7 +403,9 @@ export function ChatScreen({
                 <div class={`flex items-end gap-2 ${isClient ? "justify-end" : "justify-start"}`}>
                   {!isClient && (
                     <div class="w-7 h-7 rounded-full bg-blue-100 shrink-0 overflow-hidden flex items-center justify-center mb-0.5">
-                      {avatarUrl ? (
+                      {isSupport ? (
+                        <Headphones size={13} class="text-blue-600" />
+                      ) : avatarUrl ? (
                         <img src={avatarUrl} alt="" class="w-full h-full object-cover" />
                       ) : (
                         <span class="text-[10px] font-semibold text-blue-600">
