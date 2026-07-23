@@ -6,6 +6,7 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 export default defineConfig({
   plugins: [tailwindcss(), preact(), cloudflare()],
   server: {
+    host: true,
     port: 3001,
     allowedHosts: true,
   },

@@ -19,6 +19,7 @@ import { useExitBack } from '../hooks/useExitBack'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { RatingSheet } from '../components/RatingSheet'
 import { DisputeSheet } from '../components/DisputeSheet'
+import { Lightbox } from '../components/Lightbox'
 import { useConfirm } from '../hooks/useConfirm'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -81,6 +82,7 @@ export function ActiveOrderScreen({
   const [showDispute, setShowDispute] = useState(false)
   const [addonsCatalog, setAddonsCatalog] = useState<Addon[]>([])
   const [attachments, setAttachments] = useState<OrderAttachment[]>([])
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
 
   useEffect(() => {
     if (order.addons.length > 0) {
@@ -142,12 +144,20 @@ export function ActiveOrderScreen({
   }
 
   return (
-    <div class={`h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+    <div class={`h-screen bg-gray-50 flex flex-col transition-transform duration-300 ${exiting ? 'translate-x-full' : 'translate-x-0'}`}>
       <ConfirmDialog
         {...dialogProps}
         confirmLabel={dialogProps.confirmLabel ?? t('dialog_ok')}
         cancelLabel={dialogProps.cancelLabel ?? t('dialog_cancel')}
       />
+
+      {lightboxIdx !== null && (
+        <Lightbox
+          attachments={attachments}
+          initialIdx={lightboxIdx}
+          onClose={() => setLightboxIdx(null)}
+        />
+      )}
 
       {showDispute && (
         <DisputeSheet
@@ -184,7 +194,7 @@ export function ActiveOrderScreen({
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+      <div class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3 [&>*]:shrink-0">
 
         {/* Status hero */}
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -275,11 +285,11 @@ export function ActiveOrderScreen({
             <div class="px-4 py-3">
               <p class="text-xs text-gray-400 mb-2">{t('order_media_label')}</p>
               <div class="flex gap-2 flex-wrap">
-                {attachments.map(a => {
+                {attachments.map((a, i) => {
                   const isVideo = a.media_type.startsWith('video/')
                   return (
-                    <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
-                      class="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 block"
+                    <button key={a.id} type="button" onClick={() => setLightboxIdx(i)}
+                      class="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 block active:scale-95 transition-transform"
                     >
                       {isVideo ? (
                         <video src={a.url} muted preload="metadata" class="w-full h-full object-cover" />
@@ -294,7 +304,7 @@ export function ActiveOrderScreen({
                           </svg>
                         </div>
                       )}
-                    </a>
+                    </button>
                   )
                 })}
               </div>

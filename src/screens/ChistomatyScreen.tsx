@@ -44,7 +44,15 @@ function PostamatMap() {
 
     const map = L.map(ref.current, { zoomControl: false }).setView([41.2995, 69.2401], 14)
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const isDark = document.documentElement.classList.contains('dark')
+    const tileUrl = isDark
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+
+    L.tileLayer(tileUrl, {
+      subdomains: 'abcd',
+      maxZoom: 20,
+      detectRetina: true,
       attribution: '© OpenStreetMap',
     }).addTo(map)
 
