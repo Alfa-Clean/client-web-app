@@ -1070,12 +1070,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
         <p class="text-3xl font-bold" style="color:#44973A;letter-spacing:-0.5px">
           Chaqqon
         </p>
-        <button
-          type="button"
-          class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base active:bg-gray-200 transition-colors"
-        >
-          <UserIcon size={18} class="text-gray-600" />
-        </button>
+        <div class="w-9 h-9" />
       </div>
 
       {/* Active order banners */}
