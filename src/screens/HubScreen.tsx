@@ -32,6 +32,7 @@ import { HandymanOrderEditScreen } from './HandymanOrderEditScreen'
 import { SupportScreen } from './SupportScreen'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL_KEYS } from './ActiveChistomatyScreen'
+import { Logo } from '../components/Logo'
 
 const ACTIVE_STATUSES = new Set([
   'new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation',
@@ -41,7 +42,7 @@ const ACTIVE_STATUSES = new Set([
 const HISTORY_STATUSES = new Set(['completed', 'cancelled'])
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  completed: { bg: '#F0F9EE', text: '#44973A' },
+  completed: { bg: '#F3F9F9', text: '#1F847B' },
   cancelled:  { bg: '#FEF2F2', text: '#EF4444' },
 }
 
@@ -85,7 +86,7 @@ export function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: (
     <button
       type="button"
       onClick={onClick}
-      class={`mx-4 mb-4 w-[calc(100%-32px)] rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left ${isDisputed ? 'bg-red-500' : 'bg-[#44973A]'}`}
+      class={`mx-4 mb-4 w-[calc(100%-32px)] rounded-2xl px-4 py-3.5 flex items-center gap-3 active:opacity-90 transition-opacity text-left ${isDisputed ? 'bg-red-500' : 'bg-[#1F847B]'}`}
     >
       <div class="w-10 h-10 shrink-0 flex items-center justify-center relative">
         {order.status === 'new' ? (
@@ -416,7 +417,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
             <button
               type="button"
               onClick={() => setAddressSheet('new')}
-              class="flex items-center gap-1 text-xs font-medium text-green-600 active:opacity-70 transition-opacity"
+              class="flex items-center gap-1 text-xs font-medium text-green-800 active:opacity-70 transition-opacity"
             >
               <Plus size={14} />
               {t('btn_add')}
@@ -459,7 +460,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
               onClick={() => toggleTheme('light')}
               class={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
                 theme === 'light'
-                  ? 'border-green-600 bg-green-50 text-green-700'
+                  ? 'border-green-600 bg-green-50 text-green-800'
                   : 'border-gray-200 bg-gray-50 text-gray-500'
               }`}
             >
@@ -471,7 +472,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
               onClick={() => toggleTheme('dark')}
               class={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
                 theme === 'dark'
-                  ? 'border-green-600 bg-green-50 text-green-700'
+                  ? 'border-green-600 bg-green-50 text-green-800'
                   : 'border-gray-200 bg-gray-50 text-gray-500'
               }`}
             >
@@ -497,7 +498,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
                 }`}
               >
                 <span class="text-2xl leading-none">{flag}</span>
-                <span class={`text-xs font-medium ${lang === id ? 'text-green-700' : 'text-gray-500'}`}>
+                <span class={`text-xs font-medium ${lang === id ? 'text-green-800' : 'text-gray-500'}`}>
                   {label}
                 </span>
               </button>
@@ -513,7 +514,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
             class="w-full flex items-center gap-3 px-4 py-4 active:bg-gray-50 transition-colors text-left"
           >
             <div class="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-              <MessageCircle size={18} class="text-green-600" />
+              <MessageCircle size={18} class="text-green-800" />
             </div>
             <p class="flex-1 text-sm font-medium text-gray-900">{t('support_title')}</p>
             <ChevronRight size={16} class="text-gray-300" />
@@ -1067,9 +1068,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
           <span class="w-4 h-0.5 bg-gray-600 rounded-full" />
           <span class="w-4 h-0.5 bg-gray-600 rounded-full" />
         </button>
-        <p class="text-3xl font-bold" style="color:#44973A;letter-spacing:-0.5px">
-          Chaqqon
-        </p>
+        <Logo class="h-7" />
         <div class="w-9 h-9" />
       </div>
 

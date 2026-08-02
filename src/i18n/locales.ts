@@ -4,10 +4,10 @@ export type Strings = Record<string, string>
 
 const ru: Strings = {
   // Registration
-  reg_tagline: 'Клининг в Ташкенте',
+  reg_tagline: 'Услуги для дома и быта',
   reg_welcome: 'Добро пожаловать!',
   reg_hello: 'Привет, {name}!',
-  reg_phone_request: 'Для оформления заказа нам нужен ваш номер телефона',
+  reg_phone_request: 'Для оформления заказа требуется ваш номер телефона',
   reg_share_phone: 'Поделиться номером',
   reg_loading: 'Подождите...',
   reg_phone_error: 'Не удалось получить номер. Попробуйте ещё раз.',

@@ -564,7 +564,7 @@ function OrdersTab({ telegramId, onNewOrder, onExecutorClick, onHouseOrderClick,
           <button
             type="button"
             onClick={() => handleAccept(activeOrder)}
-            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 transition-all active:scale-95 text-sm"
+            class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-4 transition-all active:scale-95 text-sm"
           >
             {t('home_accept_work')}
           </button>
@@ -710,7 +710,7 @@ function HouseOrderCard({ order, onOpen, t }: { order: Order; onOpen: () => void
       onClick={onOpen}
       class="w-full bg-white rounded-2xl border border-gray-100 overflow-hidden text-left active:scale-[0.99] transition-all"
     >
-      <div class="px-5 pt-5 pb-4" style="background: #44973A">
+      <div class="px-5 pt-5 pb-4" style="background: #1F847B">
         <p class="text-white/70 text-xs mb-1">
           {t('history_order', { num: String(order.order_num) })}
         </p>
@@ -860,7 +860,7 @@ function statusKey(s: string): string {
 }
 
 function statusColor(s: string): string {
-  if (s === 'completed') return 'bg-green-100 text-green-700'
+  if (s === 'completed') return 'bg-green-100 text-green-800'
   if (s === 'cancelled' || s === 'disputed') return 'bg-red-100 text-red-600'
   if (s === 'in_progress' || s === 'arrived') return 'bg-orange-100 text-orange-700'
   if (s === 'assigned' || s === 'on_the_way') return 'bg-blue-100 text-blue-700'

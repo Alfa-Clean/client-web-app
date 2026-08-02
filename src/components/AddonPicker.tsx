@@ -69,14 +69,14 @@ function AddonRow({
       onClick={onToggle}
       class={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-colors ${
         on
-          ? 'bg-[#F0F9EE] dark:bg-[#1a3a2a] border-[#44973A]'
+          ? 'bg-[#F3F9F9] dark:bg-[#1a3a2a] border-[#1F847B]'
           : 'bg-white border-gray-100 active:bg-gray-50'
       }`}
     >
-      <span class={`shrink-0 ${on ? 'text-[#44973A]' : 'text-gray-400'}`}>
+      <span class={`shrink-0 ${on ? 'text-[#1F847B]' : 'text-gray-400'}`}>
         {icon}
       </span>
-      <span class={`flex-1 text-sm font-medium ${on ? 'text-[#2D6126] dark:text-[#6DB363]' : 'text-gray-900'}`}>
+      <span class={`flex-1 text-sm font-medium ${on ? 'text-[#186760] dark:text-[#6DB363]' : 'text-gray-900'}`}>
         {name}
       </span>
     </button>
@@ -220,7 +220,7 @@ export function AddonPicker({
             type="button"
             onClick={confirm}
             class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors mt-4"
-            style="background:#44973A"
+            style="background:#1F847B"
           >
             {draft.length > 0 ? `${doneLabel} · ${draft.length}` : doneLabel}
           </button>

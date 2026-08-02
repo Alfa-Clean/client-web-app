@@ -90,7 +90,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
               )}
               <span class={`mt-1.5 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${
                 executor.verification_status === 'verified'
-                  ? 'bg-green-100 text-green-700'
+                  ? 'bg-green-100 text-green-800'
                   : 'bg-gray-100 text-gray-500'
               }`}>
                 {executor.verification_status === 'verified' ? <><Check size={11} class="inline mr-0.5" />{t('exec_verified')}</> : t('exec_pending_verification')}

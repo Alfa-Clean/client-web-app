@@ -238,21 +238,21 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
                 <button
                   type="button"
                   onClick={() => handleDateChip(todayISO)}
-                  class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${isToday ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'}`}
+                  class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${isToday ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'}`}
                 >
                   {t('today')}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDateChip(tomorrowISO)}
-                  class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${isTomorrow ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'}`}
+                  class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${isTomorrow ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'}`}
                 >
                   {t('tomorrow')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCalendar(true)}
-                  class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${isOther ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'}`}
+                  class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${isOther ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'}`}
                 >
                   {isOther ? formatShortDate(date, lang) : t('date_pick_other')}
                 </button>
@@ -264,7 +264,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
                       key={s}
                       type="button"
                       onClick={() => setSlot(s)}
-                      class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${slot === s ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'}`}
+                      class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${slot === s ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'}`}
                     >
                       {s}
                     </button>
@@ -380,7 +380,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
               return (
                 <div class="flex items-center px-4 py-3 gap-2">
                   <p
-                    class={`flex-1 text-sm font-medium cursor-pointer ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}
+                    class={`flex-1 text-sm font-medium cursor-pointer ${on ? 'text-[#186760]' : 'text-gray-900'}`}
                     onClick={() => setWorkQty(work.id, on ? 0 : 1)}
                   >
                     {work.translations[lang] ?? work.translations['ru'] ?? work.id}
@@ -400,7 +400,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
                         <button
                           type="button"
                           onClick={() => setWorkQty(work.id, qty + 1)}
-                          class="w-6 h-6 rounded-full bg-[#44973A] flex items-center justify-center text-white text-sm font-bold leading-none active:bg-[#2D6126] transition-colors"
+                          class="w-6 h-6 rounded-full bg-[#1F847B] flex items-center justify-center text-white text-sm font-bold leading-none active:bg-[#186760] transition-colors"
                         >
                           +
                         </button>
@@ -452,7 +452,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
             type="button"
             disabled={saving || selectedWorks.length === 0 || (!isAssigned && (!date || !slot))}
             onClick={handleSave}
-            class="w-full bg-[#44973A] disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
+            class="w-full bg-[#1F847B] disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
           >
             {saving
               ? t('edit_order_saving')

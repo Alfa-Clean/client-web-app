@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { User } from '../types'
 import { useLocale } from '../i18n'
+import { Logo } from '../components/Logo'
 
 interface Props {
   onRegistered: (user: User) => void
@@ -60,9 +61,7 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
     <div class="h-screen bg-white flex flex-col px-6">
       {/* Top: wordmark */}
       <div class="flex-1 flex flex-col items-center justify-center gap-2">
-        <p class="text-5xl font-bold tracking-tight" style="color:#44973A">
-          Chaqqon
-        </p>
+        <Logo class="h-12" />
         <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">
           {t('reg_tagline')}
         </p>
@@ -85,7 +84,7 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
             onClick={handleSharePhone}
             disabled={status === 'loading'}
             class="w-full text-white font-semibold py-4 px-6 rounded-2xl transition-colors text-base disabled:opacity-50"
-            style="background:#44973A"
+            style="background:#1F847B"
           >
             {status === 'loading' ? t('reg_loading') : t('reg_share_phone')}
           </button>
@@ -96,14 +95,14 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
               value={manualPhone}
               onInput={e => setManualPhone((e.target as HTMLInputElement).value)}
               placeholder="+998 90 123 45 67"
-              class="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-[#44973A] transition-colors"
+              class="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-[#1F847B] transition-colors"
             />
             <button
               type="button"
               onClick={handleManualSubmit}
               disabled={!manualPhone.trim()}
               class="w-full text-white font-semibold py-4 px-6 rounded-2xl transition-colors disabled:opacity-50"
-              style="background:#44973A"
+              style="background:#1F847B"
             >
               {t('btn_continue')}
             </button>

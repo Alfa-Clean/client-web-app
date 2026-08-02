@@ -69,7 +69,7 @@ export function RatingSheet({ title, onSubmit, onClose }: Props) {
 
         {phase === 'thanks' ? (
           <div class="flex flex-col items-center gap-3 py-6 animate-scale-in">
-            <CheckCircle2 size={48} class="text-green-600" />
+            <CheckCircle2 size={48} class="text-green-800" />
             <p class="text-lg font-semibold text-gray-900">{t('rating_thanks')}</p>
           </div>
         ) : (

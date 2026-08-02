@@ -94,7 +94,7 @@ function AddonRow({ addon, qty, lang, onSetQty, onInfo }: AddonRowProps) {
   return (
     <div class="w-full flex items-center justify-between px-4 py-3 gap-3">
       <div class="flex-1 min-w-0 flex items-center gap-1.5">
-        <span class={`text-sm font-medium truncate ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
+        <span class={`text-sm font-medium truncate ${on ? 'text-[#186760]' : 'text-gray-900'}`}>
           {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
         </span>
         {hasDescription && (
@@ -120,7 +120,7 @@ function AddonRow({ addon, qty, lang, onSetQty, onInfo }: AddonRowProps) {
             <button
               type="button"
               onClick={() => onSetQty(addon.id, qty + 1)}
-              class="w-7 h-7 rounded-full bg-[#44973A] text-white text-base font-light flex items-center justify-center active:opacity-80 transition-colors"
+              class="w-7 h-7 rounded-full bg-[#1F847B] text-white text-base font-light flex items-center justify-center active:opacity-80 transition-colors"
             >+</button>
           </>
         ) : (
@@ -344,7 +344,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
               type="button"
               onClick={() => setInfoAddon(null)}
               class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white"
-              style="background:#44973A"
+              style="background:#1F847B"
             >
               {t('dialog_ok')}
             </button>
@@ -388,7 +388,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
                 type="button"
                 onClick={() => handleDateChip(todayISO)}
                 class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  isToday ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'
+                  isToday ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'
                 }`}
               >
                 {t('today')}
@@ -397,7 +397,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
                 type="button"
                 onClick={() => handleDateChip(tomorrowISO)}
                 class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  isTomorrow ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'
+                  isTomorrow ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'
                 }`}
               >
                 {t('tomorrow')}
@@ -406,7 +406,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
                 type="button"
                 onClick={() => setShowCalendar(true)}
                 class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  isOther ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'
+                  isOther ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'
                 }`}
               >
                 {isOther ? formatShortDate(date, lang) : t('date_pick_other')}
@@ -422,7 +422,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
                     type="button"
                     onClick={() => setSlot(s)}
                     class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      slot === s ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700'
+                      slot === s ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700'
                     }`}
                   >
                     {s}
@@ -444,7 +444,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
               type="button"
               onClick={() => setShowAddressDropdown(v => !v)}
               class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${
-                showAddressDropdown ? 'border-[#44973A]' : 'border-gray-200'
+                showAddressDropdown ? 'border-[#1F847B]' : 'border-gray-200'
               }`}
             >
               <div class="flex-1 min-w-0">
@@ -490,23 +490,23 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
 
         {/* Addons */}
         {hasAddons && (
-          <div class="bg-[#F0F9EE] rounded-2xl border border-[#c8e6c0] overflow-hidden">
+          <div class="bg-[#F3F9F9] rounded-2xl border border-[#BFE8E4] overflow-hidden">
             <button
               type="button"
               onClick={() => setAddonsOpen(v => !v)}
               class="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-[#e4f4df] transition-colors"
             >
               <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-[#2D6126]">{t('edit_order_addons_label')}</span>
+                <span class="text-sm font-medium text-[#186760]">{t('edit_order_addons_label')}</span>
                 {addons.length > 0 && (
-                  <span class="text-xs font-semibold text-white bg-[#44973A] rounded-full w-5 h-5 flex items-center justify-center">
+                  <span class="text-xs font-semibold text-white bg-[#1F847B] rounded-full w-5 h-5 flex items-center justify-center">
                     {addons.length}
                   </span>
                 )}
               </div>
               <svg
                 width="20" height="20" viewBox="0 0 20 20" fill="none"
-                class={`shrink-0 text-[#44973A] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
+                class={`shrink-0 text-[#1F847B] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
               >
                 <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
@@ -514,7 +514,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
 
             <div class={`grid transition-all duration-300 ease-in-out ${addonsOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
               <div class="overflow-hidden">
-                <div class="border-t border-[#c8e6c0] bg-white flex flex-col gap-4 py-4">
+                <div class="border-t border-[#BFE8E4] bg-white flex flex-col gap-4 py-4">
                   {groups.map(({ category, items }) => (
                     <div key={category.id}>
                       <div class="px-4">
@@ -541,7 +541,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
         )}
 
         {/* Comment & attachments */}
-        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#44973A] transition-colors">
+        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#1F847B] transition-colors">
           <textarea
             rows={3}
             placeholder={t('order_comment_placeholder')}
@@ -648,7 +648,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
           type="button"
           disabled={saving || (!isAssigned && (!date || !slot))}
           onClick={handleSave}
-          class="w-full bg-[#44973A] disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
+          class="w-full bg-[#1F847B] disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
         >
           {saving ? t('edit_order_saving') : t('edit_order_save')}
         </button>

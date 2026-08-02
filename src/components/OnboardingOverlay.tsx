@@ -99,7 +99,7 @@ export function OnboardingOverlay({ steps, skipLabel, nextLabel, doneLabel, onFi
             <button
               type="button"
               onClick={handleNext}
-              class="px-4 py-2 rounded-xl bg-[#44973A] text-white text-sm font-semibold active:opacity-90 transition-opacity"
+              class="px-4 py-2 rounded-xl bg-[#1F847B] text-white text-sm font-semibold active:opacity-90 transition-opacity"
             >
               {isLast ? doneLabel : nextLabel}
             </button>

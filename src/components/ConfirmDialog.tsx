@@ -47,7 +47,7 @@ export function ConfirmDialog({
               type="button"
               onClick={onConfirm}
               class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors active:opacity-80"
-              style="background:#44973A"
+              style="background:#1F847B"
             >
               {confirmLabel}
             </button>
@@ -76,7 +76,7 @@ export function ConfirmDialog({
                   : confirmVariant === 'normal'
                   ? 'font-medium text-gray-900 hover:bg-gray-50 active:bg-gray-100'
                   : confirmVariant === 'green'
-                  ? 'font-semibold text-[#44973A] hover:bg-green-50 active:bg-green-100'
+                  ? 'font-semibold text-[#1F847B] hover:bg-green-50 active:bg-green-100'
                   : 'font-semibold text-blue-600 hover:bg-blue-50 active:bg-blue-100'
               }`}
             >

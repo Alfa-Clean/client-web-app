@@ -198,7 +198,7 @@ export function ActiveOrderScreen({
 
         {/* Status hero */}
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div class={`px-5 pt-6 pb-5 ${isDisputed ? 'bg-red-500' : 'bg-green-600'}`}>
+          <div class={`px-5 pt-6 pb-5 ${isDisputed ? 'bg-red-500' : 'bg-green-700'}`}>
             <div class="flex items-center gap-4">
               <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
                 <StatusIcon size={28} class="text-white" />
@@ -238,7 +238,7 @@ export function ActiveOrderScreen({
                     key={s}
                     class={`relative z-10 w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${
                       i < statusIdx  ? 'bg-green-500' :
-                      i === statusIdx ? 'bg-green-600 ring-4 ring-green-100' :
+                      i === statusIdx ? 'bg-green-700 ring-4 ring-green-100' :
                       'bg-gray-200'
                     }`}
                   />
@@ -323,7 +323,7 @@ export function ActiveOrderScreen({
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
           {CHAT_STATUSES.has(order.status) && order.executor_id && order.executor_name && (
             <ActionRow
-              icon={<MessageCircle size={18} class="text-green-600" />}
+              icon={<MessageCircle size={18} class="text-green-800" />}
               label={t('chat_contact_cleaner')}
               onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name!)}
             />
@@ -343,7 +343,7 @@ export function ActiveOrderScreen({
             <button
               type="button"
               onClick={onRepeat}
-              class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
+              class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
             >
               {t('btn_repeat')}
             </button>
@@ -353,7 +353,7 @@ export function ActiveOrderScreen({
               type="button"
               disabled={loading}
               onClick={handleAccept}
-              class="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
+              class="w-full bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white font-semibold py-4 rounded-2xl transition-all active:scale-95 text-sm"
             >
               {t('home_accept_work')}
             </button>

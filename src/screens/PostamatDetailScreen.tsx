@@ -75,8 +75,8 @@ function CellCard({
   let bgClass: string
   let borderClass: string
   if (selected) {
-    bgClass = 'bg-[#44973A]'
-    borderClass = 'border-[#44973A]'
+    bgClass = 'bg-[#1F847B]'
+    borderClass = 'border-[#1F847B]'
   } else if (isFree) {
     bgClass = 'bg-white'
     borderClass = isSelectable ? 'border-gray-300' : 'border-gray-200'
@@ -188,7 +188,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
         {/* Clothes cells */}
         <div class="mb-5">
           <div class="flex items-center gap-2 mb-3">
-            <ClothesIcon color="#44973A" />
+            <ClothesIcon color="#1F847B" />
             <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">{t('postamat_clothes')}</p>
           </div>
           <div class="grid grid-cols-3 gap-2.5">
@@ -207,7 +207,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
         {/* Shoes cells */}
         <div>
           <div class="flex items-center gap-2 mb-3">
-            <ShoesIcon color="#44973A" />
+            <ShoesIcon color="#1F847B" />
             <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">{t('postamat_shoes')}</p>
           </div>
           <div class="grid grid-cols-3 gap-2.5">
@@ -227,11 +227,11 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
       {/* Sticky bottom bar */}
       <div class="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 bg-white border-t border-gray-100">
         {booked ? (
-          <div class="w-full py-4 rounded-2xl bg-[#F0F9EE] flex items-center justify-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#44973A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <div class="w-full py-4 rounded-2xl bg-[#F3F9F9] flex items-center justify-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F847B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            <p class="text-sm font-semibold text-[#44973A]">{t('postamat_reserved')}</p>
+            <p class="text-sm font-semibold text-[#1F847B]">{t('postamat_reserved')}</p>
           </div>
         ) : selecting ? (
           <div class="flex gap-3">
@@ -246,7 +246,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
               type="button"
               onClick={handleConfirm}
               disabled={selectedCells.size === 0}
-              class="flex-[2] py-4 rounded-2xl bg-[#44973A] text-white text-sm font-semibold active:opacity-90 transition-opacity disabled:bg-[#BDE5B6]"
+              class="flex-[2] py-4 rounded-2xl bg-[#1F847B] text-white text-sm font-semibold active:opacity-90 transition-opacity disabled:bg-[#BDE5B6]"
             >
               {t('postamat_confirm_btn')}
             </button>
@@ -255,7 +255,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
           <button
             type="button"
             onClick={() => setSelecting(true)}
-            class="w-full py-4 rounded-2xl bg-[#44973A] text-white text-sm font-semibold active:opacity-90 transition-opacity"
+            class="w-full py-4 rounded-2xl bg-[#1F847B] text-white text-sm font-semibold active:opacity-90 transition-opacity"
           >
             {t('postamat_reserve_btn')}
           </button>

@@ -7,6 +7,7 @@ import { RegistrationScreen } from './screens/RegistrationScreen'
 import { HubScreen } from './screens/HubScreen'
 import { mockConfig, MOCK_ENABLED } from './devMock'
 import type { User } from './types'
+import { Logo } from './components/Logo'
 
 // Dev-симуляция Telegram Mini App: подписанный initData через /__dev/init-data
 // и минимальный мок window.Telegram.WebApp. Конфиг — mock-user.json (см. devMock.ts).
@@ -37,7 +38,7 @@ function NotInTelegram() {
   const { t } = useLocale()
   return (
     <div class="h-screen flex flex-col items-center justify-center gap-3 px-8 text-center">
-      <p class="text-5xl font-bold" style="color:#44973A">Chaqqon</p>
+      <Logo class="h-12" />
       <p class="text-lg font-semibold text-gray-800 mt-4">{t('open_in_telegram')}</p>
       <p class="text-sm text-gray-400">{t('open_in_telegram_hint')}</p>
     </div>

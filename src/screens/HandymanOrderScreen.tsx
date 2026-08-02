@@ -187,7 +187,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
       type="button"
       onClick={onClick}
       class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-        active ? 'bg-[#44973A] text-white' : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+        active ? 'bg-[#1F847B] text-white' : 'bg-gray-100 text-gray-700 active:bg-gray-200'
       }`}
     >
       {label}
@@ -583,7 +583,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
               <div class="flex items-center px-4 py-3.5 gap-2">
                 <div class="flex-1 min-w-0 flex items-center gap-1.5">
                   <p
-                    class={`text-sm font-medium truncate cursor-pointer ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}
+                    class={`text-sm font-medium truncate cursor-pointer ${on ? 'text-[#186760]' : 'text-gray-900'}`}
                     onClick={() => setQty(on ? 0 : 1)}
                   >
                     {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
@@ -613,7 +613,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
                       <button
                         type="button"
                         onClick={() => setQty(qty + 1)}
-                        class="w-6 h-6 rounded-full bg-[#44973A] flex items-center justify-center text-white text-sm font-bold leading-none active:bg-[#2D6126] transition-colors"
+                        class="w-6 h-6 rounded-full bg-[#1F847B] flex items-center justify-center text-white text-sm font-bold leading-none active:bg-[#186760] transition-colors"
                       >
                         +
                       </button>
@@ -662,10 +662,10 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
         <div>
           <SectionLabel>{t('promo_label')}</SectionLabel>
           {promoCode ? (
-            <div class="flex items-center justify-between px-4 py-3 bg-[#F0F9EE] rounded-2xl border-2 border-[#44973A]">
+            <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
               <div>
-                <p class="text-sm font-semibold text-[#2D6126]">{promoCode}</p>
-                <p class="text-xs text-[#44973A] mt-0.5">
+                <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
+                <p class="text-xs text-[#1F847B] mt-0.5">
                   {t('promo_valid', { pct: String(promoDiscountPct) })}
                 </p>
               </div>
@@ -690,7 +690,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
                 onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
                 placeholder={t('promo_placeholder')}
                 class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
-                  promoError ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#44973A]'
+                  promoError ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
                 }`}
               />
               <button
@@ -698,7 +698,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
                 onClick={handleApplyPromo}
                 disabled={!promoInput.trim() || promoValidating}
                 class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
-                style="background:#44973A"
+                style="background:#1F847B"
               >
                 {promoValidating ? t('promo_applying') : t('promo_apply')}
               </button>
@@ -712,7 +712,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
         {/* Комментарий + вложения */}
         <div>
           <SectionLabel>{t('handyman_comment_label')}</SectionLabel>
-          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#44973A] transition-colors">
+          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#1F847B] transition-colors">
             <textarea
               rows={3}
               placeholder={t('handyman_comment_placeholder')}
@@ -810,7 +810,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
               type="button"
               onClick={() => setInfoAddon(null)}
               class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
-              style="background:#44973A"
+              style="background:#1F847B"
             >
               {t('dialog_ok')}
             </button>
@@ -826,7 +826,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
           onClick={handleSubmit}
           disabled={!canSubmit || submitting}
           class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
-          style="background:#44973A"
+          style="background:#1F847B"
         >
           {submitting
             ? t('confirm_submitting')
@@ -860,9 +860,9 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
 function DoneScreen({ onBack, t }: { onBack: () => void; t: TFn }) {
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center gap-5">
-      <div class="w-16 h-16 rounded-full bg-[#F0F9EE] flex items-center justify-center">
+      <div class="w-16 h-16 rounded-full bg-[#F3F9F9] flex items-center justify-center">
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <path d="M5 14l7 7 11-12" stroke="#44973A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M5 14l7 7 11-12" stroke="#1F847B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </div>
       <div>
@@ -872,7 +872,7 @@ function DoneScreen({ onBack, t }: { onBack: () => void; t: TFn }) {
         type="button"
         onClick={onBack}
         class="w-full max-w-xs py-4 rounded-2xl text-sm font-semibold text-white transition-colors"
-        style="background:#44973A"
+        style="background:#1F847B"
       >
         {t('done_home')}
       </button>

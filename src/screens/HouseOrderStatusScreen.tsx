@@ -13,8 +13,8 @@ import { useExitBack } from '../hooks/useExitBack'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
-const BLUE = '#44973A'
-const BLUE_BG = '#F0F9EE'
+const BLUE = '#1F847B'
+const BLUE_BG = '#F3F9F9'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -162,7 +162,7 @@ export function HouseOrderStatusScreen({
               type="button"
               disabled={!counterPrice || loading}
               onClick={handleCounterPrice}
-              class="w-full py-4 rounded-2xl font-semibold text-sm bg-[#44973A] text-white disabled:opacity-40 active:scale-95 transition-all"
+              class="w-full py-4 rounded-2xl font-semibold text-sm bg-[#1F847B] text-white disabled:opacity-40 active:scale-95 transition-all"
             >
               {t('house_counter_price_send')}
             </button>
@@ -464,7 +464,7 @@ function ViewA6({ order, onChat }: { order: Order; onChat: () => void }) {
   const members = order.team_members ?? []
   return (
     <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-      <div class="px-5 pt-5 pb-2" style="background: #44973A">
+      <div class="px-5 pt-5 pb-2" style="background: #1F847B">
         <p class="text-white text-lg font-bold mb-3">{t('house_cleaning_progress')}</p>
         {members.length > 0 && (
           <TeamAvatarRow members={members} />
@@ -635,7 +635,7 @@ function TeamAvatarRow({ members }: { members: Array<{ executor_id: string; name
             <div class="relative">
               <div
                 class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold"
-                style={`background: ${isForeman ? BLUE : '#E0F3DC'}; color: ${isForeman ? 'white' : '#2D6126'}`}
+                style={`background: ${isForeman ? BLUE : '#BFE8E4'}; color: ${isForeman ? 'white' : '#186760'}`}
               >
                 {initials}
               </div>

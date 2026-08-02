@@ -222,7 +222,7 @@ function Chip({
       onClick={onClick}
       class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
         active
-          ? 'bg-[#44973A] text-white'
+          ? 'bg-[#1F847B] text-white'
           : 'bg-gray-100 text-gray-700 active:bg-gray-200'
       }`}
     >
@@ -501,7 +501,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
             type="button"
             onClick={() => setShowAddressDropdown(v => !v)}
             class={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 bg-white text-left transition-colors ${
-              showAddressDropdown ? 'border-[#44973A]' : 'border-gray-200'
+              showAddressDropdown ? 'border-[#1F847B]' : 'border-gray-200'
             }`}
           >
             {draft.address && (
@@ -604,7 +604,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
                 onClick={() => patch({ serviceType: type })}
                 class={`flex-1 relative flex flex-col justify-start py-3 px-4 rounded-2xl border-2 text-left transition-colors ${
                   draft.serviceType === type
-                    ? 'border-[#44973A] bg-[#F0F9EE]'
+                    ? 'border-[#1F847B] bg-[#F3F9F9]'
                     : 'border-gray-200 bg-white'
                 }`}
               >
@@ -619,7 +619,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
                     <circle cx="8" cy="4.5" r="0.75" fill="currentColor"/>
                   </svg>
                 </button>
-                <p class={`text-sm font-semibold pr-5 ${draft.serviceType === type ? 'text-[#2D6126]' : 'text-gray-900'}`}>
+                <p class={`text-sm font-semibold pr-5 ${draft.serviceType === type ? 'text-[#186760]' : 'text-gray-900'}`}>
                   {t(`svc_${type}`)}
                 </p>
                 <p class="text-xs text-gray-400 mt-0.5">{t(`svc_${type}_desc`)}</p>
@@ -697,7 +697,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
 
             return (
               <div class="w-full flex items-center justify-between px-4 py-3 gap-3">
-                <span class={`text-sm font-medium truncate flex-1 min-w-0 ${on ? 'text-[#2D6126]' : 'text-gray-900'}`}>
+                <span class={`text-sm font-medium truncate flex-1 min-w-0 ${on ? 'text-[#186760]' : 'text-gray-900'}`}>
                   {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
                 </span>
                 <div class="flex items-center gap-2 shrink-0">
@@ -726,7 +726,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
                       <button
                         type="button"
                         onClick={() => setQty(qty + 1)}
-                        class="w-7 h-7 rounded-full bg-[#44973A] text-white text-base font-light flex items-center justify-center active:opacity-80 transition-colors"
+                        class="w-7 h-7 rounded-full bg-[#1F847B] text-white text-base font-light flex items-center justify-center active:opacity-80 transition-colors"
                       >
                         +
                       </button>
@@ -751,23 +751,23 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
           return (
             <div class={`grid transition-all duration-300 ease-in-out ${isVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
               <div class="overflow-hidden">
-                <div class="bg-[#F0F9EE] rounded-2xl border border-[#c8e6c0] overflow-hidden">
+                <div class="bg-[#F3F9F9] rounded-2xl border border-[#BFE8E4] overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setAddonsOpen(v => !v)}
                     class="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-[#e4f4df] transition-colors"
                   >
                     <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-[#2D6126]">{t('edit_order_addons_label')}</span>
+                      <span class="text-sm font-medium text-[#186760]">{t('edit_order_addons_label')}</span>
                       {selectedCount > 0 && (
-                        <span class="text-xs font-semibold text-white bg-[#44973A] rounded-full w-5 h-5 flex items-center justify-center">
+                        <span class="text-xs font-semibold text-white bg-[#1F847B] rounded-full w-5 h-5 flex items-center justify-center">
                           {selectedCount}
                         </span>
                       )}
                     </div>
                     <svg
                       width="20" height="20" viewBox="0 0 20 20" fill="none"
-                      class={`shrink-0 text-[#44973A] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
+                      class={`shrink-0 text-[#1F847B] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
                     >
                       <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                     </svg>
@@ -775,7 +775,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
 
                   <div class={`grid transition-all duration-300 ease-in-out ${addonsOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                     <div class="overflow-hidden">
-                      <div class="border-t border-[#c8e6c0] bg-white flex flex-col gap-4 py-4">
+                      <div class="border-t border-[#BFE8E4] bg-white flex flex-col gap-4 py-4">
                         {groups.map(({ category, items }) => (
                           <div key={category.id}>
                             <div class="px-4">
@@ -809,10 +809,10 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         <div>
           <SectionLabel>{t('promo_label')}</SectionLabel>
           {promoCode ? (
-            <div class="flex items-center justify-between px-4 py-3 bg-[#F0F9EE] rounded-2xl border-2 border-[#44973A]">
+            <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
               <div>
-                <p class="text-sm font-semibold text-[#2D6126]">{promoCode}</p>
-                <p class="text-xs text-[#44973A] mt-0.5">
+                <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
+                <p class="text-xs text-[#1F847B] mt-0.5">
                   {t('promo_valid', { pct: String(promoDiscountPct) })}
                 </p>
               </div>
@@ -837,7 +837,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
                 onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
                 placeholder={t('promo_placeholder')}
                 class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
-                  promoError ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#44973A]'
+                  promoError ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
                 }`}
               />
               <button
@@ -845,7 +845,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
                 onClick={handleApplyPromo}
                 disabled={!promoInput.trim() || promoValidating}
                 class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
-                style="background:#44973A"
+                style="background:#1F847B"
               >
                 {promoValidating ? t('promo_applying') : t('promo_apply')}
               </button>
@@ -859,7 +859,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         {/* Комментарии к заказу */}
         <div>
           <SectionLabel>{t('order_comment_label')}</SectionLabel>
-          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#44973A] transition-colors">
+          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#1F847B] transition-colors">
             <textarea
               rows={3}
               placeholder={t('order_comment_placeholder')}
@@ -949,7 +949,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
               type="button"
               onClick={() => setInfoSheet(null)}
               class="w-full py-4 rounded-2xl text-sm font-semibold text-white"
-              style="background:#44973A"
+              style="background:#1F847B"
             >
               {t('dialog_ok')}
             </button>
@@ -977,7 +977,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
               type="button"
               onClick={() => setInfoAddon(null)}
               class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
-              style="background:#44973A"
+              style="background:#1F847B"
             >
               {t('dialog_ok')}
             </button>
@@ -993,7 +993,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
           onClick={handleSubmit}
           disabled={!canSubmit || submitting}
           class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
-          style="background:#44973A"
+          style="background:#1F847B"
         >
           {submitting
             ? t('confirm_submitting')
@@ -1065,9 +1065,9 @@ function DoneScreen({
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <div class="flex-1 overflow-y-auto px-4 py-8 flex flex-col gap-5">
         <div class="flex flex-col items-center text-center gap-3">
-          <div class="w-16 h-16 rounded-full bg-[#F0F9EE] flex items-center justify-center">
+          <div class="w-16 h-16 rounded-full bg-[#F3F9F9] flex items-center justify-center">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <path d="M5 14l7 7 11-12" stroke="#44973A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M5 14l7 7 11-12" stroke="#1F847B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </div>
           <h2 class="text-lg font-bold text-gray-900">{t('done_title')}</h2>
@@ -1121,7 +1121,7 @@ function DoneScreen({
           type="button"
           onClick={onBack}
           class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors"
-          style="background:#44973A"
+          style="background:#1F847B"
         >
           {t('done_home')}
         </button>

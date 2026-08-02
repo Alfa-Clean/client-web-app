@@ -92,9 +92,9 @@ export function CalendarPicker({ availableDates, value, lang, cancelLabel, onSel
                 onClick={() => { onSelect(iso); onClose() }}
                 class={`aspect-square flex items-center justify-center rounded-xl text-xl transition-colors ${
                   selected
-                    ? 'bg-[#44973A] text-white font-semibold'
+                    ? 'bg-[#1F847B] text-white font-semibold'
                     : available
-                      ? 'text-gray-900 hover:bg-[#F0F9EE] font-medium'
+                      ? 'text-gray-900 hover:bg-[#F3F9F9] font-medium'
                       : 'text-gray-200'
                 }`}
               >

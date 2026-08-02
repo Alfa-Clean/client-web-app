@@ -61,8 +61,8 @@ export function SupportScreen({ onBack, onOpenChat }: Props) {
             onClick={onOpenChat}
             class="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-gray-50 transition-colors"
           >
-            <div class="w-8 h-8 rounded-xl bg-[#F0F9EE] flex items-center justify-center shrink-0">
-              <MessageCircle size={16} class="text-[#44973A]" />
+            <div class="w-8 h-8 rounded-xl bg-[#F3F9F9] flex items-center justify-center shrink-0">
+              <MessageCircle size={16} class="text-[#1F847B]" />
             </div>
             <span class="flex-1 text-sm font-medium text-gray-900">{t('support_open_chat')}</span>
             <ChevronRight size={16} class="text-gray-300 shrink-0" />

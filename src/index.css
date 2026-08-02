@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* Бренд chaqqon!: шкала green-N переопределена на бирюзовую, поэтому все
+   существующие утилиты bg-green-N и text-green-N дают teal.
+   Базовый цвет бренда — #2EC4B6 (green-500), для белого текста — green-700. */
+@theme {
+  --color-green-50:  #F3F9F9;
+  --color-green-100: #E4F2F0;
+  --color-green-200: #BFE8E4;
+  --color-green-300: #8BE4DC;
+  --color-green-400: #62DACF;
+  --color-green-500: #2EC4B6;
+  --color-green-600: #27A599;
+  --color-green-700: #1F847B;
+  --color-green-800: #186760;
+  --color-green-900: #114A45;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -99,6 +115,6 @@ body {
   --color-blue-500: #2f91ff;
   --color-blue-600: #0a84ff;
   --color-blue-700: #0071e3;
-  --color-green-100: #1a3a2a;
+  --color-green-100: #12312E;
   --color-red-500: #ff453a;
 }

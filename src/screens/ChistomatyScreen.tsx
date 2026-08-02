@@ -28,7 +28,7 @@ const MOCK_POSTAMATS: (Postamat & { free: boolean })[] = [
 const PIN_HTML = `
   <div style="
     width:28px;height:28px;
-    background:#44973A;
+    background:#1F847B;
     border-radius:50% 50% 50% 0;
     transform:rotate(-45deg);
     border:3px solid white;
@@ -102,8 +102,8 @@ function PostamatItem({ postamat, onClick }: { postamat: Postamat; onClick: () =
       onClick={onClick}
       class="flex items-center gap-3 px-4 py-3.5 bg-gray-50 rounded-2xl active:bg-gray-100 transition-colors text-left w-full"
     >
-      <div class="w-10 h-10 rounded-xl bg-[#F0F9EE] flex items-center justify-center shrink-0">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#44973A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="w-10 h-10 rounded-xl bg-[#F3F9F9] flex items-center justify-center shrink-0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F847B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <path d="M9 3v18" />
           <path d="M3 9h6" />
@@ -112,9 +112,9 @@ function PostamatItem({ postamat, onClick }: { postamat: Postamat; onClick: () =
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-gray-900 truncate">{postamat.address}</p>
-        <p class="text-xs mt-0.5 font-medium text-[#44973A]">{t('chistomaty_free_label')}</p>
+        <p class="text-xs mt-0.5 font-medium text-[#1F847B]">{t('chistomaty_free_label')}</p>
       </div>
-      <span class="text-xs font-semibold text-[#44973A] shrink-0">{postamat.distance}</span>
+      <span class="text-xs font-semibold text-[#1F847B] shrink-0">{postamat.distance}</span>
     </button>
   )
 }

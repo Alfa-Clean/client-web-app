@@ -9,10 +9,10 @@ import { useExitBack } from '../hooks/useExitBack'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
-const GREEN = '#44973A'
-const GREEN_BG = '#F0F9EE'
-const GREEN_LIGHT = '#E0F3DC'
-const GREEN_DARK = '#2D6126'
+const GREEN = '#1F847B'
+const GREEN_BG = '#F3F9F9'
+const GREEN_LIGHT = '#BFE8E4'
+const GREEN_DARK = '#186760'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -199,7 +199,7 @@ function B1_Assessment({ order, loading, onSubmitPrice }: StatusViewProps) {
         {/* Price input */}
         <div class="flex flex-col gap-1.5">
           <label class="text-xs font-medium text-gray-600">{t('brigadier_price_label')}</label>
-          <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-[#44973A] transition-colors">
+          <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-[#1F847B] transition-colors">
             <input
               type="number"
               inputMode="numeric"
@@ -220,7 +220,7 @@ function B1_Assessment({ order, loading, onSubmitPrice }: StatusViewProps) {
             onInput={e => setScope((e.target as HTMLTextAreaElement).value)}
             placeholder={t('brigadier_scope_placeholder')}
             rows={3}
-            class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-300 outline-none resize-none focus:border-[#44973A] transition-colors"
+            class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-300 outline-none resize-none focus:border-[#1F847B] transition-colors"
           />
         </div>
       </div>
@@ -315,7 +315,7 @@ function B3_PriceRejected({ order, loading, onRevisePrice, onChat }: StatusViewP
 
       {/* New price form */}
       <div class="bg-white rounded-2xl border border-gray-100 px-4 py-4 flex flex-col gap-3">
-        <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-[#44973A] transition-colors">
+        <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-[#1F847B] transition-colors">
           <input
             type="number"
             inputMode="numeric"
@@ -331,7 +331,7 @@ function B3_PriceRejected({ order, loading, onRevisePrice, onChat }: StatusViewP
           onInput={e => setScope((e.target as HTMLTextAreaElement).value)}
           placeholder={t('brigadier_scope_placeholder')}
           rows={2}
-          class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-300 outline-none resize-none focus:border-[#44973A] transition-colors"
+          class="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-300 outline-none resize-none focus:border-[#1F847B] transition-colors"
         />
       </div>
 

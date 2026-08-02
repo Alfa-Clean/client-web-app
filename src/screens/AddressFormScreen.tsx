@@ -173,7 +173,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
                   onClick={() => setForm(prev => ({ ...prev, housing_type: prev.housing_type === id ? undefined : id }))}
                   class={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium border-2 transition-colors ${
                     active
-                      ? 'border-[#44973A] bg-[#F0F9EE] text-[#2D6126]'
+                      ? 'border-[#1F847B] bg-[#F3F9F9] text-[#186760]'
                       : 'border-gray-200 bg-white text-gray-700'
                   }`}
                 >
@@ -267,7 +267,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
           disabled={loading}
           onClick={e => handleSubmit(e as unknown as Event)}
           class="w-full disabled:opacity-40 text-white font-medium py-3.5 rounded-xl transition-colors"
-          style="background:#44973A"
+          style="background:#1F847B"
         >
           {loading ? t('btn_saving') : isEdit ? t('btn_save') : t('btn_add')}
         </button>
