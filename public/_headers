@@ -1,0 +1,19 @@
+# Собранные Vite ассеты содержат хеш контента в имени — при изменении файла
+# меняется URL, поэтому кешируем навсегда.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Статика из public/ с постоянными именами: держим в кеше сутки, дальше
+# отдаём устаревшую копию и обновляем в фоне.
+/*.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/*.webp
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/*.svg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/telegram-web-app.js
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# HTML всегда свежий, иначе клиенты застрянут на старой сборке.
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

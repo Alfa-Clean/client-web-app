@@ -57,6 +57,8 @@ interface Props {
   onRepeat?: () => void
   /** Уведомляет родителя об изменении заказа на месте (например, после открытия спора). */
   onOrderUpdated?: (order: Order) => void
+  /** Есть непрочитанные сообщения в чате заказа — красная точка у кнопки чата. */
+  hasUnread?: boolean
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -72,6 +74,7 @@ export function ActiveOrderScreen({
   onEditClick,
   onRepeat,
   onOrderUpdated,
+  hasUnread = false,
 }: Props) {
   const { t, lang } = useLocale()
   const { exiting, handleBack } = useExitBack(onBack)
@@ -325,6 +328,7 @@ export function ActiveOrderScreen({
             <ActionRow
               icon={<MessageCircle size={18} class="text-green-800" />}
               label={t('chat_contact_cleaner')}
+              dot={hasUnread}
               onClick={() => onChatClick(order.id, order.executor_id ?? null, order.executor_name!)}
             />
           )}
@@ -411,7 +415,7 @@ function DetailRow({ icon, label, value }: { icon: JSX.Element; label: string; v
   )
 }
 
-function ActionRow({ icon, label, onClick }: { icon: JSX.Element; label: string; onClick: () => void }) {
+function ActionRow({ icon, label, onClick, dot = false }: { icon: JSX.Element; label: string; onClick: () => void; dot?: boolean }) {
   return (
     <button
       type="button"
@@ -420,6 +424,7 @@ function ActionRow({ icon, label, onClick }: { icon: JSX.Element; label: string;
     >
       <span class="shrink-0">{icon}</span>
       <p class="flex-1 text-sm font-medium text-gray-900">{label}</p>
+      {dot && <span class="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />}
       <ChevronRight size={15} class="text-gray-300 shrink-0" />
     </button>
   )

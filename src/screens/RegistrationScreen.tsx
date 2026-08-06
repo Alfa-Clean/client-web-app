@@ -2,9 +2,10 @@ import { useState } from 'preact/hooks'
 import type { User } from '../types'
 import { useLocale } from '../i18n'
 import { Logo } from '../components/Logo'
+import { Spinner } from '../components/Spinner'
 
 interface Props {
-  onRegistered: (user: User) => void
+  onRegistered: (user: User) => void | Promise<void>
   devTelegramId?: number
 }
 
@@ -32,6 +33,17 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
     }
   }
 
+  // Держим 'loading' до размонтирования экрана: регистрация может занять
+  // заметное время, кнопка не должна «отпускаться» раньше.
+  async function submit(phone: string) {
+    setStatus('loading')
+    try {
+      await onRegistered(buildUser(phone))
+    } catch {
+      setStatus('error')
+    }
+  }
+
   function handleSharePhone() {
     try {
       setStatus('loading')
@@ -41,7 +53,7 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
           setShowManual(true)
           return
         }
-        onRegistered(buildUser(response.responseUnsafe.contact.phone_number))
+        submit(response.responseUnsafe.contact.phone_number)
       })
     } catch {
       setStatus('idle')
@@ -52,7 +64,7 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
   function handleManualSubmit() {
     const phone = manualPhone.trim()
     if (!phone) return
-    onRegistered(buildUser(phone))
+    submit(phone)
   }
 
   const firstName = tgUser?.first_name
@@ -83,9 +95,10 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
             type="button"
             onClick={handleSharePhone}
             disabled={status === 'loading'}
-            class="w-full text-white font-semibold py-4 px-6 rounded-2xl transition-colors text-base disabled:opacity-50"
+            class="w-full flex items-center justify-center gap-2 text-white font-semibold py-4 px-6 rounded-2xl transition-colors text-base disabled:opacity-50"
             style="background:#1F847B"
           >
+            {status === 'loading' && <Spinner size={18} class="border-white" />}
             {status === 'loading' ? t('reg_loading') : t('reg_share_phone')}
           </button>
         ) : (
@@ -100,11 +113,12 @@ export function RegistrationScreen({ onRegistered, devTelegramId = 0 }: Props) {
             <button
               type="button"
               onClick={handleManualSubmit}
-              disabled={!manualPhone.trim()}
-              class="w-full text-white font-semibold py-4 px-6 rounded-2xl transition-colors disabled:opacity-50"
+              disabled={!manualPhone.trim() || status === 'loading'}
+              class="w-full flex items-center justify-center gap-2 text-white font-semibold py-4 px-6 rounded-2xl transition-colors disabled:opacity-50"
               style="background:#1F847B"
             >
-              {t('btn_continue')}
+              {status === 'loading' && <Spinner size={18} class="border-white" />}
+              {status === 'loading' ? t('reg_loading') : t('btn_continue')}
             </button>
             <button
               type="button"

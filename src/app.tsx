@@ -11,24 +11,32 @@ import { Logo } from './components/Logo'
 
 // Dev-симуляция Telegram Mini App: подписанный initData через /__dev/init-data
 // и минимальный мок window.Telegram.WebApp. Конфиг — mock-user.json (см. devMock.ts).
-if (MOCK_ENABLED && !(window as any).Telegram) {
-  ;(window as any).Telegram = {
-    WebApp: {
-      initData: '',
-      initDataUnsafe: {
-        user: {
-          id: mockConfig.telegram_id,
-          first_name: mockConfig.first_name,
-          last_name: mockConfig.last_name,
-          username: mockConfig.username,
-          language_code: mockConfig.language_code,
-          photo_url: mockConfig.photo_url || undefined,
-        },
-        start_param: mockConfig.start_param || '',
-      },
-      ready() {},
-      expand() {},
+if (MOCK_ENABLED) {
+  const mockInitDataUnsafe = {
+    user: {
+      id: mockConfig.telegram_id,
+      first_name: mockConfig.first_name,
+      last_name: mockConfig.last_name,
+      username: mockConfig.username,
+      language_code: mockConfig.language_code,
+      photo_url: mockConfig.photo_url || undefined,
     },
+    start_param: mockConfig.start_param || '',
+  }
+
+  const existing = (window as any).Telegram?.WebApp
+  if (!existing) {
+    ;(window as any).Telegram = {
+      WebApp: { initData: '', initDataUnsafe: mockInitDataUnsafe, ready() {}, expand() {} },
+    }
+  } else if (!existing.initDataUnsafe?.user?.id) {
+    // Подключён настоящий telegram-web-app.js, но вне Telegram он отдаёт пустой
+    // initDataUnsafe — дописываем мокового пользователя, иначе профиль пуст.
+    try {
+      existing.initDataUnsafe = mockInitDataUnsafe
+    } catch {
+      // read-only — игнорируем, авторизация всё равно идёт через подписанный initData
+    }
   }
 }
 

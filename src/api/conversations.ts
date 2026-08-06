@@ -37,6 +37,38 @@ export interface ConversationMessagesResponse {
   items: ConversationMessage[]
 }
 
+export interface UnreadEntry {
+  conversation_id: string
+  context_type: ContextType
+  context_id: string
+  unread_count: number
+  last_message_at: string
+}
+
+export interface UnreadSummary {
+  total: number
+  items: UnreadEntry[]
+}
+
+/** Непрочитанные по всем диалогам клиента: заказы, споры, поддержка. */
+export function getUnreadSummary(): Promise<UnreadSummary> {
+  return apiFetch<UnreadSummary>('/conversations/unread')
+}
+
+/**
+ * Двигает курсор прочтения до `messageId` включительно. Курсор на сервере
+ * монотонный, поэтому повторный вызов со старым id безвреден.
+ */
+export function markConversationRead(
+  conversationId: string,
+  messageId: string,
+): Promise<{ unread_count: number }> {
+  return apiFetch<{ unread_count: number }>(`/conversations/${conversationId}/read`, {
+    method: 'POST',
+    body: JSON.stringify({ message_id: messageId }),
+  })
+}
+
 export function getOrCreateConversation(
   contextType: ContextType,
   contextId: string,

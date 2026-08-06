@@ -7,6 +7,7 @@ import {
   getConversationMessages,
   sendConversationMessage,
   sendConversationMedia,
+  markConversationRead,
 } from "../api/conversations";
 import { ApiError, clearToken } from "../api/client";
 import { refreshTelegramLogin } from "../api/auth";
@@ -65,8 +66,26 @@ export function ChatScreen({
   const startOffsetRef = useRef(0);
   const firstLoad = useRef(true);
   const convIdRef = useRef<string | null>(null);
+  const lastReadSentRef = useRef<string | null>(null);
 
   const isSupport = contextType === "support";
+
+  /**
+   * Двигает серверный курсор прочтения до последнего чужого сообщения.
+   * Экран открыт — значит сообщения увидены; сервер сам не откатывает курсор
+   * назад, поэтому повторные вызовы безопасны.
+   */
+  async function syncRead(convId: string, msgs: ConversationMessage[]) {
+    const lastForeign = [...msgs].reverse().find((m) => m.sender_type !== "client");
+    if (!lastForeign || lastReadSentRef.current === lastForeign.id) return;
+    lastReadSentRef.current = lastForeign.id;
+    try {
+      await markConversationRead(convId, lastForeign.id);
+    } catch {
+      // не критично: следующий поллинг/открытие повторит отметку
+      lastReadSentRef.current = null;
+    }
+  }
 
   async function openConversation() {
     return isSupport
@@ -121,6 +140,7 @@ export function ChatScreen({
       startOffsetRef.current = startOffset;
       setHasMore(startOffset > 0);
       setError(null);
+      syncRead(convId, res.items);
     } catch {
       setError(t("chat_load_error"));
     } finally {
@@ -134,6 +154,7 @@ export function ChatScreen({
       if (res.items.length > 0) {
         setMessages((prev) => [...prev, ...res.items]);
         serverTotalRef.current = res.total;
+        syncRead(convId, res.items);
       }
     } catch {
       // silent

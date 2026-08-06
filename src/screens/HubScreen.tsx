@@ -17,7 +17,13 @@ import { updateLanguage } from '../api/clients'
 import { BottomSheet } from '../components/BottomSheet'
 import { OnboardingOverlay } from '../components/OnboardingOverlay'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { Spinner } from '../components/Spinner'
+// Плитки услуг импортируются, а не берутся из public/: Vite добавляет хеш
+// к имени файла, и Cloudflare отдаёт их с immutable-кешем (см. public/_headers).
+import cleaningTile from '../assets/service_tiles/cleaning.png'
+import handymanTile from '../assets/service_tiles/handyman.png'
 import { useConfirm } from '../hooks/useConfirm'
+import { useUnread } from '../hooks/useUnread'
 import { AddressFormScreen } from './AddressFormScreen'
 import { OrderScreen } from './OrderScreen'
 import { HandymanOrderScreen } from './HandymanOrderScreen'
@@ -78,7 +84,21 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
 
 // ─── Active Order Banner ──────────────────────────────────────────────────────
 
-export function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: () => void }) {
+/** Красный кружок с «!» — в заказе есть непрочитанное сообщение от исполнителя. */
+function UnreadBadge({ class: className = '' }: { class?: string }) {
+  const { t } = useLocale()
+  return (
+    <span
+      role="status"
+      aria-label={t('unread_messages_hint')}
+      class={`w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shrink-0 ${className}`}
+    >
+      <span class="text-white text-xs font-bold leading-none">!</span>
+    </span>
+  )
+}
+
+export function ActiveOrderBanner({ order, onClick, hasUnread = false }: { order: Order; onClick: () => void; hasUnread?: boolean }) {
   const { t } = useLocale()
   const label = STATUS_LABEL_KEYS[order.status] ? t(STATUS_LABEL_KEYS[order.status]) : t('home_active_order_fallback')
   const isDisputed = order.status === 'disputed'
@@ -106,6 +126,7 @@ export function ActiveOrderBanner({ order, onClick }: { order: Order; onClick: (
         <p class="text-white font-bold text-sm leading-tight">{label}</p>
         <p class="text-white/70 text-xs truncate mt-0.5">{order.address}</p>
       </div>
+      {hasUnread && <UnreadBadge />}
       <span class="text-white/60 text-xl leading-none shrink-0">›</span>
     </button>
   )
@@ -147,7 +168,7 @@ const HANDYMAN_STATUS_LABEL_KEYS: Record<string, string> = {
   disputed:              'handyman_status_disputed',
 }
 
-export function HandymanOrderBanner({ order, onClick }: { order: HandymanOrder; onClick: () => void }) {
+export function HandymanOrderBanner({ order, onClick, hasUnread = false }: { order: HandymanOrder; onClick: () => void; hasUnread?: boolean }) {
   const { t } = useLocale()
   const label = HANDYMAN_STATUS_LABEL_KEYS[order.status] ? t(HANDYMAN_STATUS_LABEL_KEYS[order.status]) : t('home_active_order_fallback')
   const isDisputed = order.status === 'disputed'
@@ -175,6 +196,7 @@ export function HandymanOrderBanner({ order, onClick }: { order: HandymanOrder; 
         <p class="text-white font-bold text-sm leading-tight">{label}</p>
         <p class="text-white/70 text-xs truncate mt-0.5">{order.address}</p>
       </div>
+      {hasUnread && <UnreadBadge />}
       <span class="text-white/60 text-xl leading-none shrink-0">›</span>
     </button>
   )
@@ -192,7 +214,7 @@ function pluralOrders(n: number, t: TFunc, lang: Lang): string {
   return t('active_orders_count_few', { n })
 }
 
-function CombinedOrdersBanner({ count, onClick }: { count: number; onClick: () => void }) {
+function CombinedOrdersBanner({ count, onClick, hasUnread = false }: { count: number; onClick: () => void; hasUnread?: boolean }) {
   const { t, lang } = useLocale()
   return (
     <button
@@ -207,6 +229,7 @@ function CombinedOrdersBanner({ count, onClick }: { count: number; onClick: () =
         <p class="text-white font-bold text-sm leading-tight">{pluralOrders(count, t, lang)}</p>
         <p class="text-white/60 text-xs mt-0.5">{t('hub_tap_to_view_all')}</p>
       </div>
+      {hasUnread && <UnreadBadge />}
       <span class="text-white/60 text-xl leading-none shrink-0">›</span>
     </button>
   )
@@ -325,7 +348,16 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
   const [theme, setThemeState] = useState(getTheme())
   const [addresses, setAddresses] = useState<Address[]>([])
   const [addressSheet, setAddressSheet] = useState<null | 'new' | Address>(null)
+  const [loggingOut, setLoggingOut] = useState(false)
   const { confirm, dialogProps } = useConfirm()
+
+  // Основной источник — Telegram (всегда актуален), бэкенд как fallback:
+  // в БД имя может быть пустым (клиент заведён ботом или только по телефону).
+  const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
+  const firstName: string = tgUser?.first_name || user.first_name || ''
+  const lastName: string = tgUser?.last_name || user.last_name || ''
+  const username: string | undefined = tgUser?.username || user.username
+  const displayName = [firstName, lastName].filter(Boolean).join(' ')
 
   useEffect(() => {
     getAddresses(user.telegram_id).then(setAddresses).catch(() => {})
@@ -360,6 +392,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
       confirmLabel: t('menu_logout'),
     })
     if (!ok) return
+    setLoggingOut(true)
     clearAllUserData()
     window.location.reload()
   }
@@ -398,12 +431,15 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
         {/* User info */}
         <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100 flex items-center gap-4">
           <ProfileAvatar
-            firstName={user.first_name}
-            lastName={user.last_name}
-            photoUrl={(window as any).Telegram?.WebApp?.initDataUnsafe?.user?.photo_url}
+            firstName={firstName}
+            lastName={lastName}
+            photoUrl={tgUser?.photo_url}
           />
           <div class="flex-1 min-w-0">
-            <p class="text-base font-semibold text-gray-900 truncate">{user.first_name}{user.last_name ? ` ${user.last_name}` : ''}</p>
+            {displayName
+              ? <p class="text-base font-semibold text-gray-900 truncate">{displayName}</p>
+              : <p class="text-base font-semibold text-gray-300 truncate">{t('profile_no_name')}</p>}
+            {username && <p class="text-sm text-gray-400 truncate mt-0.5">@{username}</p>}
             {user.phone
               ? <p class="text-sm text-gray-400 mt-0.5">{user.phone}</p>
               : <p class="text-sm text-gray-300 mt-0.5">{t('profile_no_phone')}</p>}
@@ -552,8 +588,10 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
         <button
           type="button"
           onClick={handleLogout}
-          class="w-full border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-red-50"
+          disabled={loggingOut}
+          class="w-full flex items-center justify-center gap-2 border-2 border-red-400 text-red-500 font-medium py-3.5 rounded-2xl transition-all active:scale-95 text-sm hover:bg-red-50 disabled:opacity-60 disabled:active:scale-100"
         >
+          {loggingOut && <Spinner size={16} />}
           {t('menu_logout')}
         </button>
       </div>
@@ -625,6 +663,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
   const [addressGateFor, setAddressGateFor] = useState<'cleaning' | 'handyman' | null>(null)
   const [gateCreatedAddress, setGateCreatedAddress] = useState<Address | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const { byContext: unreadByOrder, clearFor: clearUnread, refresh: refreshUnread } = useUnread()
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const deepLinkHandled = useRef(false)
@@ -635,6 +674,12 @@ export function HubScreen({ user, startParam = '' }: Props) {
   useEffect(() => {
     if (view === 'hub' && !hasSeenOnboarding('hub')) setShowOnboarding(true)
   }, [view])
+
+  // Открытый чат = сообщения увидены. Серверную отметку шлёт ChatScreen, здесь
+  // гасим бейдж локально, чтобы он не висел до следующего опроса.
+  useEffect(() => {
+    if (typeof view === 'object' && view.name === 'chat') clearUnread(view.orderId)
+  }, [view, clearUnread])
 
   function finishOnboarding() {
     markOnboardingSeen('hub')
@@ -754,6 +799,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
   }
 
   if (typeof view === 'object' && view.name === 'chat') {
+    const chatView = view
     return (
       <ChatScreen
         orderId={view.orderId}
@@ -761,7 +807,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
         executorId={view.executorId}
         executorName={view.executorName}
         senderId={view.senderId}
-        onBack={() => setView(view.backView)}
+        onBack={() => { refreshUnread(); setView(chatView.backView) }}
       />
     )
   }
@@ -847,6 +893,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
       <ActiveOrderScreen
         order={focusedOrder}
         senderId={String(user.telegram_id)}
+        hasUnread={!!unreadByOrder[focusedOrder.id]}
         onBack={backToHub}
         onChatClick={(orderId, executorId, executorName) => setView(focusedOrder.status === 'disputed' ? {
           name: 'chat',
@@ -944,6 +991,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
       <ActiveHandymanOrderScreen
         order={focusedHandymanOrder}
         senderId={String(user.telegram_id)}
+        hasUnread={!!unreadByOrder[focusedHandymanOrder.id]}
         onBack={backToHub}
         onChatClick={(orderId, executorId, executorName) => setView(focusedHandymanOrder.status === 'disputed' ? {
           name: 'chat',
@@ -1047,11 +1095,14 @@ export function HubScreen({ user, startParam = '' }: Props) {
 
   function renderBanner(entry: ActiveOrderEntry, onClick: (v: View) => void) {
     switch (entry.type) {
-      case 'cleaning':   return <ActiveOrderBanner    key={entry.order.id} order={entry.order} onClick={() => { setDetailFromHistory(false); setFocusedOrder(entry.order); onClick('active_order') }} />
+      case 'cleaning':   return <ActiveOrderBanner    key={entry.order.id} order={entry.order} hasUnread={!!unreadByOrder[entry.order.id]} onClick={() => { setDetailFromHistory(false); setFocusedOrder(entry.order); onClick('active_order') }} />
       case 'chistomaty': return <ChistomatyOrderBanner key={entry.order.id} order={entry.order} onClick={() => onClick('active_chistomaty')} />
-      case 'handyman':   return <HandymanOrderBanner   key={entry.order.id} order={entry.order} onClick={() => { setDetailFromHistory(false); setFocusedHandymanOrder(entry.order); onClick('active_handyman') }} />
+      case 'handyman':   return <HandymanOrderBanner   key={entry.order.id} order={entry.order} hasUnread={!!unreadByOrder[entry.order.id]} onClick={() => { setDetailFromHistory(false); setFocusedHandymanOrder(entry.order); onClick('active_handyman') }} />
     }
   }
+
+  /** Есть ли непрочитанное хоть в одном из активных заказов — для схлопнутого баннера. */
+  const hasUnreadInActive = activeEntries.some(e => !!unreadByOrder[e.order.id])
 
   return (
     <div class="min-h-screen bg-white flex flex-col">
@@ -1074,7 +1125,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
 
       {/* Active order banners */}
       {activeEntries.length > 2
-        ? <CombinedOrdersBanner count={activeEntries.length} onClick={() => setShowActiveSheet(true)} />
+        ? <CombinedOrdersBanner count={activeEntries.length} hasUnread={hasUnreadInActive} onClick={() => setShowActiveSheet(true)} />
         : activeEntries.map(e => renderBanner(e, setView))
       }
 
@@ -1087,7 +1138,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
             onClick={() => { setRepeatCleaning(null); addresses.length === 0 ? setAddressGateFor('cleaning') : setView('cleaning') }}
             class="flex-1 relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
           >
-            <img src="/service_tiles/cleaning.png" alt={t('onboarding_cleaning_title')} class="w-full h-full object-contain" />
+            <img src={cleaningTile} alt={t('onboarding_cleaning_title')} class="w-full h-full object-contain" />
             <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">{t('onboarding_cleaning_title')}</p>
           </button>
 
@@ -1097,17 +1148,18 @@ export function HubScreen({ user, startParam = '' }: Props) {
             onClick={() => { setRepeatHandyman(null); addresses.length === 0 ? setAddressGateFor('handyman') : setView('handyman') }}
             class="flex-1 relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
           >
-            <img src="/service_tiles/handyman.png" alt={t('onboarding_handyman_title')} class="w-full h-full object-contain" />
+            <img src={handymanTile} alt={t('onboarding_handyman_title')} class="w-full h-full object-contain" />
             <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">{t('onboarding_handyman_title')}</p>
           </button>
 
-          {/* Временно скрыто по просьбе заказчика
+          {/* Временно скрыто по просьбе заказчика.
+              При возврате: import chistomatyTile from '../assets/service_tiles/chistomaty.png'
           <button
             type="button"
             onClick={() => setView('chistomaty')}
             class="flex-1 relative aspect-square bg-white rounded-3xl border border-gray-100 shadow-sm p-2 flex items-center justify-center active:scale-[0.97] transition-transform"
           >
-            <img src="/service_tiles/chistomaty.png" alt="Чистоматы" class="w-full h-full object-contain" />
+            <img src={chistomatyTile} alt="Чистоматы" class="w-full h-full object-contain" />
             <p class="absolute bottom-0 left-0 right-0 text-sm font-semibold text-gray-900 text-center">Чистоматы</p>
           </button>
           */}
