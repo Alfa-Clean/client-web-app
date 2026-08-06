@@ -29,8 +29,16 @@ export interface AddonCategory {
 
 export interface HandymanWorkCategory {
   id: string
+  parent_id: string | null
   translations: Record<string, string>
   sort_order: number
+  has_children: boolean
+  works_count: number
+}
+
+/** Узел дерева разделов — ответ `?tree=true`, children есть только в этой форме. */
+export interface HandymanWorkCategoryNode extends HandymanWorkCategory {
+  children: HandymanWorkCategoryNode[]
 }
 
 export function addonLabel(addon: Addon, lang: string): string {
@@ -49,6 +57,7 @@ export function getHandymanWorks(): Promise<HandymanWork[]> {
   return apiFetch<HandymanWork[]>('/handyman/works?is_active=true')
 }
 
-export function getHandymanWorkCategories(): Promise<HandymanWorkCategory[]> {
-  return apiFetch<HandymanWorkCategory[]>('/handyman/work-categories')
+/** Дерево разделов целиком: корни с рекурсивным children. Клиенту хватает одного запроса. */
+export function getHandymanWorkCategoryTree(): Promise<HandymanWorkCategoryNode[]> {
+  return apiFetch<HandymanWorkCategoryNode[]>('/handyman/work-categories?tree=true')
 }

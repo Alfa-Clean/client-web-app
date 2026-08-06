@@ -1,12 +1,11 @@
-import { Info } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { PromoInvalidReason } from '../api/promos'
 import { validatePromo } from '../api/promos'
 import type { User } from '../types'
 import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
-import type { HandymanWork, HandymanWorkCategory } from '../api/addons'
-import { getHandymanWorks, getHandymanWorkCategories } from '../api/addons'
+import type { HandymanWork, HandymanWorkCategoryNode } from '../api/addons'
+import { getHandymanWorks, getHandymanWorkCategoryTree } from '../api/addons'
 import { createHandymanOrder } from '../api/orders'
 import type { HandymanOrder, WorkItem } from '../api/orders'
 import { uploadOrderAttachment } from '../api/attachments'
@@ -18,6 +17,7 @@ import { AddressOption } from '../components/AddressOption'
 import { OnboardingOverlay } from '../components/OnboardingOverlay'
 import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
+import { WorkPickerSheet, SelectedWorksList } from '../components/WorkPickerSheet'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,13 +213,13 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
     () => repeatFrom ? draftFromOrder(repeatFrom) : initialAddress ? draftFromAddress(initialAddress) : (loadSavedDraft() ?? EMPTY_DRAFT),
   )
   const [addons, setHandymanWorks] = useState<HandymanWork[]>([])
-  const [workCategories, setWorkCategories] = useState<HandymanWorkCategory[]>([])
+  const [workTree, setWorkTree] = useState<HandymanWorkCategoryNode[]>([])
+  const [showWorkPicker, setShowWorkPicker] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showAddressSheet, setShowAddressSheet] = useState(false)
-  const [infoAddon, setInfoAddon] = useState<HandymanWork | null>(null)
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
   const [done, setDone] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
@@ -252,7 +252,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
       // иначе таргет для соответствующего шага онбординга ещё не смонтирован.
       if (!hasSeenOnboarding('handyman')) setShowOnboarding(true)
     })
-    getHandymanWorkCategories().catch(() => []).then(c => setWorkCategories(Array.isArray(c) ? c : []))
+    getHandymanWorkCategoryTree().catch(() => []).then(c => setWorkTree(Array.isArray(c) ? c : []))
     getAddresses(user.telegram_id).catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
 
@@ -558,105 +558,23 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
         </div>
 
         {/* Работы */}
-        {addons.length > 0 && (() => {
-          const uncategorized = addons.filter(a => !a.category_id)
-          const groups: Array<{ category: HandymanWorkCategory; items: HandymanWork[] }> = workCategories
-            .map(cat => ({ category: cat, items: addons.filter(a => a.category_id === cat.id) }))
-            .filter(g => g.items.length > 0)
-
-          function WorkRow({ addon }: { addon: HandymanWork }) {
-            const qty = draft.works.find(w => w.id === addon.id)?.qty ?? 0
-            const on = qty > 0
-            const hasDesc = !!(addon.description_translations[lang] ?? addon.description_translations['ru'])
-
-            function setQty(newQty: number) {
-              if (newQty <= 0) {
-                patch({ works: draft.works.filter(w => w.id !== addon.id) })
-              } else if (on) {
-                patch({ works: draft.works.map(w => w.id === addon.id ? { ...w, qty: newQty } : w) })
-              } else {
-                patch({ works: [...draft.works, { id: addon.id, qty: newQty }] })
-              }
-            }
-
-            return (
-              <div class="flex items-center px-4 py-3.5 gap-2">
-                <div class="flex-1 min-w-0 flex items-center gap-1.5">
-                  <p
-                    class={`text-sm font-medium truncate cursor-pointer ${on ? 'text-[#186760]' : 'text-gray-900'}`}
-                    onClick={() => setQty(on ? 0 : 1)}
-                  >
-                    {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
-                  </p>
-                  {hasDesc && (
-                    <button
-                      type="button"
-                      onClick={() => setInfoAddon(addon)}
-                      class="shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 active:text-gray-500 transition-colors"
-                    >
-                      <Info size={14} />
-                    </button>
-                  )}
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
-                  {on ? (
-                    <div class="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setQty(qty - 1)}
-                        class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-sm font-bold leading-none active:bg-gray-200 transition-colors"
-                      >
-                        –
-                      </button>
-                      <span class="text-sm font-semibold text-gray-900 w-5 text-center">{qty}</span>
-                      <button
-                        type="button"
-                        onClick={() => setQty(qty + 1)}
-                        class="w-6 h-6 rounded-full bg-[#1F847B] flex items-center justify-center text-white text-sm font-bold leading-none active:bg-[#186760] transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setQty(1)}
-                      class="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center transition-colors"
-                    />
-                  )}
-                </div>
-              </div>
-            )
-          }
-
-          return (
-            <div ref={worksRef}>
-              <SectionLabel>{t('step_addons')}</SectionLabel>
-              <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                {groups.map(({ category, items }, gi) => (
-                  <div key={category.id}>
-                    {(gi > 0 || uncategorized.length > 0) && <div class="h-px bg-gray-100" />}
-                    <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 px-4 pt-3 pb-1">
-                      {category.translations[lang] ?? category.translations['ru'] ?? category.id}
-                    </p>
-                    <div class="divide-y divide-gray-50">
-                      {items.map(addon => <WorkRow key={addon.id} addon={addon} />)}
-                    </div>
-                  </div>
-                ))}
-                {uncategorized.length > 0 && (
-                  <div>
-                    {groups.length > 0 && <div class="h-px bg-gray-100" />}
-                    <div class="divide-y divide-gray-50">
-                      {uncategorized.map(addon => <WorkRow key={addon.id} addon={addon} />)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })()}
+        {addons.length > 0 && (
+          <div ref={worksRef}>
+            <SectionLabel>{t('step_addons')}</SectionLabel>
+            <SelectedWorksList
+              works={addons}
+              selected={draft.works}
+              onChange={works => patch({ works })}
+            />
+            <button
+              type="button"
+              onClick={() => setShowWorkPicker(true)}
+              class="mt-2 w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 active:bg-gray-100 transition-colors"
+            >
+              {draft.works.length > 0 ? t('works_pick_more') : t('works_pick_button')}
+            </button>
+          </div>
+        )}
 
         {/* Промокод */}
         <div>
@@ -797,26 +715,14 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
         />
       </BottomSheet>
 
-      <BottomSheet open={!!infoAddon} onClose={() => setInfoAddon(null)}>
-        {infoAddon && (
-          <div class="px-5 pt-2 pb-6">
-            <p class="text-base font-semibold text-gray-900 mb-3">
-              {infoAddon.translations[lang] ?? infoAddon.translations['ru'] ?? infoAddon.id}
-            </p>
-            <p class="text-sm text-gray-600 leading-relaxed mb-5">
-              {infoAddon.description_translations[lang] ?? infoAddon.description_translations['ru']}
-            </p>
-            <button
-              type="button"
-              onClick={() => setInfoAddon(null)}
-              class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
-              style="background:#1F847B"
-            >
-              {t('dialog_ok')}
-            </button>
-          </div>
-        )}
-      </BottomSheet>
+      <WorkPickerSheet
+        open={showWorkPicker}
+        onClose={() => setShowWorkPicker(false)}
+        tree={workTree}
+        works={addons}
+        selected={draft.works}
+        onChange={works => patch({ works })}
+      />
 
       {/* Sticky CTA */}
       <div class="bg-white border-t border-gray-100 px-4 py-4">

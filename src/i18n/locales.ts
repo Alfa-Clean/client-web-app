@@ -287,6 +287,13 @@ const ru: Strings = {
   handyman_media_size_error: 'Файл слишком большой (макс. 20 МБ)',
   handyman_media_type_error: 'Только фото и видео',
 
+  // Каталог работ (дерево разделов)
+  works_picker_title: 'Виды работ',
+  works_pick_button: 'Выбрать работы',
+  works_pick_more: 'Добавить ещё',
+  works_empty_category: 'В этом разделе пока нет работ',
+  works_done: 'Готово',
+
   // Brigadier screen
   brigadier_assessment_hint: 'Осмотрите объект и введите стоимость работ',
   brigadier_price_label: 'Стоимость работ',
@@ -743,6 +750,12 @@ const uz: Strings = {
   handyman_media_size_error: 'Fayl juda katta (maks. 20 MB)',
   handyman_media_type_error: 'Faqat rasm va video',
 
+  works_picker_title: 'Ish turlari',
+  works_pick_button: 'Ishlarni tanlang',
+  works_pick_more: 'Yana qo\'shish',
+  works_empty_category: 'Bu bo\'limda hozircha ishlar yo\'q',
+  works_done: 'Tayyor',
+
   // Brigadier screen
   brigadier_assessment_hint: 'Ob\'ektni ko\'zdan kechiring va ish narxini kiriting',
   brigadier_price_label: 'Ish narxi',
@@ -1198,6 +1211,12 @@ const en: Strings = {
   handyman_media_add: 'Add',
   handyman_media_size_error: 'File too large (max 20 MB)',
   handyman_media_type_error: 'Photos and videos only',
+
+  works_picker_title: 'Types of work',
+  works_pick_button: 'Select works',
+  works_pick_more: 'Add more',
+  works_empty_category: 'No works in this section yet',
+  works_done: 'Done',
 
   // Brigadier screen
   brigadier_assessment_hint: 'Inspect the property and enter the cost of work',

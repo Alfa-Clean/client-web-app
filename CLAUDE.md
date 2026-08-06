@@ -40,6 +40,7 @@ app.tsx
 | `hooks/useConfirm.ts` | Promise-based confirm — возвращает `{ confirm, dialogProps }` |
 | `components/ConfirmDialog.tsx` | iOS-style модалка подтверждения, спред `dialogProps` |
 | `components/CalendarPicker.tsx` | Bottom sheet с grid по месяцам, только доступные даты |
+| `components/WorkPickerSheet.tsx` | Drill-down по дереву разделов handyman + `SelectedWorksList` |
 | `screens/OrderScreen.tsx` | Мастер заказа: 7 шагов, FSM через `step` state, draft в localStorage |
 | `screens/HomeScreen.tsx` | Табы: заказы / история / адреса / настройки |
 

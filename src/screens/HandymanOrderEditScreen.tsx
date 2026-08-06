@@ -3,8 +3,8 @@ import type { OrderAttachment } from '../api/attachments'
 import { getOrderAttachments } from '../api/attachments'
 import type { HandymanOrder, WorkItem } from '../api/orders'
 import { patchHandymanOrder } from '../api/orders'
-import { getHandymanWorks, getHandymanWorkCategories } from '../api/addons'
-import type { HandymanWork, HandymanWorkCategory } from '../api/addons'
+import { getHandymanWorks, getHandymanWorkCategoryTree } from '../api/addons'
+import type { HandymanWork, HandymanWorkCategoryNode } from '../api/addons'
 import type { Address } from '../api/addresses'
 import { getAddresses } from '../api/addresses'
 import { ApiError } from '../api/client'
@@ -15,6 +15,7 @@ import { AddressOption } from '../components/AddressOption'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
 import { useExitBack } from '../hooks/useExitBack'
+import { WorkPickerSheet, SelectedWorksList } from '../components/WorkPickerSheet'
 
 const TZ_OFFSET = 5
 
@@ -96,7 +97,8 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
   )
 
   const [worksList, setWorksList] = useState<HandymanWork[]>([])
-  const [workCategories, setWorkCategories] = useState<HandymanWorkCategory[]>([])
+  const [workTree, setWorkTree] = useState<HandymanWorkCategoryNode[]>([])
+  const [showWorkPicker, setShowWorkPicker] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [savedAttachments, setSavedAttachments] = useState<OrderAttachment[]>([])
   const [showCalendar, setShowCalendar] = useState(false)
@@ -107,7 +109,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
   useEffect(() => {
     getOrderAttachments(order.id).then(a => setSavedAttachments(Array.isArray(a) ? a : [])).catch(() => {})
     getHandymanWorks().catch(() => []).then(w => setWorksList(Array.isArray(w) ? w : []))
-    getHandymanWorkCategories().catch(() => []).then(c => setWorkCategories(Array.isArray(c) ? c : []))
+    getHandymanWorkCategoryTree().catch(() => []).then(c => setWorkTree(Array.isArray(c) ? c : []))
     getAddresses(telegramId).catch(() => []).then(a => {
       const list = Array.isArray(a) ? a : []
       setSavedAddresses(list)
@@ -139,15 +141,6 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
     setDate(iso)
     const next = availableSlots(iso)
     if (slot && !next.includes(slot)) setSlot(next[0] ?? '')
-  }
-
-  function setWorkQty(id: string, qty: number) {
-    setSelectedWorks(prev => {
-      if (qty <= 0) return prev.filter(w => w.id !== id)
-      const exists = prev.find(w => w.id === id)
-      if (exists) return prev.map(w => w.id === id ? { ...w, qty } : w)
-      return [...prev, { id, qty }]
-    })
   }
 
   const localPrice = selectedWorks.reduce((s, { id, qty }) => {
@@ -368,79 +361,25 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
           </div>
 
           {/* Works */}
-          {worksList.length > 0 && (() => {
-            const uncategorized = worksList.filter(w => !w.category_id)
-            const groups: Array<{ category: HandymanWorkCategory; items: HandymanWork[] }> = workCategories
-              .map(cat => ({ category: cat, items: worksList.filter(w => w.category_id === cat.id) }))
-              .filter(g => g.items.length > 0)
-
-            function WorkRow({ work }: { work: HandymanWork }) {
-              const qty = selectedWorks.find(w => w.id === work.id)?.qty ?? 0
-              const on = qty > 0
-              return (
-                <div class="flex items-center px-4 py-3 gap-2">
-                  <p
-                    class={`flex-1 text-sm font-medium cursor-pointer ${on ? 'text-[#186760]' : 'text-gray-900'}`}
-                    onClick={() => setWorkQty(work.id, on ? 0 : 1)}
-                  >
-                    {work.translations[lang] ?? work.translations['ru'] ?? work.id}
-                  </p>
-                  <div class="flex items-center gap-2 shrink-0">
-                    <span class="text-xs text-gray-400">+{work.price.toLocaleString('ru-RU')}</span>
-                    {on ? (
-                      <div class="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setWorkQty(work.id, qty - 1)}
-                          class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-sm font-bold leading-none active:bg-gray-200 transition-colors"
-                        >
-                          –
-                        </button>
-                        <span class="text-sm font-semibold text-gray-900 w-5 text-center">{qty}</span>
-                        <button
-                          type="button"
-                          onClick={() => setWorkQty(work.id, qty + 1)}
-                          class="w-6 h-6 rounded-full bg-[#1F847B] flex items-center justify-center text-white text-sm font-bold leading-none active:bg-[#186760] transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setWorkQty(work.id, 1)}
-                        class="w-5 h-5 rounded-md border-2 border-gray-300 flex items-center justify-center transition-colors"
-                      />
-                    )}
-                  </div>
-                </div>
-              )
-            }
-
-            return (
-              <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                {groups.map(({ category, items }, gi) => (
-                  <div key={category.id}>
-                    {(gi > 0 || uncategorized.length > 0) && <div class="h-px bg-gray-100" />}
-                    <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 px-4 pt-3 pb-1">
-                      {category.translations[lang] ?? category.translations['ru'] ?? category.id}
-                    </p>
-                    <div class="divide-y divide-gray-50">
-                      {items.map(work => <WorkRow key={work.id} work={work} />)}
-                    </div>
-                  </div>
-                ))}
-                {uncategorized.length > 0 && (
-                  <div>
-                    {groups.length > 0 && <div class="h-px bg-gray-100" />}
-                    <div class="divide-y divide-gray-50">
-                      {uncategorized.map(work => <WorkRow key={work.id} work={work} />)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
+          {worksList.length > 0 && (
+            <div>
+              <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2 px-1">
+                {t('step_addons')}
+              </p>
+              <SelectedWorksList
+                works={worksList}
+                selected={selectedWorks}
+                onChange={setSelectedWorks}
+              />
+              <button
+                type="button"
+                onClick={() => setShowWorkPicker(true)}
+                class="mt-2 w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 active:bg-gray-100 transition-colors"
+              >
+                {selectedWorks.length > 0 ? t('works_pick_more') : t('works_pick_button')}
+              </button>
+            </div>
+          )}
 
           {error && <p class="text-xs text-red-500 text-center">{error}</p>}
 
@@ -461,6 +400,15 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
           </button>
         </div>
       </div>
+
+      <WorkPickerSheet
+        open={showWorkPicker}
+        onClose={() => setShowWorkPicker(false)}
+        tree={workTree}
+        works={worksList}
+        selected={selectedWorks}
+        onChange={setSelectedWorks}
+      />
     </>
   )
 }

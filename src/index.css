@@ -62,6 +62,26 @@
   to   { transform: translateX(100%); }
 }
 
+/* Переход между уровнями дерева работ: короткий сдвиг + fade, без выезда
+   на всю ширину — иначе внутри bottom sheet появляется горизонтальный скролл. */
+@keyframes level-in-forward {
+  from { transform: translateX(28px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes level-in-back {
+  from { transform: translateX(-28px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@utility animate-level-in-forward {
+  animation: level-in-forward 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-level-in-back {
+  animation: level-in-back 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @utility animate-slide-up {
   animation: slide-up 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
