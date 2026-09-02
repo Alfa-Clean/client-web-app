@@ -24,6 +24,11 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/')) {
+      if (!env.BACKEND_URL) {
+        console.error('BACKEND_URL is not configured')
+        return new Response('Backend not configured', { status: 502 })
+      }
+
       const target = env.BACKEND_URL.replace(/\/$/, '')
       const backendUrl = target + url.pathname + url.search
 
@@ -39,7 +44,12 @@ export default {
         redirect: 'follow',
       })
 
-      return fetch(proxied)
+      try {
+        return await fetch(proxied)
+      } catch (err) {
+        console.error('Backend proxy failed', backendUrl, err)
+        return new Response('Bad gateway', { status: 502 })
+      }
     }
 
     return env.ASSETS.fetch(request)
