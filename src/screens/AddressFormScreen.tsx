@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
-  const { t } = useLocale()
+  const { t, lang } = useLocale()
   const [form, setForm] = useState<AddressPayload>({
     label: initial?.label ?? '',
     address: initial?.address ?? '',
@@ -36,7 +36,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
     setForm(prev => ({ ...prev, latitude: lat, longitude: lon }))
     setGeocoding(true)
     try {
-      const resolved = await reverseGeocode(lat, lon)
+      const resolved = await reverseGeocode(lat, lon, lang)
       if (resolved) setField('address', resolved)
     } finally {
       setGeocoding(false)
