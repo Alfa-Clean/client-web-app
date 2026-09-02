@@ -9,8 +9,8 @@ import type { Addon, AddonCategory } from '../api/addons'
 import { getAddons, getAddonCategories } from '../api/addons'
 import type { ServiceType, AddonItem, Order } from '../api/orders'
 import { createOrder, cancelOrder } from '../api/orders'
-import type { PromoInvalidReason } from '../api/promos'
-import { validatePromo } from '../api/promos'
+import type { PriceLine, PromoReason, QuoteRequest } from '../api/pricing'
+import { useQuote } from '../hooks/useQuote'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { CalendarPicker } from '../components/CalendarPicker'
@@ -64,21 +64,10 @@ const EMPTY_DRAFT: Draft = {
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
-function calcPrice(
-  serviceType: ServiceType,
-  rooms: number,
-  bathrooms: number,
-  addonsList: Addon[],
-  selectedAddons: AddonItem[],
-): number {
-  const base: Record<ServiceType, number> = { standard: 100000, general: 150000, afterrepair: 200000 }
-  const perRoom: Record<ServiceType, number> = { standard: 30000, general: 50000, afterrepair: 60000 }
-  const perBath: Record<ServiceType, number> = { standard: 20000, general: 30000, afterrepair: 40000 }
-  const addonsTotal = selectedAddons.reduce((s, { id, qty = 1 }) => {
-    const addon = addonsList.find(a => a.id === id)
-    return s + (addon ? addon.price * qty : 0)
-  }, 0)
-  return base[serviceType] + perRoom[serviceType] * rooms + perBath[serviceType] * bathrooms + addonsTotal
+// Цена считается только на сервере (POST /pricing/quote) — тарифы живут в БД.
+// Строки округления в разбивке не показываем.
+function visibleLines(lines: PriceLine[]): PriceLine[] {
+  return lines.filter(l => l.kind !== 'rounding' && l.amount !== 0)
 }
 
 function fmtPrice(p: number, currency: string): string {
@@ -263,9 +252,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [promoInput, setPromoInput] = useState('')
-  const [promoValidating, setPromoValidating] = useState(false)
-  const [promoDiscountPct, setPromoDiscountPct] = useState<number | null>(null)
-  const [promoError, setPromoError] = useState<string | null>(null)
   const [promoCode, setPromoCode] = useState<string | null>(null)
   const promoInputRef = useRef<HTMLInputElement>(null)
 
@@ -286,47 +272,27 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
     getAddresses(user.telegram_id).catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
 
-  function promoReasonText(reason: PromoInvalidReason): string {
-    const map: Record<PromoInvalidReason, string> = {
+  function promoReasonText(reason: PromoReason): string {
+    const map: Record<PromoReason, string> = {
       not_found: t('promo_invalid_not_found'),
       inactive: t('promo_invalid_inactive'),
       not_started: t('promo_invalid_not_started'),
       expired: t('promo_invalid_expired'),
-      wrong_service_type: t('promo_invalid_wrong_service_type'),
+      wrong_vertical: t('promo_invalid_wrong_vertical'),
       already_used: t('promo_invalid_already_used'),
     }
     return map[reason] ?? reason
   }
 
-  async function handleApplyPromo() {
+  // Промокод не валидируем отдельным запросом — его статус приходит в ответе quote.
+  function handleApplyPromo() {
     const code = promoInput.trim().toUpperCase()
-    if (!code || promoValidating) return
-    setPromoValidating(true)
-    setPromoError(null)
-    try {
-      const result = await validatePromo(code, user.telegram_id, draft.serviceType)
-      if (result.valid && result.discount_pct != null) {
-        setPromoCode(code)
-        setPromoDiscountPct(result.discount_pct)
-        setPromoError(null)
-      } else {
-        setPromoCode(null)
-        setPromoDiscountPct(null)
-        setPromoError(result.reason ? promoReasonText(result.reason) : t('promo_invalid_not_found'))
-      }
-    } catch {
-      setPromoCode(null)
-      setPromoDiscountPct(null)
-      setPromoError(t('confirm_error'))
-    } finally {
-      setPromoValidating(false)
-    }
+    if (!code || code === promoCode) return
+    setPromoCode(code)
   }
 
   function handleRemovePromo() {
     setPromoCode(null)
-    setPromoDiscountPct(null)
-    setPromoError(null)
     setPromoInput('')
     promoInputRef.current?.focus()
   }
@@ -381,10 +347,35 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
     setShowAddressSheet(false)
   }
 
-  const price = calcPrice(draft.serviceType, draft.rooms, draft.bathrooms, addons, draft.addons)
-  const discountedPrice = promoDiscountPct != null
-    ? Math.floor(price - price * promoDiscountPct / 100)
-    : price
+  const quoteRequest: QuoteRequest = {
+    vertical: 'cleaning',
+    service_type: draft.serviceType,
+    rooms: draft.rooms,
+    bathrooms: draft.bathrooms,
+    housing_type: draft.housingType,
+    addons: draft.addons.map(a => ({ id: a.id, qty: a.qty ?? 1 })),
+    promo_code: promoCode,
+    telegram_id: user.telegram_id,
+  }
+  const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest, lang)
+
+  const price = quote?.total ?? null
+  const priceLines = quote ? visibleLines(quote.lines) : []
+  // Непустой warnings = тариф не заведён, цена неполная.
+  const priceIncomplete = (quote?.warnings.length ?? 0) > 0
+
+  // Статус промокода приходит вместе с расчётом: невалидный код — это 200, а не ошибка.
+  const promoResult =
+    promoCode && quote?.promo && quote.promo.code.toUpperCase() === promoCode
+      ? quote.promo
+      : null
+  const promoApplied = promoResult?.valid === true
+  const promoChecking = promoCode !== null && !promoResult && quoteLoading
+  const promoErrorText = promoResult && !promoResult.valid
+    ? promoReasonText(promoResult.reason ?? 'not_found')
+    : promoCode !== null && quoteError
+      ? t('confirm_error')
+      : null
 
   const tz = nowInTashkent()
   const todayIso = toISO(tz)
@@ -394,10 +385,13 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
   const slots = draft.orderDate ? availableSlots(draft.orderDate) : []
   const isOtherDate = !!draft.orderDate && draft.orderDate !== todayIso && draft.orderDate !== tomorrowIso
 
-  const canSubmit = draft.address.trim() !== '' && !!draft.orderDate && !!draft.orderSlot
+  // Без актуального расчёта заказ не оформляем — иначе цена разъедется с прайсом.
+  const canSubmit =
+    draft.address.trim() !== '' && !!draft.orderDate && !!draft.orderSlot
+    && price !== null && !quoteLoading
 
   async function handleSubmit() {
-    if (!canSubmit || submitting) return
+    if (!canSubmit || submitting || price === null) return
     setSubmitting(true)
     setSubmitError(null)
     try {
@@ -419,7 +413,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         source: 'bot',
         addons: draft.addons,
         ...(draft.comment.trim() && { comment: draft.comment.trim() }),
-        ...(promoCode && { promo_code: promoCode }),
+        ...(promoApplied && promoCode ? { promo_code: promoCode } : {}),
         ...(utmParams.get('utm_source') && { utm_source: utmParams.get('utm_source')! }),
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
@@ -449,7 +443,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
     } catch (e: unknown) {
       if (e instanceof Error && e.message.includes('422') && promoCode) {
         setPromoCode(null)
-        setPromoDiscountPct(null)
         setPromoInput('')
         setSubmitError(t('promo_error_on_submit'))
       } else {
@@ -808,12 +801,14 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         {/* Промокод */}
         <div>
           <SectionLabel>{t('promo_label')}</SectionLabel>
-          {promoCode ? (
+          {promoApplied ? (
             <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
               <div>
                 <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
                 <p class="text-xs text-[#1F847B] mt-0.5">
-                  {t('promo_valid', { pct: String(promoDiscountPct) })}
+                  {promoResult?.discount_pct != null
+                    ? t('promo_valid', { pct: String(promoResult.discount_pct) })
+                    : fmtPrice(Math.abs(promoResult?.amount ?? 0), t('currency'))}
                 </p>
               </div>
               <button
@@ -832,28 +827,73 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
                 value={promoInput}
                 onInput={e => {
                   setPromoInput((e.target as HTMLInputElement).value)
-                  setPromoError(null)
+                  if (promoCode) setPromoCode(null)
                 }}
                 onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
                 placeholder={t('promo_placeholder')}
                 class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
-                  promoError ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
+                  promoErrorText ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
                 }`}
               />
               <button
                 type="button"
                 onClick={handleApplyPromo}
-                disabled={!promoInput.trim() || promoValidating}
+                disabled={!promoInput.trim() || promoChecking}
                 class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
                 style="background:#1F847B"
               >
-                {promoValidating ? t('promo_applying') : t('promo_apply')}
+                {promoChecking ? t('promo_applying') : t('promo_apply')}
               </button>
             </div>
           )}
-          {promoError && (
-            <p class="text-xs text-red-500 mt-1.5 px-1">{promoError}</p>
+          {promoErrorText && (
+            <p class="text-xs text-red-500 mt-1.5 px-1">{promoErrorText}</p>
           )}
+        </div>
+
+        {/* Разбивка стоимости */}
+        <div>
+          <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
+          <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            {quoteError && !quote ? (
+              <p class="px-4 py-3 text-sm text-red-500">{t('price_error')}</p>
+            ) : !quote ? (
+              <p class="px-4 py-3 text-sm text-gray-400">{t('price_calculating')}</p>
+            ) : (
+              <>
+                <div class={`divide-y divide-gray-50 transition-opacity ${quoteLoading ? 'opacity-50' : ''}`}>
+                  {priceLines.map(line => (
+                    <div key={`${line.code}-${line.kind}`} class="flex items-start justify-between gap-3 px-4 py-2.5">
+                      <span class="text-sm text-gray-700 min-w-0">
+                        {line.label}
+                        {line.qty > 1 && <span class="text-gray-400"> × {line.qty}</span>}
+                      </span>
+                      <span
+                        class={`text-sm shrink-0 ${
+                          line.kind === 'discount' || line.kind === 'promo'
+                            ? 'text-[#1F847B]'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {line.amount < 0 ? '−' : ''}{fmtPrice(Math.abs(line.amount), t('currency'))}
+                      </span>
+                    </div>
+                  ))}
+                  <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
+                    <span class="text-sm font-medium text-gray-700">{t('confirm_total')}</span>
+                    <span class="text-sm font-bold text-gray-900">
+                      {fmtPrice(quote.total, t('currency'))}
+                    </span>
+                  </div>
+                </div>
+                {priceIncomplete && (
+                  <p class="px-4 py-2.5 text-xs text-amber-600 bg-amber-50 border-t border-amber-100">
+                    {t('price_warning')}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Комментарии к заказу */}
@@ -997,8 +1037,8 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         >
           {submitting
             ? t('confirm_submitting')
-            : promoDiscountPct != null
-              ? `${t('confirm_submit')} · ${fmtPrice(discountedPrice, t('currency'))}`
+            : price === null
+              ? t('confirm_submit')
               : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
           }
         </button>

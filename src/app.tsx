@@ -2,12 +2,11 @@ import { useEffect } from 'preact/hooks'
 import { refreshTelegramLogin } from './api/auth'
 import { apiFetch, ApiError, clearToken } from './api/client'
 import { useUser } from './hooks/useUser'
-import { LocaleProvider, useLocale } from './i18n/index'
+import { LocaleProvider } from './i18n/index'
 import { RegistrationScreen } from './screens/RegistrationScreen'
 import { HubScreen } from './screens/HubScreen'
 import { mockConfig, MOCK_ENABLED } from './devMock'
 import type { User } from './types'
-import { Logo } from './components/Logo'
 
 // Dev-симуляция Telegram Mini App: подписанный initData через /__dev/init-data
 // и минимальный мок window.Telegram.WebApp. Конфиг — mock-user.json (см. devMock.ts).
@@ -41,17 +40,6 @@ if (MOCK_ENABLED) {
 }
 
 const tg = (window as any).Telegram?.WebApp
-
-function NotInTelegram() {
-  const { t } = useLocale()
-  return (
-    <div class="h-screen flex flex-col items-center justify-center gap-3 px-8 text-center">
-      <Logo class="h-12" />
-      <p class="text-lg font-semibold text-gray-800 mt-4">{t('open_in_telegram')}</p>
-      <p class="text-sm text-gray-400">{t('open_in_telegram_hint')}</p>
-    </div>
-  )
-}
 
 export function App() {
   const { user, saveUser } = useUser()
@@ -121,16 +109,13 @@ export function App() {
   }
 
   const devTgId = MOCK_ENABLED ? mockConfig.telegram_id : 0
-  const hasTelegram = !!(tg?.initData || MOCK_ENABLED)
   const startParam: string = tg?.initDataUnsafe?.start_param ?? ''
 
   return (
     <LocaleProvider telegramLang={telegramLang}>
-      {!hasTelegram
-        ? <NotInTelegram />
-        : user
-          ? <HubScreen user={user} startParam={startParam} />
-          : <RegistrationScreen onRegistered={handleRegister} devTelegramId={devTgId} />
+      {user
+        ? <HubScreen user={user} startParam={startParam} />
+        : <RegistrationScreen onRegistered={handleRegister} devTelegramId={devTgId} />
       }
     </LocaleProvider>
   )

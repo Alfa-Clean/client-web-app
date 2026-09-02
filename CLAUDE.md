@@ -37,6 +37,8 @@ app.tsx
 |---|---|
 | `api/client.ts` | `apiFetch`, токен (localStorage, TTL), `ApiError` |
 | `api/auth.ts` | `loginWithTelegram` → JWT |
+| `api/pricing.ts` | `getQuote` → `POST /pricing/quote`, типы расчёта |
+| `hooks/useQuote.ts` | Дебаунс + кеш расчёта цены, ретрай на 429 |
 | `hooks/useConfirm.ts` | Promise-based confirm — возвращает `{ confirm, dialogProps }` |
 | `components/ConfirmDialog.tsx` | iOS-style модалка подтверждения, спред `dialogProps` |
 | `components/CalendarPicker.tsx` | Bottom sheet с grid по месяцам, только доступные даты |
@@ -96,7 +98,23 @@ service_type → address → rooms → bathrooms → date → addons → confirm
 
 - Навигация: `nextStep` / `prevStep` с учётом `housingType` (house пропускает rooms/bathrooms/addons)
 - Draft сохраняется в `localStorage` (`alfaclean_order_draft`) после каждого изменения
-- Цены: `calcPrice(serviceType, rooms, bathrooms, addons, selected)`
+- Цены: только сервер — `useQuote(...)` → `POST /pricing/quote`. Локально цену не считать
+
+## Расчёт цены (pricing)
+
+`POST /api/v1/pricing/quote` — публичный, лимит 60 req/min на IP, поэтому только через
+`useQuote` (дебаунс 400 мс + кеш по составу запроса + один ретрай на 429).
+
+- `?lang=` берётся из `useLocale()` — сервер возвращает готовые `label` строк разбивки
+- Невалидный промокод — это **200**, а не 422: статус читать из `promo.valid` / `promo.reason`
+- Отдельный `POST /promos/validate` не нужен — `quote` уже вернул результат
+- `warnings` непустой → тариф не заведён, цена неполная: показываем баннер `price_warning`
+- Строки `kind: "rounding"` в разбивке скрываем, `discount` / `promo` — зелёным
+- В `POST /orders` в поле `price` уходит **`total` из ответа quote**, иначе цена разъедется с прайсом
+- Кнопка оформления заблокирована, пока нет актуального расчёта
+
+Через `quote` считается **только уборка**. У handyman другой принцип расчёта — он намеренно
+остаётся на локальном `calcPrice` в `HandymanOrderScreen.tsx` и на `POST /promos/validate`.
 
 ## Выбор даты (StepDateSlot)
 

@@ -335,9 +335,16 @@ const ru: Strings = {
   promo_invalid_expired: 'Срок действия промокода истёк',
   promo_invalid_wrong_service_type: 'Промокод не применяется к этому типу уборки',
   promo_invalid_already_used: 'Вы уже использовали этот промокод',
+  promo_invalid_wrong_vertical: 'Промокод не действует для этой услуги',
   promo_error_on_submit: 'Промокод стал недействителен. Заказ оформлен без скидки.',
-  open_in_telegram: 'Открой в Telegram',
-  open_in_telegram_hint: 'Это приложение работает только внутри Telegram.',
+
+  // Pricing
+  price_breakdown_label: 'Стоимость',
+  price_calculating: 'Считаем стоимость...',
+  price_error: 'Не удалось рассчитать стоимость',
+  price_retry: 'Повторить',
+  price_warning: 'Стоимость предварительная — диспетчер уточнит её при подтверждении заказа.',
+  price_discount_total: 'Скидка',
 
   // Order edit
   edit_order_title: 'Изменить заказ',
@@ -797,9 +804,16 @@ const uz: Strings = {
   promo_invalid_expired: 'Promokodning amal qilish muddati tugagan',
   promo_invalid_wrong_service_type: 'Promokod bu turdagi tozalashga tegishli emas',
   promo_invalid_already_used: 'Bu promokodni allaqachon ishlatgansiz',
+  promo_invalid_wrong_vertical: 'Promokod bu xizmatga amal qilmaydi',
   promo_error_on_submit: 'Promokod yaroqsiz bo\'lib qoldi. Buyurtma chegirmasiz rasmiylashtirildi.',
-  open_in_telegram: 'Telegramda oching',
-  open_in_telegram_hint: 'Bu ilova faqat Telegram ichida ishlaydi.',
+
+  // Pricing
+  price_breakdown_label: 'Narx',
+  price_calculating: 'Narx hisoblanmoqda...',
+  price_error: 'Narxni hisoblab bo\'lmadi',
+  price_retry: 'Qayta urinish',
+  price_warning: 'Narx taxminiy — dispetcher buyurtmani tasdiqlashda aniqlashtiradi.',
+  price_discount_total: 'Chegirma',
 
   // Order edit
   edit_order_title: 'Buyurtmani o\'zgartirish',
@@ -1259,9 +1273,16 @@ const en: Strings = {
   promo_invalid_expired: 'Promo code has expired',
   promo_invalid_wrong_service_type: 'Promo code does not apply to this service type',
   promo_invalid_already_used: 'You have already used this promo code',
+  promo_invalid_wrong_vertical: 'Promo code does not apply to this service',
   promo_error_on_submit: 'Promo code became invalid. Order placed without discount.',
-  open_in_telegram: 'Open in Telegram',
-  open_in_telegram_hint: 'This app only works inside Telegram.',
+
+  // Pricing
+  price_breakdown_label: 'Price',
+  price_calculating: 'Calculating price...',
+  price_error: 'Could not calculate the price',
+  price_retry: 'Retry',
+  price_warning: 'The price is preliminary — the dispatcher will confirm it with your order.',
+  price_discount_total: 'Discount',
 
   // Order edit
   edit_order_title: 'Edit Order',
