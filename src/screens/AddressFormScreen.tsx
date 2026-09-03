@@ -142,6 +142,8 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
                 onLocationPick={handleLocationPick}
                 initialLat={initial?.latitude}
                 initialLon={initial?.longitude}
+                address={form.address}
+                geocoding={geocoding}
               />
               {geocoding && (
                 <p class="text-xs text-gray-400">{t('addr_geocoding')}</p>
