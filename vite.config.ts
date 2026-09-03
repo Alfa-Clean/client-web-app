@@ -10,4 +10,13 @@ export default defineConfig({
     port: 3001,
     allowedHosts: true,
   },
+  worker: {
+    // Воркер MapLibre — ESM, он создаётся как new Worker(url, { type: 'module' }).
+    format: 'es',
+  },
+  optimizeDeps: {
+    // Оптимизатор Vite ломает воркер MapLibre: maplibre-gl-worker.mjs не попадает
+    // в .vite/deps, тайлы качаются, но не разбираются — карта показывает только фон.
+    exclude: ['maplibre-gl', '@maplibre/maplibre-gl-leaflet'],
+  },
 })

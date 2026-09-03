@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { addBasemap } from '../utils/basemap'
 import { PostamatDetailScreen } from './PostamatDetailScreen'
 import { useLocale } from '../i18n'
 
@@ -45,16 +46,7 @@ function PostamatMap() {
     const map = L.map(ref.current, { zoomControl: false }).setView([41.2995, 69.2401], 14)
 
     const isDark = document.documentElement.classList.contains('dark')
-    const tileUrl = isDark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-
-    L.tileLayer(tileUrl, {
-      subdomains: 'abcd',
-      maxZoom: 20,
-      detectRetina: true,
-      attribution: '© OpenStreetMap',
-    }).addTo(map)
+    const cancelBasemap = addBasemap(map, isDark)
 
     const icon = L.divIcon({
       className: '',
@@ -70,7 +62,7 @@ function PostamatMap() {
         .bindPopup(`<b style="font-size:13px">${p.address}</b>`)
     })
 
-    return () => { map.remove() }
+    return () => { cancelBasemap(); map.remove() }
   }, [])
 
   return <div ref={ref} style="height:60vh;width:100%" class="z-0" />

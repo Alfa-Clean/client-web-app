@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { createPortal } from 'preact/compat'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { addBasemap } from '../utils/basemap'
+import '../utils/leafletIcons'
 
 const DEFAULT_LAT = 41.2995
 const DEFAULT_LON = 69.2401
@@ -40,16 +42,7 @@ export function MapPicker({ onLocationPick, initialLat, initialLon }: Props) {
     mapRef.current = map
 
     const isDark = document.documentElement.classList.contains('dark')
-    const tileUrl = isDark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-
-    L.tileLayer(tileUrl, {
-      subdomains: 'abcd',
-      maxZoom: 20,
-      detectRetina: true,
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map)
+    const cancelBasemap = addBasemap(map, isDark)
 
     const marker = L.marker([lat, lon], { draggable: true }).addTo(map)
 
@@ -64,6 +57,7 @@ export function MapPicker({ onLocationPick, initialLat, initialLon }: Props) {
     })
 
     return () => {
+      cancelBasemap()
       map.remove()
       host.remove()
       mapRef.current = null

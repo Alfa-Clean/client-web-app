@@ -10,10 +10,12 @@
     "tunnel": "cloudflared tunnel --url http://localhost:3001"
   },
   "dependencies": {
+    "@maplibre/maplibre-gl-leaflet": "^0.1.4",
     "@twa-dev/sdk": "^8.0.2",
     "@types/leaflet": "^1.9.21",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
+    "maplibre-gl": "^6.7.0",
     "preact": "^10.29.1"
   },
   "devDependencies": {

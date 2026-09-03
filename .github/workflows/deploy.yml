@@ -25,6 +25,8 @@ jobs:
         run: npm run build
         env:
           VITE_GTM_ID: ${{ vars.VITE_GTM_ID }}
+          VITE_CARTO_API_KEY: ${{ secrets.VITE_CARTO_API_KEY }}
+          VITE_BASEMAP_MODE: ${{ vars.VITE_BASEMAP_MODE }}
 
       - name: Deploy
         run: npx wrangler deploy
