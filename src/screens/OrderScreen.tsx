@@ -18,6 +18,7 @@ import { BottomSheet } from '../components/BottomSheet'
 import { AddressOption } from '../components/AddressOption'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { OnboardingOverlay } from '../components/OnboardingOverlay'
+import { PhoneVerifyForm } from '../components/PhoneVerifyForm'
 import { useConfirm } from '../hooks/useConfirm'
 import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
@@ -227,9 +228,11 @@ interface Props {
   onBack: () => void
   repeatFrom?: Order | null
   initialAddress?: Address | null
+  /** Профиль после подтверждения номера — аноним Mini App становится клиентом. */
+  onUserUpdated?: (user: User) => void
 }
 
-export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props) {
+export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUpdated }: Props) {
   const { t, lang } = useLocale()
   const [draft, setDraft] = useState<Draft>(
     () => repeatFrom ? draftFromOrder(repeatFrom) : initialAddress ? draftFromAddress(initialAddress) : (loadSavedDraft() ?? EMPTY_DRAFT),
@@ -246,6 +249,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
   const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
   const [addonsOpen, setAddonsOpen] = useState(false)
   const [doneOrder, setDoneOrder] = useState<Order | null>(null)
+  const [phoneGate, setPhoneGate] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -390,8 +394,28 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
     draft.address.trim() !== '' && !!draft.orderDate && !!draft.orderSlot
     && price !== null && !quoteLoading
 
-  async function handleSubmit() {
+  /**
+   * Оформление доступно только с подтверждённым номером: у анонима Mini App его
+   * ещё нет, поэтому вместо отправки открываем шторку с кодом и возвращаемся
+   * сюда уже с профилем клиента — черновик заказа при этом не теряется.
+   */
+  function handleSubmit() {
     if (!canSubmit || submitting || price === null) return
+    if (!user.phone) {
+      setPhoneGate(true)
+      return
+    }
+    return submitOrder(user)
+  }
+
+  async function handlePhoneVerified(client: User) {
+    onUserUpdated?.(client)
+    setPhoneGate(false)
+    await submitOrder(client)
+  }
+
+  async function submitOrder(actor: User) {
+    if (price === null) return
     setSubmitting(true)
     setSubmitError(null)
     try {
@@ -400,8 +424,8 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         : draft.address
       const utmParams = new URLSearchParams(window.location.search)
       const order = await createOrder({
-        telegram_id: user.telegram_id,
-        phone: user.phone,
+        telegram_id: actor.telegram_id,
+        phone: actor.phone,
         service_type: draft.serviceType,
         housing_type: draft.housingType,
         rooms: draft.rooms,
@@ -419,7 +443,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
       })
       for (const file of attachments) {
-        await uploadOrderAttachment(order.id, file, String(user.telegram_id)).catch(() => {})
+        await uploadOrderAttachment(order.id, file, String(actor.telegram_id)).catch(() => {})
       }
       clearDraft()
       // POST /cleaning/orders возвращает только { id, order_num, status, created_at } —
@@ -1023,6 +1047,12 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
             </button>
           </div>
         )}
+      </BottomSheet>
+
+      <BottomSheet open={phoneGate} onClose={() => setPhoneGate(false)}>
+        <div class="px-5 pt-2 pb-8">
+          <PhoneVerifyForm onVerified={handlePhoneVerified} />
+        </div>
       </BottomSheet>
 
       {/* Sticky CTA */}

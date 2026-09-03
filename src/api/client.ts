@@ -6,11 +6,30 @@ export class ApiError extends Error {
   status: number
   /** Текст из тела ответа `{"detail": "..."}`, если сервер его прислал. */
   detail?: string
+  /**
+   * Разобранное тело ответа целиком. У части ручек (OTP) `detail` — объект
+   * `{ reason, ... }`, а не строка: по HTTP-статусу их не различить.
+   */
+  body?: unknown
 
-  constructor(status: number, message: string, detail?: string) {
+  constructor(status: number, message: string, detail?: string, body?: unknown) {
     super(message)
     this.status = status
     this.detail = detail
+    this.body = body
+  }
+
+  /** Машиночитаемая причина отказа — `detail.reason`, если сервер её прислал. */
+  get reason(): string | undefined {
+    const detail = (this.body as { detail?: unknown } | undefined)?.detail
+    const reason = (detail as { reason?: unknown } | undefined)?.reason
+    return typeof reason === 'string' ? reason : undefined
+  }
+
+  /** Остальные поля из `detail` — `retry_after`, `attempts_left` и подобные. */
+  get context(): Record<string, unknown> {
+    const detail = (this.body as { detail?: unknown } | undefined)?.detail
+    return detail && typeof detail === 'object' ? (detail as Record<string, unknown>) : {}
   }
 }
 
@@ -62,13 +81,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
   if (!res.ok) {
     let detail: string | undefined
+    let body: unknown
     try {
-      const body = await res.json()
-      if (typeof body?.detail === 'string') detail = body.detail
+      body = await res.json()
+      const raw = (body as { detail?: unknown })?.detail
+      if (typeof raw === 'string') detail = raw
     } catch {
       // тело не JSON или пустое — игнорируем
     }
-    throw new ApiError(res.status, `${res.status} ${res.statusText}`, detail)
+    throw new ApiError(res.status, `${res.status} ${res.statusText}`, detail, body)
   }
 
   return res.json() as Promise<T>

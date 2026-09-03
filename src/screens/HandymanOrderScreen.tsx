@@ -18,6 +18,7 @@ import { OnboardingOverlay } from '../components/OnboardingOverlay'
 import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
 import { WorkPickerSheet, SelectedWorksList } from '../components/WorkPickerSheet'
+import { PhoneVerifyForm } from '../components/PhoneVerifyForm'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -202,12 +203,14 @@ interface Props {
   onBack: () => void
   repeatFrom?: HandymanOrder | null
   initialAddress?: Address | null
+  /** Профиль после подтверждения номера — аноним Mini App становится клиентом. */
+  onUserUpdated?: (user: User) => void
 }
 
 const MAX_ATTACH_SIZE = 20 * 1024 * 1024
 const MAX_ATTACH_COUNT = 10
 
-export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }: Props) {
+export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUpdated }: Props) {
   const { t, lang } = useLocale()
   const [draft, setDraft] = useState<Draft>(
     () => repeatFrom ? draftFromOrder(repeatFrom) : initialAddress ? draftFromAddress(initialAddress) : (loadSavedDraft() ?? EMPTY_DRAFT),
@@ -222,6 +225,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
   const [showAddressSheet, setShowAddressSheet] = useState(false)
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
   const [done, setDone] = useState(false)
+  const [phoneGate, setPhoneGate] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -372,14 +376,33 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
   const canSubmit = !!draft.addressId && !!draft.orderDate && !!draft.orderSlot &&
                     draft.works.length > 0
 
-  async function handleSubmit() {
+  /**
+   * Оформление доступно только с подтверждённым номером: у анонима Mini App его
+   * ещё нет, поэтому вместо отправки открываем шторку с кодом и возвращаемся
+   * сюда уже с профилем клиента — черновик заказа при этом не теряется.
+   */
+  function handleSubmit() {
     if (!canSubmit || submitting) return
+    if (!user.phone) {
+      setPhoneGate(true)
+      return
+    }
+    return submitOrder(user)
+  }
+
+  async function handlePhoneVerified(client: User) {
+    onUserUpdated?.(client)
+    setPhoneGate(false)
+    await submitOrder(client)
+  }
+
+  async function submitOrder(actor: User) {
     setSubmitting(true)
     setSubmitError(null)
     try {
       const utmParams = new URLSearchParams(window.location.search)
       const order = await createHandymanOrder({
-        telegram_id: user.telegram_id,
+        telegram_id: actor.telegram_id,
         ...(draft.comment.trim() && { description: draft.comment.trim() }),
         works: draft.works,
         address_id: draft.addressId,
@@ -392,7 +415,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
       })
       for (const file of attachments) {
-        await uploadOrderAttachment(order.id, file, String(user.telegram_id)).catch(() => {})
+        await uploadOrderAttachment(order.id, file, String(actor.telegram_id)).catch(() => {})
       }
       clearDraft()
       setDone(true)
@@ -713,6 +736,12 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress }
           onSubmit={handleAddressCreated}
           onBack={() => setShowAddressSheet(false)}
         />
+      </BottomSheet>
+
+      <BottomSheet open={phoneGate} onClose={() => setPhoneGate(false)}>
+        <div class="px-5 pt-2 pb-8">
+          <PhoneVerifyForm onVerified={handlePhoneVerified} />
+        </div>
       </BottomSheet>
 
       <WorkPickerSheet

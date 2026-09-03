@@ -640,9 +640,11 @@ type View =
 interface Props {
   user: User
   startParam?: string
+  /** Профиль после подтверждения номера в мастере заказа. */
+  onUserUpdated?: (user: User) => void
 }
 
-export function HubScreen({ user, startParam = '' }: Props) {
+export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
   const { t } = useLocale()
   const deepLink = parseDeepLink(startParam)
   const initialView: View = deepLink?.type === 'wizard' ? deepLink.target : 'hub'
@@ -1043,6 +1045,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
     return (
       <OrderScreen
         user={user}
+        onUserUpdated={onUserUpdated}
         repeatFrom={repeatCleaning}
         initialAddress={gateCreatedAddress}
         onBack={() => { setRepeatCleaning(null); setGateCreatedAddress(null); refreshOrders(); setView('hub') }}
@@ -1054,6 +1057,7 @@ export function HubScreen({ user, startParam = '' }: Props) {
     return (
       <HandymanOrderScreen
         user={user}
+        onUserUpdated={onUserUpdated}
         repeatFrom={repeatHandyman}
         initialAddress={gateCreatedAddress}
         onBack={() => { setRepeatHandyman(null); setGateCreatedAddress(null); refreshOrders(); setView('hub') }}
