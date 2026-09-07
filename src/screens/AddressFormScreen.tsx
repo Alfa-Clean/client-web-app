@@ -1,6 +1,6 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Address, AddressPayload, HousingType } from '../api/addresses'
-import { reverseGeocode } from '../api/geocode'
+import { forwardGeocode, reverseGeocode } from '../api/geocode'
 import { MapPicker } from '../components/MapPicker'
 import { useLocale } from '../i18n'
 
@@ -31,17 +31,59 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
   const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set())
   const [showMap, setShowMap] = useState(true)
   const [geocoding, setGeocoding] = useState(false)
+  const [lookup, setLookup] = useState<'idle' | 'searching' | 'found' | 'notfound'>('idle')
+  // Адрес пришёл от карты (reverse) — прямое геокодирование по нему запускать
+  // не надо, координаты уже точнее любой строки.
+  const skipLookupRef = useRef(true)
 
   async function handleLocationPick(lat: number, lon: number) {
     setForm(prev => ({ ...prev, latitude: lat, longitude: lon }))
     setGeocoding(true)
     try {
       const resolved = await reverseGeocode(lat, lon, lang)
-      if (resolved) setField('address', resolved)
+      if (resolved) {
+        skipLookupRef.current = true
+        setLookup('idle')
+        setField('address', resolved)
+      }
     } finally {
       setGeocoding(false)
     }
   }
+
+  // Ручной ввод: через паузу после набора ищем координаты и двигаем карту,
+  // чтобы пользователь видел, куда попал его адрес, ещё до оформления заказа.
+  useEffect(() => {
+    if (skipLookupRef.current) {
+      skipLookupRef.current = false
+      return
+    }
+    const query = form.address.trim()
+    if (query.length < 4) {
+      setLookup('idle')
+      return
+    }
+    setLookup('searching')
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const point = await forwardGeocode(query, lang)
+        if (cancelled) return
+        if (point) {
+          setForm(prev => ({ ...prev, latitude: point.lat, longitude: point.lon }))
+          setLookup('found')
+        } else {
+          setLookup('notfound')
+        }
+      } catch {
+        if (!cancelled) setLookup('notfound')
+      }
+    }, 700)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [form.address, lang])
 
   function setField(field: keyof AddressPayload, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -144,6 +186,8 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
                 initialLon={initial?.longitude}
                 address={form.address}
                 geocoding={geocoding}
+                lat={form.latitude}
+                lon={form.longitude}
               />
               {geocoding && (
                 <p class="text-xs text-gray-400">{t('addr_geocoding')}</p>
@@ -161,6 +205,13 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
                 invalidFields.has('address') ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-blue-400'
               }`}
             />
+            {lookup !== 'idle' && (
+              <p class={`text-xs ${lookup === 'notfound' ? 'text-amber-600' : 'text-gray-400'}`}>
+                {lookup === 'searching' && t('addr_lookup_searching')}
+                {lookup === 'found' && t('addr_lookup_found')}
+                {lookup === 'notfound' && t('addr_lookup_notfound')}
+              </p>
+            )}
           </div>
         </div>
         <div class="flex flex-col gap-2">

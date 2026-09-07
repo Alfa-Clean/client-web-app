@@ -11,3 +11,20 @@ export async function reverseGeocode(
   )
   return data.address
 }
+
+/**
+ * Координаты по строке адреса. `null` — Яндекс не распознал строку.
+ *
+ * Город подставляет бэкенд (`_with_default_city`), писать «Ташкент» в поле
+ * не нужно.
+ */
+export async function forwardGeocode(
+  address: string,
+  lang: Lang = 'ru',
+): Promise<{ lat: number; lon: number } | null> {
+  const data = await apiFetch<{ lat: number | null; lon: number | null }>(
+    `/geocode/forward?address=${encodeURIComponent(address)}&lang=${lang}`,
+  )
+  if (data.lat === null || data.lon === null) return null
+  return { lat: data.lat, lon: data.lon }
+}

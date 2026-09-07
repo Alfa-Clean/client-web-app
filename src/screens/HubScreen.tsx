@@ -39,6 +39,13 @@ import { SupportScreen } from './SupportScreen'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL_KEYS } from './ActiveChistomatyScreen'
 import { Logo } from '../components/Logo'
+import { APP_VERSION } from '../version'
+
+/**
+ * Карточка профиля в меню (аватар, имя, @username, телефон). Скрыта: до беты
+ * персональные данные на экране не показываем. Вернуть — поставить `true`.
+ */
+const SHOW_PROFILE_CARD = false
 
 const ACTIVE_STATUSES = new Set([
   'new', 'assigned', 'on_the_way', 'arrived', 'in_progress', 'awaiting_confirmation',
@@ -416,7 +423,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
       </BottomSheet>
 
       {/* Header */}
-      <div class="bg-white px-5 pt-12 pb-5 flex items-center gap-4 border-b border-gray-100">
+      <div class="bg-white px-5 pt-8 pb-5 flex items-center gap-4 border-b border-gray-100">
         <button
           type="button"
           onClick={onBack}
@@ -427,24 +434,26 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
         <p class="text-xl font-bold text-gray-900">{t('menu_title')}</p>
       </div>
 
-      <div class="flex-1 px-4 py-5 flex flex-col gap-4">
+      <div class="flex-1 px-2 py-1 flex gap-1 flex-col">
         {/* User info */}
-        <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100 flex items-center gap-4">
-          <ProfileAvatar
-            firstName={firstName}
-            lastName={lastName}
-            photoUrl={tgUser?.photo_url}
-          />
-          <div class="flex-1 min-w-0">
-            {displayName
-              ? <p class="text-base font-semibold text-gray-900 truncate">{displayName}</p>
-              : <p class="text-base font-semibold text-gray-300 truncate">{t('profile_no_name')}</p>}
-            {username && <p class="text-sm text-gray-400 truncate mt-0.5">@{username}</p>}
-            {user.phone
-              ? <p class="text-sm text-gray-400 mt-0.5">{user.phone}</p>
-              : <p class="text-sm text-gray-300 mt-0.5">{t('profile_no_phone')}</p>}
+        {SHOW_PROFILE_CARD && (
+          <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100 flex items-center gap-4">
+            <ProfileAvatar
+              firstName={firstName}
+              lastName={lastName}
+              photoUrl={tgUser?.photo_url}
+            />
+            <div class="flex-1 min-w-0">
+              {displayName
+                ? <p class="text-base font-semibold text-gray-900 truncate">{displayName}</p>
+                : <p class="text-base font-semibold text-gray-300 truncate">{t('profile_no_name')}</p>}
+              {username && <p class="text-sm text-gray-400 truncate mt-0.5">@{username}</p>}
+              {user.phone
+                ? <p class="text-sm text-gray-400 mt-0.5">{user.phone}</p>
+                : <p class="text-sm text-gray-300 mt-0.5">{t('profile_no_phone')}</p>}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Addresses */}
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -594,6 +603,8 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
           {loggingOut && <Spinner size={16} />}
           {t('menu_logout')}
         </button>
+
+        <p class="text-xs text-gray-300 text-center py-2">{APP_VERSION}</p>
       </div>
     </div>
   )
