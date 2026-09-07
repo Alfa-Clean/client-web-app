@@ -1015,7 +1015,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
               class="w-full py-4 rounded-2xl text-sm font-semibold text-white"
               style="background:#1F847B"
             >
-              {t('dialog_ok')}
+              {t('dialog_got_it')}
             </button>
           </div>
         )}
@@ -1043,7 +1043,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
               class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
               style="background:#1F847B"
             >
-              {t('dialog_ok')}
+              {t('dialog_got_it')}
             </button>
           </div>
         )}
