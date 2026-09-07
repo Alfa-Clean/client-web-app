@@ -124,14 +124,9 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
       <div class="flex flex-col gap-4">
         <div>
           <h2 class="text-2xl font-bold text-gray-900">{t('otp_phone_title')}</h2>
-          <p class="text-sm text-gray-400 mt-1 leading-relaxed">{t('otp_phone_subtitle')}</p>
         </div>
-
         <label class="flex flex-col gap-1.5">
-          <span class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
-            {t('otp_phone_label')}
-          </span>
-          <div class="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-4 py-3.5 focus-within:border-[#1F847B] transition-colors">
+          <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-2xl px-4 py-3.5 focus-within:border-[#1F847B] transition-colors">
             <span class="text-sm text-gray-400 shrink-0">+998</span>
             <input
               type="tel"
@@ -147,14 +142,14 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
               class="flex-1 min-w-0 bg-transparent text-sm text-gray-900 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
             />
           </div>
-          <span class="text-xs text-gray-400">{t('otp_phone_hint')}</span>
+          <span class="text-xs text-gray-400">{t('otp_phone_hint_telegram')}</span>
         </label>
 
         <button
           type="button"
           onClick={sendCode}
           disabled={!isCompletePhone(phone) || busy || cooldown > 0}
-          class="w-full flex items-center justify-center gap-2 text-white font-semibold py-4 px-6 rounded-2xl transition-colors text-base disabled:opacity-50"
+          class="w-full flex items-center justify-center text-white font-semibold py-4 px-6 rounded-2xl transition-colors text-base disabled:opacity-50"
           style={BRAND}
         >
           {busy && <Spinner size={18} class="border-white" />}
