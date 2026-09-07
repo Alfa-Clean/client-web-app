@@ -9,7 +9,9 @@ function applyTheme(theme: Theme) {
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem(STORAGE_KEY) as Theme | null
   if (stored === 'light' || stored === 'dark') return stored
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  // Системную тему намеренно не читаем: приложение открывается светлым, пока
+  // пользователь сам не переключит тему в настройках.
+  return 'light'
 }
 
 export function initTheme() {
