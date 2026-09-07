@@ -701,7 +701,7 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
 
   useEffect(() => {
     getAddresses(user.telegram_id).then(setAddresses).catch(() => {})
-    getUserOrders(user.telegram_id)
+    getUserOrders()
       .then(res => {
         const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
         setActiveOrders(actives)
@@ -731,7 +731,7 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
         }
       })
       .catch(() => setActiveOrders([]))
-    getActiveHandymanOrders(user.telegram_id)
+    getActiveHandymanOrders()
       .then(res => {
         const items = Array.isArray(res.items) ? res.items : []
         setActiveHandymanOrders(items)
@@ -759,7 +759,7 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
         }
       })
       .catch(() => setActiveHandymanOrders([]))
-    getHandymanOrderHistory(user.telegram_id)
+    getHandymanOrderHistory()
       .then(res => setHistoryHandymanOrders(Array.isArray(res.items) ? res.items : []))
       .catch(() => setHistoryHandymanOrders([]))
     return stopPolling
@@ -769,7 +769,7 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
     if (pollRef.current) return
     pollRef.current = setInterval(async () => {
       try {
-        const res = await getUserOrders(user.telegram_id)
+        const res = await getUserOrders()
         const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
         setActiveOrders(actives)
         // Не обнуляем focusedOrder, если заказ просто вышел из "активных" (например, принят и стал completed) —
@@ -795,7 +795,7 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
   }
 
   function refreshOrders() {
-    getUserOrders(user.telegram_id)
+    getUserOrders()
       .then(res => {
         const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
         setActiveOrders(actives)
@@ -803,10 +803,10 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
         if (actives.length > 0) startPolling()
       })
       .catch(() => {})
-    getActiveHandymanOrders(user.telegram_id)
+    getActiveHandymanOrders()
       .then(res => { setActiveHandymanOrders(Array.isArray(res.items) ? res.items : []) })
       .catch(() => {})
-    getHandymanOrderHistory(user.telegram_id)
+    getHandymanOrderHistory()
       .then(res => setHistoryHandymanOrders(Array.isArray(res.items) ? res.items : []))
       .catch(() => {})
   }
