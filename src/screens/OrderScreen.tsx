@@ -19,6 +19,7 @@ import { AddressOption } from '../components/AddressOption'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { OnboardingOverlay } from '../components/OnboardingOverlay'
 import { PhoneVerifyForm } from '../components/PhoneVerifyForm'
+import { formatDisplayPhone } from '../api/otp'
 import { useConfirm } from '../hooks/useConfirm'
 import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
@@ -249,7 +250,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
   const [addonsOpen, setAddonsOpen] = useState(false)
   const [doneOrder, setDoneOrder] = useState<Order | null>(null)
-  const [phoneGate, setPhoneGate] = useState(false)
+  const [phoneGate, setPhoneGate] = useState<'submit' | 'edit' | null>(null)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -402,16 +403,18 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   function handleSubmit() {
     if (!canSubmit || submitting || price === null) return
     if (!user.phone) {
-      setPhoneGate(true)
+      setPhoneGate('submit')
       return
     }
     return submitOrder(user)
   }
 
   async function handlePhoneVerified(client: User) {
+    const mode = phoneGate
     onUserUpdated?.(client)
-    setPhoneGate(false)
-    await submitOrder(client)
+    setPhoneGate(null)
+    // Смена номера — самостоятельное действие: заказ по ней не оформляем.
+    if (mode === 'submit') await submitOrder(client)
   }
 
   async function submitOrder(actor: User) {
@@ -1049,14 +1052,30 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         )}
       </BottomSheet>
 
-      <BottomSheet open={phoneGate} onClose={() => setPhoneGate(false)}>
+      <BottomSheet open={phoneGate !== null} onClose={() => setPhoneGate(null)}>
         <div class="px-5 pt-2 pb-8">
-          <PhoneVerifyForm onVerified={handlePhoneVerified} />
+          <PhoneVerifyForm
+            onVerified={handlePhoneVerified}
+            initialPhone={phoneGate === 'edit' ? user.phone : ''}
+          />
         </div>
       </BottomSheet>
 
       {/* Sticky CTA */}
       <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
+        {user.phone && (
+          <p class="text-xs text-gray-400 text-center mb-2.5">
+            {t('order_phone_note', { phone: formatDisplayPhone(user.phone) })}
+            {' · '}
+            <button
+              type="button"
+              onClick={() => setPhoneGate('edit')}
+              class="text-[#1F847B] font-medium active:opacity-70 transition-opacity"
+            >
+              {t('btn_edit')}
+            </button>
+          </p>
+        )}
         <button
           ref={submitRef}
           type="button"

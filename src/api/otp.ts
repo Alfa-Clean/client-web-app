@@ -43,6 +43,14 @@ export function formatNationalPhone(digits: string): string {
   return parts.filter(Boolean).join(' ')
 }
 
+/** Номер бэкенда («998901234567») → «+998 90 123 45 67» для показа клиенту. */
+export function formatDisplayPhone(apiPhone: string): string {
+  const digits = apiPhone.replace(/\D/g, '')
+  const national = digits.startsWith(PHONE_PREFIX) ? digits.slice(PHONE_PREFIX.length) : digits
+  if (national.length !== PHONE_DIGITS) return apiPhone
+  return `+${PHONE_PREFIX} ${formatNationalPhone(national)}`
+}
+
 /** Оставляет только цифры и отбрасывает код страны, если человек ввёл его вручную. */
 export function normalizePhoneInput(raw: string): string {
   let digits = raw.replace(/\D/g, '')
