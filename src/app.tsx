@@ -1,11 +1,13 @@
-import { useEffect } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { refreshTelegramLogin } from './api/auth'
 import { apiFetch, ApiError, clearToken } from './api/client'
 import { useUser } from './hooks/useUser'
 import { LocaleProvider } from './i18n/index'
-import { RegistrationScreen } from './screens/RegistrationScreen'
+import { PhoneVerifyScreen } from './screens/PhoneVerifyScreen'
 import { HubScreen } from './screens/HubScreen'
+import { Spinner } from './components/Spinner'
 import { mockConfig, MOCK_ENABLED } from './devMock'
+import { normalizeUser } from './types'
 import type { User } from './types'
 
 // Dev-симуляция Telegram Mini App: подписанный initData через /__dev/init-data
@@ -41,8 +43,30 @@ if (MOCK_ENABLED) {
 
 const tg = (window as any).Telegram?.WebApp
 
+/** Открыто внутри Telegram: initData подписан, клиента можно опознать без номера. */
+const IS_TELEGRAM = MOCK_ENABLED || !!tg?.initData
+
+/**
+ * Аноним Mini App: имя и telegram_id из initData, номера ещё нет.
+ *
+ * По ТЗ такой клиент пользуется приложением свободно и подтверждает номер только
+ * при оформлении заказа — до этого момента записи в базе за ним нет.
+ */
+function anonymousTelegramUser(): User {
+  const tgUser = tg?.initDataUnsafe?.user
+  return {
+    telegram_id: tgUser?.id ?? (MOCK_ENABLED ? mockConfig.telegram_id : 0),
+    first_name: tgUser?.first_name ?? '',
+    last_name: tgUser?.last_name,
+    username: tgUser?.username,
+    phone: '',
+    language_code: tgUser?.language_code,
+  }
+}
+
 export function App() {
-  const { user, saveUser } = useUser()
+  const { user, saveUser, clearUser } = useUser()
+  const [booting, setBooting] = useState(true)
   const telegramLang = tg?.initDataUnsafe?.user?.language_code
 
   useEffect(() => {
@@ -54,68 +78,45 @@ export function App() {
     }
 
     async function init() {
-      if (MOCK_ENABLED || tg?.initData) {
+      if (IS_TELEGRAM) {
         try {
           await refreshTelegramLogin()
         } catch (e) {
           console.error('[auth] loginWithTelegram failed:', e)
-          return
         }
       }
 
       // Всегда освежаем профиль с сервера — закэшированный user даёт мгновенный
-      // рендер, но мог устареть (имя/телефон менялись в БД). На 404 оставляем кэш.
+      // рендер, но мог устареть (имя/телефон менялись в БД).
       try {
-        const client = await apiFetch<User>('/clients/me')
-        saveUser(client)
+        saveUser(normalizeUser(await apiFetch<User>('/clients/me')))
       } catch (e) {
-        if (e instanceof ApiError && e.status === 401) {
-          clearToken()
-        } else if (!(e instanceof ApiError && e.status === 404)) {
-          console.error(e)
-        }
+        if (e instanceof ApiError && e.status === 401) clearToken()
+        else if (!(e instanceof ApiError && e.status === 404)) console.error(e)
+
+        // 404 в Telegram — клиента ещё нет, работаем анонимно до заказа.
+        // Вне Telegram опознать человека без номера нечем — на экран входа.
+        if (IS_TELEGRAM) saveUser(anonymousTelegramUser())
+        else clearUser()
       }
     }
 
-    init().catch(console.error)
+    init()
+      .catch(console.error)
+      .finally(() => setBooting(false))
   }, [])
 
-  async function handleRegister(newUser: User) {
-    try {
-      const client = await apiFetch<User>('/clients', {
-        method: 'POST',
-        body: JSON.stringify({
-          telegram_id: newUser.telegram_id,
-          phone: newUser.phone,
-          first_name: newUser.first_name,
-          last_name: newUser.last_name,
-        }),
-      })
-      saveUser(client)
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        // Клиент уже существует — берём реальную запись с сервера,
-        // а не введённые поля (могут быть неполными/пустыми).
-        try {
-          const client = await apiFetch<User>('/clients/me')
-          saveUser(client)
-        } catch {
-          saveUser(newUser)
-        }
-      } else {
-        console.error('[register] failed:', e)
-      }
-    }
-  }
-
-  const devTgId = MOCK_ENABLED ? mockConfig.telegram_id : 0
   const startParam: string = tg?.initDataUnsafe?.start_param ?? ''
 
   return (
     <LocaleProvider telegramLang={telegramLang}>
       {user
-        ? <HubScreen user={user} startParam={startParam} />
-        : <RegistrationScreen onRegistered={handleRegister} devTelegramId={devTgId} />
+        ? <HubScreen user={user} startParam={startParam} onUserUpdated={saveUser} />
+        : booting
+          ? <div class="min-h-screen bg-white flex items-center justify-center">
+              <Spinner size={28} class="border-gray-300" />
+            </div>
+          : <PhoneVerifyScreen onVerified={saveUser} />
       }
     </LocaleProvider>
   )

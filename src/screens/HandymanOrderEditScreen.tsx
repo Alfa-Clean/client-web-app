@@ -180,7 +180,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
     <>
       <ConfirmDialog
         {...dialogProps}
-        confirmLabel={t('dialog_ok')}
+        confirmLabel={t('dialog_got_it')}
         cancelLabel={dialogProps.cancelLabel ?? ''}
         confirmVariant="green"
       />

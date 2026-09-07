@@ -18,6 +18,8 @@ import { BottomSheet } from '../components/BottomSheet'
 import { AddressOption } from '../components/AddressOption'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { OnboardingOverlay } from '../components/OnboardingOverlay'
+import { PhoneVerifyForm } from '../components/PhoneVerifyForm'
+import { formatDisplayPhone } from '../api/otp'
 import { useConfirm } from '../hooks/useConfirm'
 import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
@@ -227,9 +229,11 @@ interface Props {
   onBack: () => void
   repeatFrom?: Order | null
   initialAddress?: Address | null
+  /** Профиль после подтверждения номера — аноним Mini App становится клиентом. */
+  onUserUpdated?: (user: User) => void
 }
 
-export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props) {
+export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUpdated }: Props) {
   const { t, lang } = useLocale()
   const [draft, setDraft] = useState<Draft>(
     () => repeatFrom ? draftFromOrder(repeatFrom) : initialAddress ? draftFromAddress(initialAddress) : (loadSavedDraft() ?? EMPTY_DRAFT),
@@ -246,6 +250,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
   const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
   const [addonsOpen, setAddonsOpen] = useState(false)
   const [doneOrder, setDoneOrder] = useState<Order | null>(null)
+  const [phoneGate, setPhoneGate] = useState<'submit' | 'edit' | null>(null)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -390,8 +395,30 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
     draft.address.trim() !== '' && !!draft.orderDate && !!draft.orderSlot
     && price !== null && !quoteLoading
 
-  async function handleSubmit() {
+  /**
+   * Оформление доступно только с подтверждённым номером: у анонима Mini App его
+   * ещё нет, поэтому вместо отправки открываем шторку с кодом и возвращаемся
+   * сюда уже с профилем клиента — черновик заказа при этом не теряется.
+   */
+  function handleSubmit() {
     if (!canSubmit || submitting || price === null) return
+    if (!user.phone) {
+      setPhoneGate('submit')
+      return
+    }
+    return submitOrder(user)
+  }
+
+  async function handlePhoneVerified(client: User) {
+    const mode = phoneGate
+    onUserUpdated?.(client)
+    setPhoneGate(null)
+    // Смена номера — самостоятельное действие: заказ по ней не оформляем.
+    if (mode === 'submit') await submitOrder(client)
+  }
+
+  async function submitOrder(actor: User) {
+    if (price === null) return
     setSubmitting(true)
     setSubmitError(null)
     try {
@@ -400,8 +427,8 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         : draft.address
       const utmParams = new URLSearchParams(window.location.search)
       const order = await createOrder({
-        telegram_id: user.telegram_id,
-        phone: user.phone,
+        telegram_id: actor.telegram_id,
+        phone: actor.phone,
         service_type: draft.serviceType,
         housing_type: draft.housingType,
         rooms: draft.rooms,
@@ -419,7 +446,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
       })
       for (const file of attachments) {
-        await uploadOrderAttachment(order.id, file, String(user.telegram_id)).catch(() => {})
+        await uploadOrderAttachment(order.id, file, String(actor.telegram_id)).catch(() => {})
       }
       clearDraft()
       // POST /cleaning/orders возвращает только { id, order_num, status, created_at } —
@@ -991,7 +1018,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
               class="w-full py-4 rounded-2xl text-sm font-semibold text-white"
               style="background:#1F847B"
             >
-              {t('dialog_ok')}
+              {t('dialog_got_it')}
             </button>
           </div>
         )}
@@ -1019,14 +1046,36 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress }: Props)
               class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
               style="background:#1F847B"
             >
-              {t('dialog_ok')}
+              {t('dialog_got_it')}
             </button>
           </div>
         )}
       </BottomSheet>
 
+      <BottomSheet open={phoneGate !== null} onClose={() => setPhoneGate(null)}>
+        <div class="px-5 pt-2 pb-8">
+          <PhoneVerifyForm
+            onVerified={handlePhoneVerified}
+            initialPhone={phoneGate === 'edit' ? user.phone : ''}
+          />
+        </div>
+      </BottomSheet>
+
       {/* Sticky CTA */}
       <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
+        {user.phone && (
+          <p class="text-xs text-gray-400 text-center mb-2.5">
+            {t('order_phone_note', { phone: formatDisplayPhone(user.phone) })}
+            {' · '}
+            <button
+              type="button"
+              onClick={() => setPhoneGate('edit')}
+              class="text-[#1F847B] font-medium active:opacity-70 transition-opacity"
+            >
+              {t('btn_edit')}
+            </button>
+          </p>
+        )}
         <button
           ref={submitRef}
           type="button"

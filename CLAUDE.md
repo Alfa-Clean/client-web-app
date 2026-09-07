@@ -23,10 +23,16 @@ npx tsc --noEmit     # проверка типов
 
 ```
 app.tsx
-  → loginWithTelegram(initData) → JWT → localStorage
-  → GET /clients/me
-      404 → RegistrationScreen → POST /clients → HomeScreen
-      200 → HomeScreen
+  Telegram (есть initData)
+    → loginWithTelegram(initData) → JWT → localStorage
+    → GET /clients/me
+        200 → HubScreen
+        404 → анонимный профиль из initData (phone: '') → HubScreen
+              номер спрашивается при оформлении заказа
+  Браузер (initData нет)
+    → GET /clients/me по сохранённому токену
+        200 → HubScreen
+        401/404 → PhoneVerifyScreen (вход по номеру) → JWT → HubScreen
 ```
 
 Роутинг — через `useState` (не react-router). Каждый экран получает `onBack` и рендерит следующий экран через state в родителе.
@@ -37,6 +43,9 @@ app.tsx
 |---|---|
 | `api/client.ts` | `apiFetch`, токен (localStorage, TTL), `ApiError` |
 | `api/auth.ts` | `loginWithTelegram` → JWT |
+| `api/otp.ts` | Запрос и ввод кода, формат номера |
+| `components/PhoneVerifyForm.tsx` | Два шага подтверждения: номер → код |
+| `screens/PhoneVerifyScreen.tsx` | Полноэкранный вход по номеру (вне Telegram) |
 | `api/pricing.ts` | `getQuote` → `POST /pricing/quote`, типы расчёта |
 | `hooks/useQuote.ts` | Дебаунс + кеш расчёта цены, ретрай на 429 |
 | `hooks/useConfirm.ts` | Promise-based confirm — возвращает `{ confirm, dialogProps }` |
@@ -121,6 +130,35 @@ service_type → address → rooms → bathrooms → date → addons → confirm
 3 чипа: Сегодня / Завтра / Другой день (открывает `CalendarPicker`).
 Слоты фиксированные: `09:00–12:00`, `12:00–15:00`, `15:00–18:00`.
 Все даты/слоты считаются в часовом поясе Ташкента (UTC+5), cutoff = текущее время + 3 часа.
+
+## Подтверждение номера (OTP)
+
+Номер подтверждается кодом из Telegram — `POST /auth/otp/request` и
+`POST /auth/otp/verify` (см. ТЗ `docs/notes/otp-verification-spec.md` в монорепо).
+`RegistrationScreen` и `request_contact` этой схемой отменены.
+
+Где спрашиваем номер — зависит от точки входа:
+
+- **Mini App** — клиент анонимен (`user.phone === ''`), профиль собран из
+  `initData`. Номер спрашивается **на кнопке оформления заказа**: `handleSubmit`
+  открывает шторку с `PhoneVerifyForm`, после успеха заказ уходит сразу, черновик
+  не теряется. Обе вертикали — `OrderScreen` и `HandymanOrderScreen`
+- **Браузер** — `PhoneVerifyScreen` при первом открытии, до заказа
+
+Детали контракта:
+
+- Номер уходит на бэкенд как `998XXXXXXXXX` — без плюса, пробелов и скобок
+  (`toApiPhone`); ввод хранится национальной частью, форматирование — только в UI
+- Код — 6 цифр, живёт 5 минут, 3 попытки ввода, пауза 60 с между отправками
+- Причина отказа читается из `ApiError.reason` (`detail.reason`), детали —
+  из `ApiError.context` (`retry_after`, `attempts_left`). По HTTP-статусу их не
+  различить, поэтому новые ошибки OTP размечать так же
+- 410 (код сгорел) возвращает форму на шаг ввода номера — догадками код не подобрать
+- `verifyOtp` шлёт вместе с кодом имя из `initData`: профиль клиента заводится
+  этой же ручкой, а имени взять больше негде. Уже заведённое имя бэкенд не
+  перезаписывает
+- Клиент, заведённый до внедрения OTP, считается подтверждённым: наличие записи
+  в `/clients/me` и есть признак подтверждённого номера, отдельного флага нет
 
 ## Соглашения
 

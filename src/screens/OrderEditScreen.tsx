@@ -312,7 +312,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
     <>
       <ConfirmDialog
         {...dialogProps}
-        confirmLabel={t('dialog_ok')}
+        confirmLabel={t('dialog_got_it')}
         cancelLabel={dialogProps.cancelLabel ?? ''}
         confirmVariant="green"
       />
@@ -346,7 +346,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
               class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white"
               style="background:#1F847B"
             >
-              {t('dialog_ok')}
+              {t('dialog_got_it')}
             </button>
           </div>
         )}
