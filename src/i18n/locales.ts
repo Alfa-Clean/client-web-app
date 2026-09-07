@@ -28,6 +28,8 @@ const ru: Strings = {
   otp_error_delivery: 'Не удалось отправить код. Свяжитесь с поддержкой',
   otp_error_phone_taken: 'Этот номер уже подтверждён другим аккаунтом. Обратитесь в поддержку',
   otp_error_generic: 'Что-то пошло не так. Попробуйте ещё раз',
+  error_no_connection: 'Нет соединения с сервером',
+  order_phone_note: 'Исполнитель позвонит на {phone}',
 
   // BottomBar
   tab_orders: 'Заказы',
@@ -529,6 +531,8 @@ const uz: Strings = {
   otp_error_delivery: 'Kodni yuborib bo\'lmadi. Qo\'llab-quvvatlashga murojaat qiling',
   otp_error_phone_taken: 'Bu raqam boshqa akkaunt tomonidan tasdiqlangan. Qo\'llab-quvvatlashga murojaat qiling',
   otp_error_generic: 'Xatolik yuz berdi. Qayta urinib ko\'ring',
+  error_no_connection: 'Server bilan aloqa yo\'q',
+  order_phone_note: 'Ijrochi {phone} raqamiga qo\'ng\'iroq qiladi',
 
   tab_orders: 'Buyurtmalar',
   tab_addresses: 'Manzillar',
@@ -1014,6 +1018,8 @@ const en: Strings = {
   otp_error_delivery: 'Could not send the code. Please contact support',
   otp_error_phone_taken: 'This number is already confirmed by another account. Contact support',
   otp_error_generic: 'Something went wrong. Please try again',
+  error_no_connection: 'No connection to the server',
+  order_phone_note: 'The specialist will call you at {phone}',
 
   tab_orders: 'Orders',
   tab_addresses: 'Addresses',

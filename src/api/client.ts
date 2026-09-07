@@ -33,6 +33,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Бэкенд недоступен: запрос не дошёл (нет сети, воркер не достучался до API)
+ * либо прокси ответил ошибкой шлюза. Отличается от `ApiError` тем, что сервер
+ * ничего не решал — повторять запрос имеет смысл, менять ввод бесполезно.
+ */
+export class NetworkError extends Error {
+  constructor(message = 'Backend unreachable') {
+    super(message)
+    this.name = 'NetworkError'
+  }
+}
+
+/** Ответы прокси, означающие «до бэкенда не достучались», а не отказ бэкенда. */
+const GATEWAY_STATUSES = new Set([502, 503, 504])
+
 export function getToken(): string | null {
   try {
     const raw = localStorage.getItem(TOKEN_KEY)
@@ -70,14 +85,23 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   const token = getToken()
   const isFormData = init?.body instanceof FormData
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-    ...init,
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      headers: {
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+      ...init,
+    })
+  } catch (e) {
+    throw new NetworkError(e instanceof Error ? e.message : undefined)
+  }
+
+  if (GATEWAY_STATUSES.has(res.status)) {
+    throw new NetworkError(`${res.status} ${res.statusText}`)
+  }
 
   if (!res.ok) {
     let detail: string | undefined

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useLocale } from '../i18n'
-import { ApiError } from '../api/client'
+import { ApiError, NetworkError } from '../api/client'
 import {
   CODE_LENGTH,
   formatNationalPhone,
@@ -57,6 +57,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
   }, [step])
 
   function describe(e: unknown): string {
+    if (e instanceof NetworkError) return t('error_no_connection')
     if (!(e instanceof ApiError)) return t('otp_error_generic')
 
     const seconds = Number(e.context.retry_after)
