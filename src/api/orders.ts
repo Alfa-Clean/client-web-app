@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch, getToken } from './client'
 
 export interface OrderRating {
   score: number
@@ -143,9 +143,26 @@ export function rateOrder(orderId: string, score: number, comment?: string): Pro
   })
 }
 
-export function getUserOrders(telegramId: number): Promise<{ items: Order[]; total: number }> {
+/**
+ * Пустой ответ вместо запроса, когда токена нет.
+ *
+ * Идентификатор клиента больше не передаётся — его определяет бэкенд по JWT.
+ * Значит запрос без токена уходит от имени сервиса (Cloudflare Worker
+ * проставляет `X-Service-Key` на всё) и вернул бы **чужие** заказы. Пока
+ * клиент не опознан, своих заказов у него просто нет.
+ */
+function emptyPage<T>(): Promise<{ items: T[]; total: number }> {
+  return Promise.resolve({ items: [], total: 0 })
+}
+
+/**
+ * Заказы владельца токена. Идентификатор не передаётся: бэкенд определяет
+ * клиента по JWT — раньше номер в query позволял запросить чужие заказы.
+ */
+export function getUserOrders(): Promise<{ items: Order[]; total: number }> {
+  if (!getToken()) return emptyPage<Order>()
   return apiFetch<{ items: Order[]; total: number }>(
-    `/cleaning/orders?telegram_id=${telegramId}&limit=20&offset=0`,
+    '/cleaning/orders?limit=20&offset=0',
   )
 }
 
@@ -213,15 +230,17 @@ export function patchHandymanOrder(orderId: string, data: HandymanOrderPatchPayl
   })
 }
 
-export function getActiveHandymanOrders(telegramId: number): Promise<{ items: HandymanOrder[]; total: number }> {
+export function getActiveHandymanOrders(): Promise<{ items: HandymanOrder[]; total: number }> {
+  if (!getToken()) return emptyPage<HandymanOrder>()
   return apiFetch<{ items: HandymanOrder[]; total: number }>(
-    `/handyman/orders?telegram_id=${telegramId}&active=true`,
+    '/handyman/orders?active=true',
   )
 }
 
-export function getHandymanOrderHistory(telegramId: number): Promise<{ items: HandymanOrder[]; total: number }> {
+export function getHandymanOrderHistory(): Promise<{ items: HandymanOrder[]; total: number }> {
+  if (!getToken()) return emptyPage<HandymanOrder>()
   return apiFetch<{ items: HandymanOrder[]; total: number }>(
-    `/handyman/orders?telegram_id=${telegramId}&active=false`,
+    '/handyman/orders?active=false',
   )
 }
 

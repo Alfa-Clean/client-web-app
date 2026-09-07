@@ -104,18 +104,25 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
     e.preventDefault()
     const invalid = new Set<string>()
     if (!form.address.trim()) invalid.add('address')
+    if (!form.housing_type) invalid.add('housing_type')
     if (form.housing_type === 'apt') {
       if (!form.entrance?.trim()) invalid.add('entrance')
       if (!form.floor?.trim()) invalid.add('floor')
       if (!form.apartment?.trim()) invalid.add('apartment')
     }
+    // Комнаты и санузлы нужны расчёту цены — без них заказ по адресу не оформить.
+    if (form.rooms == null) invalid.add('rooms')
+    if (form.bathrooms == null) invalid.add('bathrooms')
     if (invalid.size > 0) {
       setInvalidFields(invalid)
       setError(
         !form.address.trim() ? t('addr_required')
-          : !form.entrance?.trim() ? t('addr_entrance_required')
-          : !form.floor?.trim() ? t('addr_floor_required')
-          : t('addr_apt_required')
+          : !form.housing_type ? t('addr_housing_type_required')
+          : invalid.has('entrance') ? t('addr_entrance_required')
+          : invalid.has('floor') ? t('addr_floor_required')
+          : invalid.has('apartment') ? t('addr_apt_required')
+          : form.rooms == null ? t('addr_rooms_required')
+          : t('addr_bathrooms_required')
       )
       return
     }
@@ -215,7 +222,9 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
           </div>
         </div>
         <div class="flex flex-col gap-2">
-          <label class="text-xs font-medium text-gray-500">{t('addr_housing_type')}</label>
+          <label class={`text-xs font-medium ${invalidFields.has('housing_type') ? 'text-red-500' : 'text-gray-500'}`}>
+            {t('addr_housing_type')}
+          </label>
           <div class="flex gap-2">
             {(['apt', 'house'] as HousingType[]).map(id => {
               const active = form.housing_type === id
@@ -227,7 +236,9 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
                   class={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium border-2 transition-colors ${
                     active
                       ? 'border-[#1F847B] bg-[#F3F9F9] text-[#186760]'
-                      : 'border-gray-200 bg-white text-gray-700'
+                      : invalidFields.has('housing_type')
+                        ? 'border-red-400 bg-white text-gray-700'
+                        : 'border-gray-200 bg-white text-gray-700'
                   }`}
                 >
                   {id === 'apt' ? (
@@ -293,6 +304,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
             value={form.rooms ?? null}
             min={1}
             max={10}
+            invalid={invalidFields.has('rooms')}
             onChange={v => setCount('rooms', v)}
           />
           <CounterField
@@ -300,6 +312,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
             value={form.bathrooms ?? null}
             min={1}
             max={5}
+            invalid={invalidFields.has('bathrooms')}
             onChange={v => setCount('bathrooms', v)}
           />
         </div>
@@ -359,13 +372,14 @@ interface CounterFieldProps {
   value: number | null
   min: number
   max: number
+  invalid?: boolean
   onChange: (v: number) => void
 }
 
-function CounterField({ label, value, min, max, onChange }: CounterFieldProps) {
+function CounterField({ label, value, min, max, invalid, onChange }: CounterFieldProps) {
   return (
     <div class="flex items-center justify-between">
-      <span class="text-xs font-medium text-gray-500">{label}</span>
+      <span class={`text-xs font-medium ${invalid ? 'text-red-500' : 'text-gray-500'}`}>{label}</span>
       <div class="flex items-center gap-3">
         <button
           type="button"

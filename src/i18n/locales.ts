@@ -106,6 +106,9 @@ const ru: Strings = {
   addr_entrance_required: 'Введите подъезд',
   addr_floor_required: 'Введите этаж',
   addr_apt_required: 'Введите номер квартиры',
+  addr_housing_type_required: 'Выберите тип помещения',
+  addr_rooms_required: 'Укажите количество комнат',
+  addr_bathrooms_required: 'Укажите количество санузлов',
 
   // Order steps
   step_service_type: 'Тип уборки',
@@ -610,6 +613,9 @@ const uz: Strings = {
   addr_entrance_required: 'Kirish raqamini kiriting',
   addr_floor_required: 'Qavatni kiriting',
   addr_apt_required: 'Kvartira raqamini kiriting',
+  addr_housing_type_required: 'Xona turini tanlang',
+  addr_rooms_required: 'Xonalar sonini ko\'rsating',
+  addr_bathrooms_required: 'Hammomlar sonini ko\'rsating',
 
   step_service_type: 'Tozalash turi',
   step_housing_type: 'Xona turi',
@@ -1102,6 +1108,9 @@ const en: Strings = {
   addr_entrance_required: 'Enter entrance number',
   addr_floor_required: 'Enter floor number',
   addr_apt_required: 'Enter apartment number',
+  addr_housing_type_required: 'Choose the property type',
+  addr_rooms_required: 'Specify the number of rooms',
+  addr_bathrooms_required: 'Specify the number of bathrooms',
 
   step_service_type: 'Service type',
   step_housing_type: 'Property type',
