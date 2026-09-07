@@ -17,14 +17,22 @@ interface Props {
   address?: string | null
   /** Идёт обратное геокодирование выбранной точки. */
   geocoding?: boolean
+  /**
+   * Точка, найденная снаружи (прямое геокодирование введённого адреса).
+   * Двигает маркер и вид, но не дёргает `onLocationPick` — иначе получился бы
+   * цикл «ввод → forward → карта → reverse → ввод».
+   */
+  lat?: number | null
+  lon?: number | null
 }
 
-export function MapPicker({ onLocationPick, initialLat, initialLon, address, geocoding }: Props) {
+export function MapPicker({ onLocationPick, initialLat, initialLon, address, geocoding, lat, lon }: Props) {
   const { t } = useLocale()
   const inlineSlotRef = useRef<HTMLDivElement>(null)
   const overlaySlotRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
+  const markerRef = useRef<L.Marker | null>(null)
   const cbRef = useRef(onLocationPick)
   cbRef.current = onLocationPick
 
@@ -41,16 +49,17 @@ export function MapPicker({ onLocationPick, initialLat, initialLon, address, geo
     hostRef.current = host
     inlineSlotRef.current.appendChild(host)
 
-    const lat = initialLat ?? DEFAULT_LAT
-    const lon = initialLon ?? DEFAULT_LON
+    const startLat = initialLat ?? DEFAULT_LAT
+    const startLon = initialLon ?? DEFAULT_LON
 
-    const map = L.map(host).setView([lat, lon], 15)
+    const map = L.map(host).setView([startLat, startLon], 15)
     mapRef.current = map
 
     const isDark = document.documentElement.classList.contains('dark')
     const cancelBasemap = addBasemap(map, isDark)
 
-    const marker = L.marker([lat, lon], { draggable: true }).addTo(map)
+    const marker = L.marker([startLat, startLon], { draggable: true }).addTo(map)
+    markerRef.current = marker
 
     marker.on('dragend', () => {
       const { lat, lng } = marker.getLatLng()
@@ -67,9 +76,21 @@ export function MapPicker({ onLocationPick, initialLat, initialLon, address, geo
       map.remove()
       host.remove()
       mapRef.current = null
+      markerRef.current = null
       hostRef.current = null
     }
   }, [])
+
+  // Внешняя точка: подвинуть маркер и вид, событие выбора не эмитим.
+  useEffect(() => {
+    const map = mapRef.current
+    const marker = markerRef.current
+    if (!map || !marker || lat == null || lon == null) return
+    const current = marker.getLatLng()
+    if (Math.abs(current.lat - lat) < 1e-7 && Math.abs(current.lng - lon) < 1e-7) return
+    marker.setLatLng([lat, lon])
+    map.setView([lat, lon], map.getZoom())
+  }, [lat, lon])
 
   // Перемещаем узел карты в нужный слот и пересчитываем размер тайлов.
   useEffect(() => {
