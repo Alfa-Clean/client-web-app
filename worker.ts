@@ -1,7 +1,6 @@
 interface Env {
   ASSETS: Fetcher
   BACKEND_URL: string
-  SERVICE_KEY?: string
   /** Только для dev (.dev.vars). В прод-деплое воркера отсутствует. */
   BOT_TOKEN?: string
 }
@@ -32,10 +31,10 @@ export default {
       const target = env.BACKEND_URL.replace(/\/$/, '')
       const backendUrl = target + url.pathname + url.search
 
+      // Заголовок сервисного ключа здесь намеренно не проставляется. Раньше
+      // воркер вешал его на КАЖДЫЙ проксируемый запрос, и обращение без JWT
+      // приходило на бэкенд от имени сервиса — с полным доступом вместо 401.
       const headers = new Headers(request.headers)
-      if (env.SERVICE_KEY) {
-        headers.set('X-Service-Key', env.SERVICE_KEY)
-      }
 
       const proxied = new Request(backendUrl, {
         method: request.method,
