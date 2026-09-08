@@ -265,7 +265,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
       if (!hasSeenOnboarding('handyman')) setShowOnboarding(true)
     })
     getHandymanWorkCategoryTree().catch(() => []).then(c => setWorkTree(Array.isArray(c) ? c : []))
-    getAddresses(user.telegram_id).catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
+    getAddresses().catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
 
   function promoReasonText(reason: PromoInvalidReason): string {
@@ -355,9 +355,9 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
     setMediaError(null)
   }
 
-  async function handleAddressCreated(data: Parameters<typeof createAddress>[1]) {
-    const newAddr = await createAddress(user.telegram_id, data)
-    const updated = await getAddresses(user.telegram_id).catch(() => savedAddresses)
+  async function handleAddressCreated(data: Parameters<typeof createAddress>[0]) {
+    const newAddr = await createAddress(data)
+    const updated = await getAddresses().catch(() => savedAddresses)
     setSavedAddresses(Array.isArray(updated) ? updated : savedAddresses)
     patch({
       addressId: newAddr.id,

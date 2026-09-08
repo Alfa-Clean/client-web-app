@@ -46,24 +46,6 @@ const tg = (window as any).Telegram?.WebApp
 /** Открыто внутри Telegram: initData подписан, клиента можно опознать без номера. */
 const IS_TELEGRAM = MOCK_ENABLED || !!tg?.initData
 
-/**
- * Аноним Mini App: имя и telegram_id из initData, номера ещё нет.
- *
- * По ТЗ такой клиент пользуется приложением свободно и подтверждает номер только
- * при оформлении заказа — до этого момента записи в базе за ним нет.
- */
-function anonymousTelegramUser(): User {
-  const tgUser = tg?.initDataUnsafe?.user
-  return {
-    telegram_id: tgUser?.id ?? (MOCK_ENABLED ? mockConfig.telegram_id : 0),
-    first_name: tgUser?.first_name ?? '',
-    last_name: tgUser?.last_name,
-    username: tgUser?.username,
-    phone: '',
-    language_code: tgUser?.language_code,
-  }
-}
-
 export function App() {
   const { user, saveUser, clearUser } = useUser()
   const [booting, setBooting] = useState(true)
@@ -89,15 +71,17 @@ export function App() {
       // Всегда освежаем профиль с сервера — закэшированный user даёт мгновенный
       // рендер, но мог устареть (имя/телефон менялись в БД).
       try {
-        saveUser(normalizeUser(await apiFetch<User>('/clients/me')))
+        saveUser(normalizeUser(await apiFetch<User>('/me')))
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) clearToken()
         else if (!(e instanceof ApiError && e.status === 404)) console.error(e)
 
-        // 404 в Telegram — клиента ещё нет, работаем анонимно до заказа.
-        // Вне Telegram опознать человека без номера нечем — на экран входа.
-        if (IS_TELEGRAM) saveUser(anonymousTelegramUser())
-        else clearUser()
+        // 404 — записи за человеком ещё нет, а значит номер не подтверждён.
+        // Раньше в Telegram здесь заводился аноним, который ходил по приложению
+        // и подтверждал номер лишь на кнопке заказа: `client_id` появлялся
+        // посреди сессии, и половина кода обязана была уметь жить без него.
+        // Теперь вход одинаков в обеих средах — сначала номер.
+        clearUser()
       }
     }
 
