@@ -9,6 +9,12 @@ import { getHandymanWorks, getHandymanWorkCategoryTree } from '../api/addons'
 import { createHandymanOrder } from '../api/orders'
 import type { HandymanOrder, WorkItem } from '../api/orders'
 import { uploadOrderAttachment } from '../api/attachments'
+
+/** Кем подписано вложение. У клиента без Telegram `telegram_id` равен нулю —
+ *  подписываем его UUID, иначе все такие вложения были бы от «0». */
+function senderIdOf(actor: User): string {
+  return actor.telegram_id ? String(actor.telegram_id) : (actor.id ?? '')
+}
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { CalendarPicker } from '../components/CalendarPicker'
@@ -226,6 +232,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   const [showAddressSheet, setShowAddressSheet] = useState(false)
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
   const [done, setDone] = useState(false)
+  const [failedAttachments, setFailedAttachments] = useState(0)
   const [phoneGate, setPhoneGate] = useState<'submit' | 'edit' | null>(null)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
@@ -417,9 +424,17 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
       })
+      // Ошибку загрузки раньше глотал `.catch(() => {})` — заказ создавался
+      // без фото, и никто об этом не узнавал.
+      let failedUploads = 0
       for (const file of attachments) {
-        await uploadOrderAttachment(order.id, file, String(actor.telegram_id)).catch(() => {})
+        try {
+          await uploadOrderAttachment(order.id, file, senderIdOf(actor))
+        } catch {
+          failedUploads += 1
+        }
       }
+      setFailedAttachments(failedUploads)
       clearDraft()
       setDone(true)
     } catch (e: unknown) {
@@ -437,7 +452,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   }
 
   if (done) {
-    return <DoneScreen onBack={onBack} t={t} />
+    return <DoneScreen onBack={onBack} t={t} failedAttachments={failedAttachments} />
   }
 
   return (
@@ -811,7 +826,16 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
 
 // ─── Done screen ──────────────────────────────────────────────────────────────
 
-function DoneScreen({ onBack, t }: { onBack: () => void; t: TFn }) {
+function DoneScreen({
+  onBack,
+  t,
+  failedAttachments = 0,
+}: {
+  onBack: () => void
+  t: TFn
+  /** Сколько файлов не удалось приложить — заказ при этом создан. */
+  failedAttachments?: number
+}) {
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center gap-5">
       <div class="w-16 h-16 rounded-full bg-[#F3F9F9] flex items-center justify-center">
@@ -822,6 +846,14 @@ function DoneScreen({ onBack, t }: { onBack: () => void; t: TFn }) {
       <div>
         <h2 class="text-lg font-bold text-gray-900 mb-1">{t('done_title')}</h2>
       </div>
+
+      {failedAttachments > 0 && (
+        <div class="w-full max-w-xs rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3">
+          <p class="text-sm text-amber-800">
+            {t('done_attachments_failed', { n: String(failedAttachments) })}
+          </p>
+        </div>
+      )}
       <button
         type="button"
         onClick={onBack}

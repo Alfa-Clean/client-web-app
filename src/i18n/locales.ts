@@ -177,6 +177,7 @@ const ru: Strings = {
 
   // Done
   done_title: 'Заказ оформлен!',
+  done_attachments_failed: 'Не удалось приложить файлов: {n}. Их можно добавить в карточке заказа.',
   done_subtitle: 'Мы свяжемся с вами для подтверждения',
   done_home: 'На главную',
 
@@ -675,6 +676,7 @@ const uz: Strings = {
   confirm_error: 'Buyurtma xatosi',
 
   done_title: 'Buyurtma rasmiylashtirildi!',
+  done_attachments_failed: 'Fayllarni biriktirib bo‘lmadi: {n}. Ularni buyurtma kartasida qo‘shish mumkin.',
   done_subtitle: 'Tasdiqlash uchun siz bilan bog\'lanamiz',
   done_home: 'Bosh sahifaga',
 
@@ -1170,6 +1172,7 @@ const en: Strings = {
   confirm_error: 'Order error',
 
   done_title: 'Order placed!',
+  done_attachments_failed: 'Could not attach {n} file(s). You can add them from the order card.',
   done_subtitle: 'We will contact you to confirm',
   done_home: 'Go home',
 
