@@ -177,6 +177,7 @@ const ru: Strings = {
 
   // Done
   done_title: 'Заказ оформлен!',
+  done_attachments_failed: 'Не удалось приложить файлов: {n}. Их можно добавить в карточке заказа.',
   done_subtitle: 'Мы свяжемся с вами для подтверждения',
   done_home: 'На главную',
 
@@ -285,6 +286,8 @@ const ru: Strings = {
   chat_input_placeholder: 'Написать сообщение...',
   chat_load_error: 'Не удалось загрузить сообщения',
   chat_send_error: 'Не удалось отправить сообщение',
+  chat_phone_forbidden: 'Обмен телефонами в чате запрещён',
+  chat_link_forbidden: 'Обмен ссылками в чате запрещён',
   chat_closed_error: 'Чат закрыт — заказ завершён',
   chat_media_unavailable: 'Хранилище временно недоступно. Попробуйте отправить фото позже.',
   chat_relogin_required: 'Не удалось открыть чат поддержки. Закройте и снова откройте приложение.',
@@ -675,6 +678,7 @@ const uz: Strings = {
   confirm_error: 'Buyurtma xatosi',
 
   done_title: 'Buyurtma rasmiylashtirildi!',
+  done_attachments_failed: 'Fayllarni biriktirib bo‘lmadi: {n}. Ularni buyurtma kartasida qo‘shish mumkin.',
   done_subtitle: 'Tasdiqlash uchun siz bilan bog\'lanamiz',
   done_home: 'Bosh sahifaga',
 
@@ -781,6 +785,8 @@ const uz: Strings = {
   chat_input_placeholder: 'Xabar yozing...',
   chat_load_error: 'Xabarlarni yuklab bo\'lmadi',
   chat_send_error: 'Xabar yuborib bo\'lmadi',
+  chat_phone_forbidden: 'Chatda telefon raqam almashish taqiqlanadi',
+  chat_link_forbidden: 'Chatda havola almashish taqiqlanadi',
   chat_closed_error: 'Chat yopiq — buyurtma yakunlandi',
   chat_media_unavailable: 'Ombor vaqtincha mavjud emas. Rasmni keyinroq yuborishga urinib ko\'ring.',
   chat_relogin_required: 'Yordam chatini ochib bo\'lmadi. Ilovani yopib, qayta oching.',
@@ -1170,6 +1176,7 @@ const en: Strings = {
   confirm_error: 'Order error',
 
   done_title: 'Order placed!',
+  done_attachments_failed: 'Could not attach {n} file(s). You can add them from the order card.',
   done_subtitle: 'We will contact you to confirm',
   done_home: 'Go home',
 
@@ -1276,6 +1283,8 @@ const en: Strings = {
   chat_input_placeholder: 'Write a message...',
   chat_load_error: 'Failed to load messages',
   chat_send_error: 'Failed to send message',
+  chat_phone_forbidden: 'Sharing phone numbers in chat is not allowed',
+  chat_link_forbidden: 'Sharing links in chat is not allowed',
   chat_closed_error: 'Chat closed — order is complete',
   chat_media_unavailable: 'Storage is temporarily unavailable. Please try sending the photo later.',
   chat_relogin_required: 'Couldn\'t open support chat. Please close and reopen the app.',

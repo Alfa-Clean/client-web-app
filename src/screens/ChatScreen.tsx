@@ -277,14 +277,22 @@ export function ChatScreen({
     }
   }
 
+  /** Код контент-фильтра → текст на языке клиента. Незнакомый код не прячем:
+   *  общая формулировка понятнее, чем сырой идентификатор. */
+  function contentFilterText(code: string): string {
+    if (code.includes("phone")) return t("chat_phone_forbidden");
+    if (code.includes("link")) return t("chat_link_forbidden");
+    return t("chat_send_error");
+  }
+
   function handleSendError(err: unknown) {
     if (err instanceof ApiError && err.status === 403) {
       setConversationState("closed");
       if (pollRef.current) clearInterval(pollRef.current);
       setError(t("chat_closed_error"));
     } else if (err instanceof ApiError && err.status === 400 && err.detail) {
-      // Контент-фильтр (номера телефонов/ссылки) — показываем текст сервера как есть.
-      setError(err.detail);
+      // Контент-фильтр отдаёт код причины — текст показываем на языке клиента.
+      setError(contentFilterText(err.detail));
     } else if (err instanceof ApiError && err.status === 503) {
       setError(t("chat_media_unavailable"));
     } else {

@@ -2,6 +2,12 @@ import type { JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Info, MapPin, CalendarDays, Sparkles, MessageCircle, Banknote } from 'lucide-react'
 import { uploadOrderAttachment } from '../api/attachments'
+
+/** Кем подписано вложение. У клиента без Telegram `telegram_id` равен нулю —
+ *  подписываем его UUID, иначе все такие вложения были бы от «0». */
+function senderIdOf(actor: User): string {
+  return actor.telegram_id ? String(actor.telegram_id) : (actor.id ?? '')
+}
 import type { User } from '../types'
 import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
@@ -250,6 +256,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
   const [addonsOpen, setAddonsOpen] = useState(false)
   const [doneOrder, setDoneOrder] = useState<Order | null>(null)
+  const [failedAttachments, setFailedAttachments] = useState(0)
   const [phoneGate, setPhoneGate] = useState<'submit' | 'edit' | null>(null)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
@@ -445,9 +452,18 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
       })
+      // Вложения грузятся после создания заказа, отдельными запросами. Ошибку
+      // здесь раньше глотал `.catch(() => {})`: заказ создавался, фото не
+      // прикреплялось, и об этом не узнавал ни клиент, ни диспетчер.
+      let failedUploads = 0
       for (const file of attachments) {
-        await uploadOrderAttachment(order.id, file, String(actor.telegram_id)).catch(() => {})
+        try {
+          await uploadOrderAttachment(order.id, file, senderIdOf(actor))
+        } catch {
+          failedUploads += 1
+        }
       }
+      setFailedAttachments(failedUploads)
       clearDraft()
       // POST /cleaning/orders возвращает только { id, order_num, status, created_at } —
       // остальные поля берём из того, что реально было отправлено в заказе.
@@ -481,7 +497,16 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   }
 
   if (doneOrder) {
-    return <DoneScreen order={doneOrder} addonsCatalog={addons} lang={lang} onBack={onBack} t={t} />
+    return (
+      <DoneScreen
+        order={doneOrder}
+        addonsCatalog={addons}
+        lang={lang}
+        onBack={onBack}
+        t={t}
+        failedAttachments={failedAttachments}
+      />
+    )
   }
 
   return (
@@ -1126,12 +1151,15 @@ function DoneScreen({
   lang,
   onBack,
   t,
+  failedAttachments = 0,
 }: {
   order: Order
   addonsCatalog: Addon[]
   lang: Lang
   onBack: () => void
   t: TFn
+  /** Сколько файлов не удалось приложить — заказ при этом создан. */
+  failedAttachments?: number
 }) {
   const { confirm, dialogProps } = useConfirm()
   const [cancelling, setCancelling] = useState(false)
@@ -1161,6 +1189,14 @@ function DoneScreen({
           </div>
           <h2 class="text-lg font-bold text-gray-900">{t('done_title')}</h2>
         </div>
+
+        {failedAttachments > 0 && (
+          <div class="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3">
+            <p class="text-sm text-amber-800">
+              {t('done_attachments_failed', { n: String(failedAttachments) })}
+            </p>
+          </div>
+        )}
 
         <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
           <DoneDetailRow icon={<MapPin size={15} />} label={t('confirm_address')} value={order.address} />

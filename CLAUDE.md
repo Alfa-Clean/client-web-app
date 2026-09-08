@@ -17,7 +17,6 @@ npx tsc --noEmit     # проверка типов
 |---|---|---|
 | `VITE_API_URL` | `""` | Base URL API (пусто = относительные пути) |
 | `API_URL` | `http://localhost:8000` | Цель Vite proxy в dev |
-| `SERVICE_KEY` | — | `X-Service-Key` для dev-proxy |
 
 ## Архитектура
 
