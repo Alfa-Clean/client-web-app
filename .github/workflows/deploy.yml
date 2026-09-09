@@ -34,9 +34,19 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # Сообщение коммита идёт через env, а не подстановкой в тело скрипта:
+      # `${{ }}` разворачивается ДО запуска shell, поэтому обратные кавычки
+      # или $(...) в тексте коммита выполнялись бы как команды на раннере,
+      # у которого есть доступ к секретам.
       - name: Notify Telegram
         if: success()
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ACTOR: ${{ github.actor }}
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d "text=✅ client-web-app задеплоен%0A📝 ${{ github.event.head_commit.message }}%0A👤 ${{ github.actor }}"
+          MESSAGE="✅ client-web-app задеплоен"$'\n'"📝 ${COMMIT_MSG}"$'\n'"👤 ${ACTOR}"
+          curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "text=${MESSAGE}"
