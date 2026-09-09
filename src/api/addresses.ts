@@ -36,30 +36,33 @@ export interface AddressPayload {
   longitude?: number
 }
 
-export function getAddresses(telegramId: number): Promise<Address[]> {
-  return apiFetch<Address[]>(`/users/${telegramId}/addresses`)
+/**
+ * Адреса владельца токена.
+ *
+ * Идентификатор в путь не передаётся: сервер определяет клиента по JWT. Раньше
+ * пути были вида `/users/{telegram_id}/addresses`, и у клиента без Telegram
+ * туда уходил ноль — адрес записывался, но не числился ни за кем.
+ */
+export function getAddresses(): Promise<Address[]> {
+  return apiFetch<Address[]>('/me/addresses')
 }
 
-export function createAddress(telegramId: number, data: AddressPayload): Promise<Address> {
-  return apiFetch<Address>(`/users/${telegramId}/addresses`, {
+export function createAddress(data: AddressPayload): Promise<Address> {
+  return apiFetch<Address>('/me/addresses', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export function updateAddress(
-  telegramId: number,
-  addressId: string,
-  data: AddressPayload,
-): Promise<Address> {
-  return apiFetch<Address>(`/users/${telegramId}/addresses/${addressId}`, {
+export function updateAddress(addressId: string, data: AddressPayload): Promise<Address> {
+  return apiFetch<Address>(`/me/addresses/${addressId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
 }
 
-export function deleteAddress(telegramId: number, addressId: string): Promise<void> {
-  return apiFetch<void>(`/users/${telegramId}/addresses/${addressId}`, {
+export function deleteAddress(addressId: string): Promise<void> {
+  return apiFetch<void>(`/me/addresses/${addressId}`, {
     method: 'DELETE',
   })
 }

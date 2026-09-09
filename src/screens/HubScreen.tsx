@@ -367,7 +367,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
   const displayName = [firstName, lastName].filter(Boolean).join(' ')
 
   useEffect(() => {
-    getAddresses(user.telegram_id).then(setAddresses).catch(() => {})
+    getAddresses().then(setAddresses).catch(() => {})
   }, [user.telegram_id])
 
   function toggleTheme(next: 'light' | 'dark') {
@@ -377,10 +377,10 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
 
   async function handleAddressSubmit(data: AddressPayload) {
     if (addressSheet === 'new') {
-      const created = await createAddress(user.telegram_id, data)
+      const created = await createAddress(data)
       setAddresses(prev => [...prev, created])
     } else if (addressSheet !== null) {
-      const updated = await updateAddress(user.telegram_id, addressSheet.id, data)
+      const updated = await updateAddress(addressSheet.id, data)
       setAddresses(prev => prev.map(a => a.id === updated.id ? updated : a))
     }
   }
@@ -388,7 +388,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
   async function handleDelete(addr: Address) {
     const ok = await confirm(t('home_delete_confirm').replace('{address}', addr.label || addr.address), { confirmVariant: 'danger' })
     if (!ok) return
-    await deleteAddress(user.telegram_id, addr.id).catch(() => {})
+    await deleteAddress(addr.id).catch(() => {})
     setAddresses(prev => prev.filter(a => a.id !== addr.id))
   }
 
@@ -535,7 +535,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
               <button
                 key={id}
                 type="button"
-                onClick={() => { setLang(id); updateLanguage(user.telegram_id, id).catch(() => {}) }}
+                onClick={() => { setLang(id); updateLanguage(id).catch(() => {}) }}
                 class={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-colors ${
                   lang === id
                     ? 'border-green-600 bg-green-50'
@@ -700,7 +700,7 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
   }
 
   useEffect(() => {
-    getAddresses(user.telegram_id).then(setAddresses).catch(() => {})
+    getAddresses().then(setAddresses).catch(() => {})
     getUserOrders()
       .then(res => {
         const actives = res.items.filter(o => ACTIVE_STATUSES.has(o.status))
@@ -1040,8 +1040,8 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
       <AddressFormScreen
         onBack={() => setAddressGateFor(null)}
         onSubmit={async data => {
-          const newAddr = await createAddress(user.telegram_id, data)
-          const updated = await getAddresses(user.telegram_id).catch(() => addresses)
+          const newAddr = await createAddress(data)
+          const updated = await getAddresses().catch(() => addresses)
           setAddresses(Array.isArray(updated) ? updated : addresses)
           const target = addressGateFor
           setAddressGateFor(null)

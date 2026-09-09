@@ -15,7 +15,7 @@ export function useAddresses(telegramId: number | null) {
 
     setState({ status: 'loading' })
 
-    getAddresses(telegramId)
+    getAddresses()
       .then(data => setState({ status: 'success', data }))
       .catch(err => setState({ status: 'error', message: String(err.message) }))
   }, [telegramId, tick])

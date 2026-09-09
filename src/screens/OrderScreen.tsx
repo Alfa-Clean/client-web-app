@@ -281,7 +281,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   useEffect(() => {
     getAddons().catch(() => []).then(a => setAddons(Array.isArray(a) ? a : []))
     getAddonCategories().catch(() => []).then(c => setAddonCategories(Array.isArray(c) ? c : []))
-    getAddresses(user.telegram_id).catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
+    getAddresses().catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
 
   function promoReasonText(reason: PromoReason): string {
@@ -342,9 +342,9 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
     })
   }
 
-  async function handleAddressCreated(data: Parameters<typeof createAddress>[1]) {
-    const newAddr = await createAddress(user.telegram_id, data)
-    const updated = await getAddresses(user.telegram_id).catch(() => savedAddresses)
+  async function handleAddressCreated(data: Parameters<typeof createAddress>[0]) {
+    const newAddr = await createAddress(data)
+    const updated = await getAddresses().catch(() => savedAddresses)
     setSavedAddresses(Array.isArray(updated) ? updated : savedAddresses)
     patch({
       address: newAddr.address,

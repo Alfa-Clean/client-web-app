@@ -110,7 +110,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
     getOrderAttachments(order.id).then(a => setSavedAttachments(Array.isArray(a) ? a : [])).catch(() => {})
     getHandymanWorks().catch(() => []).then(w => setWorksList(Array.isArray(w) ? w : []))
     getHandymanWorkCategoryTree().catch(() => []).then(c => setWorkTree(Array.isArray(c) ? c : []))
-    getAddresses(telegramId).catch(() => []).then(a => {
+    getAddresses().catch(() => []).then(a => {
       const list = Array.isArray(a) ? a : []
       setSavedAddresses(list)
       if (order.address_id) {

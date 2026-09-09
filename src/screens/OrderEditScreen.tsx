@@ -190,7 +190,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
     Promise.all([
       getAddons().catch(() => []),
       getAddonCategories().catch(() => []),
-      getAddresses(telegramId).catch(() => []),
+      getAddresses().catch(() => []),
     ]).then(([a, c, addrs]) => {
       setAddonsList(Array.isArray(a) ? a : [])
       setAddonCategories(Array.isArray(c) ? c : [])
