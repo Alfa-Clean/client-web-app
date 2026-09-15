@@ -22,6 +22,7 @@ export interface Order {
   bathrooms: number
   price: number
   address: string
+  address_id?: string | null
   order_date: string
   order_slot: string
   addons: AddonItem[]
@@ -58,6 +59,7 @@ export interface OrderPayload {
   bathrooms: number
   price: number
   address: string
+  address_id?: string
   order_date: string
   order_slot: string
   source?: 'bot' | 'manual'

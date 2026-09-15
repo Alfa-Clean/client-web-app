@@ -38,6 +38,10 @@ interface Draft {
   serviceType: ServiceType
   housingType: HousingType
   address: string
+  // Ссылка на адрес из книги. Без неё бэкенд заводит снимок из одной строки,
+  // и исполнитель не видит подъезд, этаж, квартиру и домофон. Черновики,
+  // сохранённые до появления поля, уходят по-старому — строкой.
+  addressId?: string
   addressLabel?: string | null
   addressDetails: string
   rooms: number
@@ -168,6 +172,7 @@ function draftFromOrder(o: Order): Draft {
     serviceType: (o.service_type as ServiceType) || 'standard',
     housingType: o.housing_type ?? 'apt',
     address: o.address,
+    addressId: o.address_id ?? undefined,
     addressLabel: null,
     addressDetails: '',
     rooms: o.rooms,
@@ -184,6 +189,7 @@ function draftFromAddress(a: Address): Draft {
   return {
     ...EMPTY_DRAFT,
     address: a.address,
+    addressId: a.id,
     addressLabel: a.label ?? null,
     addressDetails: a.notes ?? '',
     rooms: a.rooms ?? EMPTY_DRAFT.rooms,
@@ -348,6 +354,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
     setSavedAddresses(Array.isArray(updated) ? updated : savedAddresses)
     patch({
       address: newAddr.address,
+      addressId: newAddr.id,
       addressLabel: newAddr.label ?? null,
       addressDetails: newAddr.notes ?? '',
       rooms: newAddr.rooms ?? draft.rooms,
@@ -442,6 +449,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         bathrooms: draft.bathrooms,
         price,
         address,
+        ...(draft.addressId && { address_id: draft.addressId }),
         order_date: draft.orderDate,
         order_slot: draft.orderSlot,
         source: 'bot',
@@ -607,6 +615,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
                     onClick={() => {
                       patch({
                         address: addr.address,
+                        addressId: addr.id,
                         addressLabel: addr.label ?? null,
                         addressDetails: addr.notes ?? '',
                         rooms: addr.rooms ?? draft.rooms,
