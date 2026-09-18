@@ -405,6 +405,7 @@ export function ChatScreen({
             new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();
           const isClient = msg.sender_type === "client";
           const isEvent = msg.kind === "event";
+          const isNotice = isEvent || msg.sender_type === "system";
 
           return (
             <div key={msg.id}>
@@ -419,11 +420,11 @@ export function ChatScreen({
                 </div>
               )}
 
-              {isEvent ? (
+              {isNotice ? (
                 <div class="flex justify-center my-2 px-4">
                   <div class="text-center">
                     <div class="inline-block max-w-[92%] px-3 py-1.5 rounded-full bg-gray-100 text-[11px] text-gray-500 break-words">
-                      {renderEventText(msg)}
+                      {isEvent ? renderEventText(msg) : msg.content}
                     </div>
                     <p class="text-[10px] text-gray-400 mt-1">{formatTime(msg.created_at)}</p>
                   </div>
