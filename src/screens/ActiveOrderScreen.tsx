@@ -63,6 +63,20 @@ interface Props {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+/** Фото клинера; без фото или если оно не загрузилось — прежняя иконка. */
+function ExecutorAvatar({ url }: { url?: string | null }) {
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <UserIcon size={11} class="inline" />
+  return (
+    <img
+      src={url}
+      alt=""
+      class="w-5 h-5 rounded-full object-cover shrink-0 ring-1 ring-white/40"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 export function ActiveOrderScreen({
   order: initialOrder,
   senderId,
@@ -214,8 +228,8 @@ export function ActiveOrderScreen({
                   {t(`status_${order.status}`) || order.status}
                 </p>
                 {order.executor_name && (
-                  <p class="text-white/80 text-xs mt-1 flex items-center gap-1">
-                    <UserIcon size={11} class="inline" />
+                  <p class="text-white/80 text-xs mt-1.5 flex items-center gap-1.5">
+                    <ExecutorAvatar url={order.executor_avatar_url} />
                     {order.executor_name}
                   </p>
                 )}

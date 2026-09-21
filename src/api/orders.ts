@@ -30,6 +30,8 @@ export interface Order {
   created_at: string
   executor_id?: string | null
   executor_name?: string | null
+  /** Фото клинера (полный URL). Нет — показываем заглушку. */
+  executor_avatar_url?: string | null
   comment?: string | null
   rating?: OrderRating | null
   // House order fields
