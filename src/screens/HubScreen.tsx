@@ -380,8 +380,13 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
       const created = await createAddress(data)
       setAddresses(prev => [...prev, created])
     } else if (addressSheet !== null) {
-      const updated = await updateAddress(addressSheet.id, data)
-      setAddresses(prev => prev.map(a => a.id === updated.id ? updated : a))
+      // Правка не меняет строку, а создаёт новую версию адреса с новым id
+      // (старая остаётся за прошлыми заказами) — заменяем по id, который
+      // правили. По `updated.id` совпадения не было: в списке оставалась
+      // старая версия, и следующее сохранение уходило PUT'ом на неё → 404.
+      const previousId = addressSheet.id
+      const updated = await updateAddress(previousId, data)
+      setAddresses(prev => prev.map(a => a.id === previousId ? updated : a))
     }
   }
 
