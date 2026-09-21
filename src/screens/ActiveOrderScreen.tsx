@@ -64,8 +64,10 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 /**
- * Квадрат статуса в шапке. Пока клинер назначен (иконка человека), вместо
- * иконки — его фото; без фото или если оно не загрузилось — иконка статуса.
+ * Квадрат статуса в шапке. Как только клинер принял заказ, в квадрате — его
+ * фото на всех дальнейших статусах (сам статус написан текстом рядом). В `new`
+ * заказ клинеру только предложен, и он может отказаться, — там иконка. Без
+ * фото или если оно не загрузилось — иконка статуса.
  */
 function StatusBadge({
   icon: Icon,
@@ -234,7 +236,7 @@ export function ActiveOrderScreen({
             <div class="flex items-center gap-4">
               <StatusBadge
                 icon={StatusIcon}
-                avatarUrl={order.status === 'assigned' ? order.executor_avatar_url : null}
+                avatarUrl={order.status !== 'new' ? order.executor_avatar_url : null}
               />
               <div class="flex-1 min-w-0">
                 <p class="text-white/70 text-xs mb-0.5">
