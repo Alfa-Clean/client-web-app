@@ -535,7 +535,7 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
               <button
                 key={id}
                 type="button"
-                onClick={() => { setLang(id); updateLanguage(id).catch(() => {}) }}
+                onClick={() => setLang(id)}
                 class={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-colors ${
                   lang === id
                     ? 'border-green-600 bg-green-50'
@@ -656,7 +656,7 @@ interface Props {
 }
 
 export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
-  const { t } = useLocale()
+  const { t, lang } = useLocale()
   const deepLink = parseDeepLink(startParam)
   const initialView: View = deepLink?.type === 'wizard' ? deepLink.target : 'hub'
 
@@ -687,6 +687,16 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
   useEffect(() => {
     if (view === 'hub' && !hasSeenOnboarding('hub')) setShowOnboarding(true)
   }, [view])
+
+  // Уведомления бэкенд пишет на `clients.language_code`, а язык клиент видит
+  // только здесь: с выбора в профиле или с языка Telegram. Без сверки в базе
+  // оставался `ru` по умолчанию, и узбекоязычный клиент получал push на русском.
+  useEffect(() => {
+    if (!user.id || user.language_code === lang) return
+    updateLanguage(lang)
+      .then(() => onUserUpdated?.({ ...user, language_code: lang }))
+      .catch(() => {})
+  }, [user.id, user.language_code, lang])
 
   // Открытый чат = сообщения увидены. Серверную отметку шлёт ChatScreen, здесь
   // гасим бейдж локально, чтобы он не висел до следующего опроса.
