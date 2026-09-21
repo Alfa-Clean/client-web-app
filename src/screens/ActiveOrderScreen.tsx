@@ -63,17 +63,32 @@ interface Props {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-/** Фото клинера; без фото или если оно не загрузилось — прежняя иконка. */
-function ExecutorAvatar({ url }: { url?: string | null }) {
+/**
+ * Квадрат статуса в шапке. Пока клинер назначен (иконка человека), вместо
+ * иконки — его фото; без фото или если оно не загрузилось — иконка статуса.
+ */
+function StatusBadge({
+  icon: Icon,
+  avatarUrl,
+}: {
+  icon: ComponentType<any>
+  avatarUrl?: string | null
+}) {
   const [failed, setFailed] = useState(false)
-  if (!url || failed) return <UserIcon size={11} class="inline" />
+  if (avatarUrl && !failed) {
+    return (
+      <img
+        src={avatarUrl}
+        alt=""
+        class="w-14 h-14 rounded-2xl object-cover shrink-0 bg-white/20"
+        onError={() => setFailed(true)}
+      />
+    )
+  }
   return (
-    <img
-      src={url}
-      alt=""
-      class="w-5 h-5 rounded-full object-cover shrink-0 ring-1 ring-white/40"
-      onError={() => setFailed(true)}
-    />
+    <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+      <Icon size={28} class="text-white" />
+    </div>
   )
 }
 
@@ -217,9 +232,10 @@ export function ActiveOrderScreen({
         <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div class={`px-5 pt-6 pb-5 ${isDisputed ? 'bg-red-500' : 'bg-green-700'}`}>
             <div class="flex items-center gap-4">
-              <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                <StatusIcon size={28} class="text-white" />
-              </div>
+              <StatusBadge
+                icon={StatusIcon}
+                avatarUrl={order.status === 'assigned' ? order.executor_avatar_url : null}
+              />
               <div class="flex-1 min-w-0">
                 <p class="text-white/70 text-xs mb-0.5">
                   {t(`svc_${order.service_type}`) || order.service_type}
@@ -228,8 +244,8 @@ export function ActiveOrderScreen({
                   {t(`status_${order.status}`) || order.status}
                 </p>
                 {order.executor_name && (
-                  <p class="text-white/80 text-xs mt-1.5 flex items-center gap-1.5">
-                    <ExecutorAvatar url={order.executor_avatar_url} />
+                  <p class="text-white/80 text-xs mt-1 flex items-center gap-1">
+                    <UserIcon size={11} class="inline" />
                     {order.executor_name}
                   </p>
                 )}
