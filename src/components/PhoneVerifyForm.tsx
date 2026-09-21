@@ -29,6 +29,46 @@ type Step = 'phone' | 'code'
 
 const BRAND = 'background:#1F847B'
 
+const PENDING_KEY = 'chaqqon_otp_pending'
+
+/** Отправленный код, которого ещё ждём. Моменты — `Date.now()`, мс. */
+interface PendingOtp {
+  phone: string
+  expiresAt: number
+  resendAt: number
+}
+
+/**
+ * Код приходит в Telegram, и чтобы его прочитать, приложение сворачивают.
+ * Свёрнутый webview ОС вправе выгрузить — при возврате страница грузится
+ * заново, и без этой записи человек снова оказывался на вводе номера, а
+ * повторная отправка упиралась в паузу бэкенда.
+ */
+function loadPendingOtp(): PendingOtp | null {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY)
+    if (!raw) return null
+    const pending = JSON.parse(raw) as PendingOtp
+    return Date.now() < pending.expiresAt ? pending : null
+  } catch {
+    return null
+  }
+}
+
+function savePendingOtp(pending: PendingOtp) {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(pending))
+  } catch {
+  }
+}
+
+function clearPendingOtp() {
+  try {
+    localStorage.removeItem(PENDING_KEY)
+  } catch {
+  }
+}
+
 /**
  * Два шага в одном компоненте: ввод номера и ввод кода. Используется и на
  * отдельном экране (браузер, вход по номеру), и в шторке при оформлении заказа
@@ -36,21 +76,38 @@ const BRAND = 'background:#1F847B'
  */
 export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
   const { t, lang } = useLocale()
-  const [step, setStep] = useState<Step>('phone')
-  const [phone, setPhone] = useState(normalizePhoneInput(initialPhone))
+  const [pending] = useState(loadPendingOtp)
+  const [step, setStep] = useState<Step>(pending ? 'code' : 'phone')
+  const [phone, setPhone] = useState(pending?.phone ?? normalizePhoneInput(initialPhone))
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [cooldown, setCooldown] = useState(0)
+  const [resendAt, setResendAt] = useState(pending?.resendAt ?? 0)
+  const [now, setNow] = useState(Date.now)
+  const cooldown = Math.max(0, Math.ceil((resendAt - now) / 1000))
   const codeInputRef = useRef<HTMLInputElement>(null)
 
   // Обратный отсчёт до повторной отправки: бэкенд держит паузу в 60 секунд и
   // возвращает её в retry_after, включая случай отказа по этой же паузе.
+  // Считается от дедлайна, а не тиками: в свёрнутом приложении таймеры
+  // замедляются, и счётчик отставал бы от паузы бэкенда.
   useEffect(() => {
-    if (cooldown <= 0) return
-    const id = setInterval(() => setCooldown(prev => (prev <= 1 ? 0 : prev - 1)), 1000)
+    if (resendAt <= Date.now()) return
+    const id = setInterval(() => {
+      const current = Date.now()
+      setNow(current)
+      if (current >= resendAt) clearInterval(id)
+    }, 1000)
     return () => clearInterval(id)
-  }, [cooldown > 0])
+  }, [resendAt])
+
+  /** Запускает паузу и возвращает её дедлайн. */
+  function startCooldown(seconds: number): number {
+    const current = Date.now()
+    setNow(current)
+    setResendAt(current + seconds * 1000)
+    return current + seconds * 1000
+  }
 
   useEffect(() => {
     if (step === 'code') codeInputRef.current?.focus()
@@ -87,7 +144,8 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
     setError(null)
     try {
       const res = await requestOtp(toApiPhone(phone), lang)
-      setCooldown(res.retry_after)
+      const resendAt = startCooldown(res.retry_after)
+      savePendingOtp({ phone, expiresAt: Date.now() + res.expires_in * 1000, resendAt })
       setCode('')
       setStep('code')
     } catch (e) {
@@ -95,7 +153,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
       // Отказ по паузе тоже сообщает, сколько ждать — заводим тот же счётчик.
       if (e instanceof ApiError && e.status === 429) {
         const seconds = Number(e.context.retry_after)
-        if (Number.isFinite(seconds) && seconds > 0) setCooldown(seconds)
+        if (Number.isFinite(seconds) && seconds > 0) startCooldown(seconds)
       }
     } finally {
       setBusy(false)
@@ -108,12 +166,16 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
     setError(null)
     try {
       const res = await verifyOtp(toApiPhone(phone), code)
+      clearPendingOtp()
       await onVerified(normalizeUser(res.client), res)
     } catch (e) {
       setError(describe(e))
       setCode('')
       // Код сгорел (истёк или кончились попытки) — новый шанс только через новый код.
-      if (e instanceof ApiError && e.status === 410) setStep('phone')
+      if (e instanceof ApiError && e.status === 410) {
+        clearPendingOtp()
+        setStep('phone')
+      }
     } finally {
       setBusy(false)
     }
@@ -219,7 +281,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
 
       <button
         type="button"
-        onClick={() => { setStep('phone'); setCode(''); setError(null) }}
+        onClick={() => { clearPendingOtp(); setStep('phone'); setCode(''); setError(null) }}
         class="text-sm text-gray-400 text-center transition-colors"
       >
         {t('otp_change_phone')}
