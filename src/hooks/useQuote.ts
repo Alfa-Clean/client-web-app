@@ -7,13 +7,35 @@ import type { Lang } from '../i18n/locales'
 const DEBOUNCE_MS = 400
 const RATE_LIMIT_RETRY_MS = 3000
 
-// Кешируем на время сессии, чтобы шаги «туда-обратно» по форме не жгли лимит
-// 60 req/min. Ключ — состав запроса, но результат зависит ещё и от истории
-// клиента: скидка новичка сгорает и промокод становится использованным в
-// момент оформления заказа. Поэтому после заказа кеш сбрасывается
-// (`clearQuoteCache`) — иначе тот же состав показывал старую скидку (бета,
-// баг #14).
-const cache = new Map<string, QuoteResponse>()
+// Кеш нужен, чтобы шаги «туда-обратно» по форме не жгли лимит 60 req/min.
+// Ключ — состав запроса, но результат зависит и от того, чего в ключе нет:
+// истории клиента (скидка новичка, использованный промокод) и настроек на
+// сервере (срок и активность промокода, тарифы). Раньше кеш жил всю сессию, и
+// приложение показывало промокод действующим после того, как его сдвинули или
+// выключили, и сгоревшую скидку новичка после заказа (бета, баг #14). Поэтому:
+// - запись живёт минуту — этого хватает на шаги формы;
+// - расчёт с промокодом не кешируется вовсе: «Применить» — явная просьба
+//   проверить код сейчас, и таких запросов мало;
+// - после заказа кеш сбрасывается целиком (`clearQuoteCache`).
+const CACHE_TTL_MS = 60_000
+
+interface CacheEntry {
+  quote: QuoteResponse
+  storedAt: number
+}
+
+const cache = new Map<string, CacheEntry>()
+
+function cachedQuote(key: string | null, request: QuoteRequest | null): QuoteResponse | null {
+  if (!key || !request || request.promo_code) return null
+  const entry = cache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.storedAt > CACHE_TTL_MS) {
+    cache.delete(key)
+    return null
+  }
+  return entry.quote
+}
 
 /** Забыть все расчёты: история клиента изменилась (оформлен заказ). */
 export function clearQuoteCache() {
@@ -35,7 +57,7 @@ export function useQuote(request: QuoteRequest | null, lang: Lang): QuoteState {
   const key = request ? `${lang}|${JSON.stringify(request)}` : null
 
   const [state, setState] = useState<QuoteState>(() => ({
-    quote: key ? cache.get(key) ?? null : null,
+    quote: cachedQuote(key, request),
     loading: false,
     error: false,
   }))
@@ -50,7 +72,7 @@ export function useQuote(request: QuoteRequest | null, lang: Lang): QuoteState {
       return
     }
 
-    const cached = cache.get(key)
+    const cached = cachedQuote(key, requestRef.current)
     if (cached) {
       setState({ quote: cached, loading: false, error: false })
       return
@@ -66,7 +88,7 @@ export function useQuote(request: QuoteRequest | null, lang: Lang): QuoteState {
       if (!req) return
       getQuote(req, lang, ctrl.signal)
         .then(quote => {
-          cache.set(key!, quote)
+          if (!req.promo_code) cache.set(key!, { quote, storedAt: Date.now() })
           setState({ quote, loading: false, error: false })
         })
         .catch((e: unknown) => {
