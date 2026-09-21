@@ -176,6 +176,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
   const [comment, setComment] = useState(order.comment ?? '')
   const [savedAttachments, setSavedAttachments] = useState<OrderAttachment[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
+  const attachedCount = savedAttachments.length + attachments.length
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -252,7 +253,12 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
     const files = Array.from(input.files ?? [])
     input.value = ''
     setMediaError(null)
-    const remaining = MAX_ATTACH_COUNT - attachments.length
+    // Лимит — на заказ целиком: до 21.09 здесь считались только новые файлы,
+    // и к заказу с тремя сохранёнными прикладывали ещё десять.
+    const remaining = MAX_ATTACH_COUNT - attachedCount
+    if (files.length > remaining) {
+      setMediaError(t('order_media_limit', { max: MAX_ATTACH_COUNT }))
+    }
     if (remaining <= 0) return
     const valid: File[] = []
     for (const f of files.slice(0, remaining)) {
@@ -612,10 +618,10 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
               <p class="text-xs text-red-500">{mediaError}</p>
             ) : (
               <span class="text-xs text-gray-300">
-                {attachments.length > 0 ? `${attachments.length} / ${MAX_ATTACH_COUNT}` : ''}
+                {attachedCount > 0 ? `${attachedCount} / ${MAX_ATTACH_COUNT}` : ''}
               </span>
             )}
-            {attachments.length < MAX_ATTACH_COUNT && (
+            {attachedCount < MAX_ATTACH_COUNT && (
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}

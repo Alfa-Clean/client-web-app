@@ -327,6 +327,9 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
     setMediaError(null)
 
     const remaining = MAX_ATTACH_COUNT - attachments.length
+    if (files.length > remaining) {
+      setMediaError(t('order_media_limit', { max: MAX_ATTACH_COUNT }))
+    }
     if (remaining <= 0) return
 
     const valid: File[] = []
