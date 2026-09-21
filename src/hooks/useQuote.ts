@@ -1,46 +1,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { QuoteRequest, QuoteResponse } from '../api/pricing'
-import { getQuote } from '../api/pricing'
+import { cacheQuote, getCachedQuote, getQuote, quoteCacheKey } from '../api/pricing'
 import { ApiError } from '../api/client'
 import type { Lang } from '../i18n/locales'
 
 const DEBOUNCE_MS = 400
 const RATE_LIMIT_RETRY_MS = 3000
-
-// Кеш нужен, чтобы шаги «туда-обратно» по форме не жгли лимит 60 req/min.
-// Ключ — состав запроса, но результат зависит и от того, чего в ключе нет:
-// истории клиента (скидка новичка, использованный промокод) и настроек на
-// сервере (срок и активность промокода, тарифы). Раньше кеш жил всю сессию, и
-// приложение показывало промокод действующим после того, как его сдвинули или
-// выключили, и сгоревшую скидку новичка после заказа (бета, баг #14). Поэтому:
-// - запись живёт минуту — этого хватает на шаги формы;
-// - расчёт с промокодом не кешируется вовсе: «Применить» — явная просьба
-//   проверить код сейчас, и таких запросов мало;
-// - после заказа кеш сбрасывается целиком (`clearQuoteCache`).
-const CACHE_TTL_MS = 60_000
-
-interface CacheEntry {
-  quote: QuoteResponse
-  storedAt: number
-}
-
-const cache = new Map<string, CacheEntry>()
-
-function cachedQuote(key: string | null, request: QuoteRequest | null): QuoteResponse | null {
-  if (!key || !request || request.promo_code) return null
-  const entry = cache.get(key)
-  if (!entry) return null
-  if (Date.now() - entry.storedAt > CACHE_TTL_MS) {
-    cache.delete(key)
-    return null
-  }
-  return entry.quote
-}
-
-/** Забыть все расчёты: история клиента изменилась (оформлен заказ). */
-export function clearQuoteCache() {
-  cache.clear()
-}
 
 export interface QuoteState {
   /** Последний успешный расчёт. Во время пересчёта остаётся прежним — чтобы цена не мигала. */
@@ -52,12 +17,15 @@ export interface QuoteState {
 /**
  * Дебаунсит `POST /pricing/quote` по составу запроса.
  * `request === null` — расчёт не нужен (например, ничего ещё не выбрано).
+ *
+ * Кеш расчётов и правила его жизни — в `api/pricing.ts`: там же его
+ * сбрасывают создание и отмена заказа.
  */
 export function useQuote(request: QuoteRequest | null, lang: Lang): QuoteState {
-  const key = request ? `${lang}|${JSON.stringify(request)}` : null
+  const key = request ? quoteCacheKey(request, lang) : null
 
   const [state, setState] = useState<QuoteState>(() => ({
-    quote: cachedQuote(key, request),
+    quote: request ? getCachedQuote(request, lang) : null,
     loading: false,
     error: false,
   }))
@@ -72,7 +40,7 @@ export function useQuote(request: QuoteRequest | null, lang: Lang): QuoteState {
       return
     }
 
-    const cached = cachedQuote(key, requestRef.current)
+    const cached = requestRef.current ? getCachedQuote(requestRef.current, lang) : null
     if (cached) {
       setState({ quote: cached, loading: false, error: false })
       return
@@ -88,7 +56,7 @@ export function useQuote(request: QuoteRequest | null, lang: Lang): QuoteState {
       if (!req) return
       getQuote(req, lang, ctrl.signal)
         .then(quote => {
-          if (!req.promo_code) cache.set(key!, { quote, storedAt: Date.now() })
+          cacheQuote(req, lang, quote)
           setState({ quote, loading: false, error: false })
         })
         .catch((e: unknown) => {

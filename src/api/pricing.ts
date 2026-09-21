@@ -105,3 +105,46 @@ export function getQuote(
     signal,
   })
 }
+
+// ─── Кеш расчётов ─────────────────────────────────────────────────────────────
+//
+// Нужен, чтобы шаги «туда-обратно» по форме не жгли лимит 60 req/min. Ключ —
+// состав запроса, но ответ зависит и от того, чего в ключе нет: истории клиента
+// (скидка новичка, использованный промокод) и настроек на сервере (срок и
+// активность промокода, тарифы) — см. backend/domains/pricing.md. Раньше кеш
+// жил всю сессию и показывал сгоревшие скидки и снятые промокоды действующими
+// (бета, баг #14). Поэтому:
+// - запись живёт минуту — этого хватает на шаги формы;
+// - расчёт с промокодом не кешируется: «Применить» — явная просьба проверить
+//   код сейчас, и таких запросов мало;
+// - создание и отмена заказа сбрасывают кеш целиком (`api/orders.ts`): они
+//   сжигают или возвращают скидку новичка и промокод.
+const QUOTE_CACHE_TTL_MS = 60_000
+
+const quoteCache = new Map<string, { quote: QuoteResponse; storedAt: number }>()
+
+export function quoteCacheKey(request: QuoteRequest, lang: Lang): string {
+  return `${lang}|${JSON.stringify(request)}`
+}
+
+export function getCachedQuote(request: QuoteRequest, lang: Lang): QuoteResponse | null {
+  if (request.promo_code) return null
+  const key = quoteCacheKey(request, lang)
+  const entry = quoteCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.storedAt > QUOTE_CACHE_TTL_MS) {
+    quoteCache.delete(key)
+    return null
+  }
+  return entry.quote
+}
+
+export function cacheQuote(request: QuoteRequest, lang: Lang, quote: QuoteResponse) {
+  if (request.promo_code) return
+  quoteCache.set(quoteCacheKey(request, lang), { quote, storedAt: Date.now() })
+}
+
+/** Забыть все расчёты: история клиента изменилась (заказ создан или отменён). */
+export function clearQuoteCache() {
+  quoteCache.clear()
+}

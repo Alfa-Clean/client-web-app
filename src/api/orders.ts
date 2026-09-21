@@ -1,4 +1,5 @@
 import { apiFetch, getToken } from './client'
+import { clearQuoteCache } from './pricing'
 
 export interface OrderRating {
   score: number
@@ -76,11 +77,14 @@ export interface OrderPayload {
   utm_campaign?: string
 }
 
-export function createOrder(data: OrderPayload): Promise<Order> {
-  return apiFetch<Order>('/cleaning/orders', {
+export async function createOrder(data: OrderPayload): Promise<Order> {
+  const result = await apiFetch<Order>('/cleaning/orders', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+  // Заказ сжигает или возвращает скидку новичка и промокод — старые расчёты неверны.
+  clearQuoteCache()
+  return result
 }
 
 export interface HandymanOrderPayload {
@@ -105,15 +109,21 @@ export interface HandymanOrderResponse {
   created_at: string
 }
 
-export function createHandymanOrder(data: HandymanOrderPayload): Promise<HandymanOrderResponse> {
-  return apiFetch<HandymanOrderResponse>('/handyman/orders', {
+export async function createHandymanOrder(data: HandymanOrderPayload): Promise<HandymanOrderResponse> {
+  const result = await apiFetch<HandymanOrderResponse>('/handyman/orders', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+  // Заказ сжигает или возвращает скидку новичка и промокод — старые расчёты неверны.
+  clearQuoteCache()
+  return result
 }
 
-export function cancelOrder(orderId: string): Promise<Order> {
-  return apiFetch<Order>(`/cleaning/orders/${orderId}/cancel`, { method: 'POST' })
+export async function cancelOrder(orderId: string): Promise<Order> {
+  const result = await apiFetch<Order>(`/cleaning/orders/${orderId}/cancel`, { method: 'POST' })
+  // Заказ сжигает или возвращает скидку новичка и промокод — старые расчёты неверны.
+  clearQuoteCache()
+  return result
 }
 
 export function disputeOrder(orderId: string, reason: string): Promise<{ id: string; status: string }> {
@@ -246,8 +256,11 @@ export function getHandymanOrderHistory(): Promise<{ items: HandymanOrder[]; tot
   )
 }
 
-export function cancelHandymanOrder(orderId: string): Promise<HandymanOrder> {
-  return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}/cancel`, { method: 'POST' })
+export async function cancelHandymanOrder(orderId: string): Promise<HandymanOrder> {
+  const result = await apiFetch<HandymanOrder>(`/handyman/orders/${orderId}/cancel`, { method: 'POST' })
+  // Заказ сжигает или возвращает скидку новичка и промокод — старые расчёты неверны.
+  clearQuoteCache()
+  return result
 }
 
 export function acceptHandymanOrder(orderId: string): Promise<HandymanOrder> {
