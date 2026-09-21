@@ -196,7 +196,12 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
               autocomplete="tel-national"
               value={formatNationalPhone(phone)}
               onInput={e => {
-                setPhone(normalizePhoneInput((e.target as HTMLInputElement).value))
+                const input = e.target as HTMLInputElement
+                const next = normalizePhoneInput(input.value)
+                // Preact не перерисует поле, если номер не изменился (набрали
+                // десятую цифру поверх девяти), — лишний символ остался бы в DOM.
+                input.value = formatNationalPhone(next)
+                setPhone(next)
                 setError(null)
               }}
               onKeyDown={e => { if (e.key === 'Enter') sendCode() }}
