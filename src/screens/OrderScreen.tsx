@@ -16,7 +16,7 @@ import { getAddons, getAddonCategories } from '../api/addons'
 import type { ServiceType, AddonItem, Order } from '../api/orders'
 import { createOrder, cancelOrder } from '../api/orders'
 import type { PriceLine, PromoReason, QuoteRequest } from '../api/pricing'
-import { useQuote } from '../hooks/useQuote'
+import { clearQuoteCache, useQuote } from '../hooks/useQuote'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { CalendarPicker } from '../components/CalendarPicker'
@@ -463,6 +463,8 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
       })
+      // Заказ сжёг скидку новичка и промокод — старые расчёты больше не верны.
+      clearQuoteCache()
       // Вложения грузятся после создания заказа, отдельными запросами. Ошибку
       // здесь раньше глотал `.catch(() => {})`: заказ создавался, фото не
       // прикреплялось, и об этом не узнавал ни клиент, ни диспетчер.
