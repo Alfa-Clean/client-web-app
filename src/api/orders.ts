@@ -14,6 +14,23 @@ export interface TeamMember {
   role: 'foreman' | 'cleaner'
 }
 
+/** Способ оплаты заказа (Р16). */
+export type PaymentMethod = 'cash' | 'card'
+
+export type PaymentStatus =
+  | 'authorizing' | 'held' | 'capturing' | 'captured'
+  | 'capture_failed' | 'voiding' | 'voided' | 'failed'
+
+/** Оплата картой: холд и его судьба. У наличных — null. */
+export interface OrderPayment {
+  status: PaymentStatus
+  amount: number
+  captured_amount: number | null
+  fee: number | null
+  error_code: string | null
+  card_id: string
+}
+
 export interface Order {
   id: string
   order_num: number
@@ -45,6 +62,9 @@ export interface Order {
   team_members?: TeamMember[]
   foreman_total?: number | null
   cleaner_total?: number | null
+  payment_method?: PaymentMethod
+  card_id?: string | null
+  payment?: OrderPayment | null
 }
 
 export interface AddonItem {
@@ -78,6 +98,8 @@ export interface OrderPayload {
   utm_source?: string
   utm_medium?: string
   utm_campaign?: string
+  payment_method?: PaymentMethod
+  card_id?: string | null
 }
 
 /**
@@ -114,6 +136,8 @@ export interface HandymanOrderPayload {
   utm_source?: string
   utm_medium?: string
   utm_campaign?: string
+  payment_method?: PaymentMethod
+  card_id?: string | null
 }
 
 export interface HandymanOrderResponse {
@@ -246,6 +270,9 @@ export interface HandymanOrder {
   executor_name?: string | null
   telegram_id?: number | null
   works?: HandymanOrderWork[]
+  payment_method?: PaymentMethod
+  card_id?: string | null
+  payment?: OrderPayment | null
 }
 
 export interface HandymanOrderPatchPayload {
@@ -320,5 +347,29 @@ export function patchOrder(orderId: string, data: OrderPatchPayload): Promise<Or
   return apiFetch<Order>(`/cleaning/orders/${orderId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+  })
+}
+
+export interface PaymentMethodChange {
+  id: string
+  payment_method: PaymentMethod
+  card_id: string | null
+  payment: OrderPayment | null
+}
+
+/**
+ * Сменить способ оплаты до принятия работы (Р16). Карта → наличные
+ * размораживает деньги, наличные → карта замораживает. На карте не хватает —
+ * 402 с причиной, заказ остаётся на наличных.
+ */
+export function changePaymentMethod(
+  vertical: 'cleaning' | 'handyman',
+  orderId: string,
+  method: PaymentMethod,
+  cardId: string | null,
+): Promise<PaymentMethodChange> {
+  return apiFetch<PaymentMethodChange>(`/${vertical}/orders/${orderId}/payment-method`, {
+    method: 'POST',
+    body: JSON.stringify({ payment_method: method, card_id: cardId }),
   })
 }

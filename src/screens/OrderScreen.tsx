@@ -2,6 +2,7 @@ import type { JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Info, MapPin, CalendarDays, Sparkles, MessageCircle, Banknote } from 'lucide-react'
 import { uploadOrderAttachment } from '../api/attachments'
+import { PaymentMethodPicker, type PaymentChoice } from '../components/PaymentMethodPicker'
 import { ApiError } from '../api/client'
 
 /** Кем подписано вложение. У клиента без Telegram `telegram_id` равен нулю —
@@ -255,6 +256,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   const [addonCategories, setAddonCategories] = useState<AddonCategory[]>([])
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [payment, setPayment] = useState<PaymentChoice>({ method: 'cash', cardId: null })
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showAddressSheet, setShowAddressSheet] = useState(false)
@@ -463,6 +465,8 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         ...(utmParams.get('utm_source') && { utm_source: utmParams.get('utm_source')! }),
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
+        payment_method: payment.method,
+        card_id: payment.cardId,
       })
       // Вложения грузятся после создания заказа, отдельными запросами. Ошибку
       // здесь раньше глотал `.catch(() => {})`: заказ создавался, фото не
@@ -496,7 +500,12 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         comment: draft.comment.trim() || null,
       })
     } catch (e: unknown) {
-      if (e instanceof ApiError && e.reason === 'request_in_progress') {
+      if (e instanceof ApiError && e.status === 402) {
+        // Банк не заморозил сумму (нет денег, отказ) — заказа нет, можно
+        // выбрать другую карту или наличные.
+        const message = e.context.message
+        setSubmitError(typeof message === 'string' ? message : t('payment_error'))
+      } else if (e instanceof ApiError && e.reason === 'request_in_progress') {
         // Первая попытка с этим ключом так и не закончилась за время ретраев.
         // Второго заказа не будет: повторное нажатие отправит тот же ключ.
         setSubmitError(t('confirm_in_progress'))
@@ -963,6 +972,17 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
               </>
             )}
           </div>
+        </div>
+
+        {/* Оплата */}
+        <div>
+          <SectionLabel>{t('payment_label')}</SectionLabel>
+          <PaymentMethodPicker
+            value={payment}
+            onChange={setPayment}
+            canBind={Boolean(user.phone)}
+            cardNote={draft.housingType === 'house' ? t('payment_house_note') : t('payment_hold_note')}
+          />
         </div>
 
         {/* Комментарии к заказу */}

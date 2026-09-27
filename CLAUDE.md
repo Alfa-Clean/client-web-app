@@ -46,6 +46,11 @@ app.tsx
 | `api/otp.ts` | Запрос и ввод кода, формат номера |
 | `components/PhoneVerifyForm.tsx` | Два шага подтверждения: номер → код |
 | `screens/PhoneVerifyScreen.tsx` | Полноэкранный вход по номеру (вне Telegram) |
+| `api/cards.ts` | Карты клиента: список, привязка, отвязка (`/me/cards`), тестовые номера мок-банка |
+| `components/PaymentMethodPicker.tsx` | Выбор оплаты: наличные / привязанная карта / «Привязать карту» |
+| `components/BindCardSheet.tsx` | Шторка привязки карты по номеру (на бете — эмуляция банка) |
+| `components/CardsSection.tsx` | Блок «Карты» в профиле: список и отвязка |
+| `components/OrderPaymentRow.tsx` | Строка «Оплата» в заказе: способ, статус холда, смена способа до принятия работы (402 — текст банка) |
 | `api/pricing.ts` | `getQuote` → `POST /pricing/quote`, типы расчёта |
 | `hooks/useQuote.ts` | Дебаунс + кеш расчёта цены, ретрай на 429 |
 | `hooks/useConfirm.ts` | Promise-based confirm — возвращает `{ confirm, dialogProps }` |

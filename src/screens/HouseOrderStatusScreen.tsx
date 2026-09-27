@@ -11,6 +11,8 @@ import { useConfirm } from '../hooks/useConfirm'
 import { BottomSheet } from '../components/BottomSheet'
 import { DisputeSheet } from '../components/DisputeSheet'
 import { useExitBack } from '../hooks/useExitBack'
+import { ApiError } from '../api/client'
+import { OrderPaymentRow } from '../components/OrderPaymentRow'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -63,7 +65,13 @@ export function HouseOrderStatusScreen({
     try {
       const updated = await confirmPrice(order.id)
       update(updated)
-    } catch { /* ignore */ }
+    } catch (e) {
+      // Картой: банк отказал в холде — цена не принята, клиент должен знать почему.
+      if (e instanceof ApiError && e.status === 402) {
+        const message = e.context.message
+        void confirm(typeof message === 'string' ? message : t('payment_error'), { confirmVariant: 'primary', confirmLabel: t('dialog_got_it') })
+      }
+    }
     setLoading(false)
   }
 
@@ -202,6 +210,14 @@ export function HouseOrderStatusScreen({
           onEdit={onEditClick}
           onSupport={onSupportClick}
         />
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <OrderPaymentRow
+            vertical="cleaning"
+            order={order}
+            cardNote={t('payment_house_note')}
+            onChanged={change => update({ ...order, payment_method: change.payment_method, card_id: change.card_id, payment: change.payment })}
+          />
+        </div>
       </div>
     </div>
   )

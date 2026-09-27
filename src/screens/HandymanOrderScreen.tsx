@@ -7,6 +7,7 @@ import { createAddress, getAddresses } from '../api/addresses'
 import type { HandymanWork, HandymanWorkCategoryNode } from '../api/addons'
 import { getHandymanWorks, getHandymanWorkCategoryTree } from '../api/addons'
 import { ApiError } from '../api/client'
+import { PaymentMethodPicker, type PaymentChoice } from '../components/PaymentMethodPicker'
 import { createHandymanOrder } from '../api/orders'
 import type { HandymanOrder, WorkItem } from '../api/orders'
 import { uploadOrderAttachment } from '../api/attachments'
@@ -228,6 +229,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   const [showWorkPicker, setShowWorkPicker] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [payment, setPayment] = useState<PaymentChoice>({ method: 'cash', cardId: null })
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showAddressSheet, setShowAddressSheet] = useState(false)
@@ -427,6 +429,8 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
         ...(utmParams.get('utm_source') && { utm_source: utmParams.get('utm_source')! }),
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
+        payment_method: payment.method,
+        card_id: payment.cardId,
       })
       // Ошибку загрузки раньше глотал `.catch(() => {})` — заказ создавался
       // без фото, и никто об этом не узнавал.
@@ -442,7 +446,10 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
       clearDraft()
       setDone(true)
     } catch (e: unknown) {
-      if (e instanceof ApiError && e.reason === 'request_in_progress') {
+      if (e instanceof ApiError && e.status === 402) {
+        const message = e.context.message
+        setSubmitError(typeof message === 'string' ? message : t('payment_error'))
+      } else if (e instanceof ApiError && e.reason === 'request_in_progress') {
         // Первая попытка с этим ключом так и не закончилась за время ретраев.
         // Второго заказа не будет: повторное нажатие отправит тот же ключ.
         setSubmitError(t('confirm_in_progress'))
@@ -674,6 +681,17 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
           {promoError && (
             <p class="text-xs text-red-500 mt-1.5 px-1">{promoError}</p>
           )}
+        </div>
+
+        {/* Оплата */}
+        <div>
+          <SectionLabel>{t('payment_label')}</SectionLabel>
+          <PaymentMethodPicker
+            value={payment}
+            onChange={setPayment}
+            canBind={Boolean(user.phone)}
+            cardNote={t('payment_hold_note')}
+          />
         </div>
 
         {/* Комментарий + вложения */}

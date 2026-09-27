@@ -8,6 +8,7 @@ import type { ComponentType } from 'preact'
 import type { JSX } from 'preact'
 import type { HandymanOrder } from '../api/orders'
 import { cancelHandymanOrder, acceptHandymanOrder, rateHandymanOrder, disputeHandymanOrder } from '../api/orders'
+import { OrderPaymentRow } from '../components/OrderPaymentRow'
 import type { OrderAttachment } from '../api/attachments'
 import { getOrderAttachments, uploadOrderAttachment } from '../api/attachments'
 import { getOrCreateConversation, sendConversationMedia } from '../api/conversations'
@@ -312,6 +313,16 @@ export function ActiveHandymanOrderScreen({
               {order.price.toLocaleString('ru-RU')} {t('currency')}
             </p>
           </div>
+          <OrderPaymentRow
+            vertical="handyman"
+            order={order}
+            cardNote={t('payment_hold_note')}
+            onChanged={change => {
+              const updated = { ...order, payment_method: change.payment_method, card_id: change.card_id, payment: change.payment }
+              setOrder(updated)
+              onOrderUpdated?.(updated)
+            }}
+          />
         </div>
 
         {/* Actions */}

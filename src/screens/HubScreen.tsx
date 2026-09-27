@@ -36,6 +36,7 @@ import { ActiveHandymanOrderScreen } from './ActiveHandymanOrderScreen'
 import { OrderEditScreen } from './OrderEditScreen'
 import { HandymanOrderEditScreen } from './HandymanOrderEditScreen'
 import { SupportScreen } from './SupportScreen'
+import { CardsSection } from '../components/CardsSection'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL_KEYS } from './ActiveChistomatyScreen'
 import { Logo } from '../components/Logo'
@@ -500,6 +501,9 @@ function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCl
             ))
           )}
         </div>
+
+        {/* Cards */}
+        <CardsSection confirm={confirm} />
 
         {/* Theme */}
         <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100">

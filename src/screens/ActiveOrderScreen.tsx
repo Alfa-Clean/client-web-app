@@ -8,6 +8,7 @@ import type { ComponentType } from 'preact'
 import type { JSX } from 'preact'
 import type { Order } from '../api/orders'
 import { cancelOrder, acceptOrder, rateOrder, disputeOrder } from '../api/orders'
+import { OrderPaymentRow } from '../components/OrderPaymentRow'
 import type { Addon } from '../api/addons'
 import { getAddons } from '../api/addons'
 import type { OrderAttachment } from '../api/attachments'
@@ -355,6 +356,16 @@ export function ActiveOrderScreen({
             </div>
             <p class="text-sm font-bold text-gray-900">{order.price.toLocaleString()} {t('currency')}</p>
           </div>
+          <OrderPaymentRow
+            vertical="cleaning"
+            order={order}
+            cardNote={t('payment_hold_note')}
+            onChanged={change => {
+              const updated = { ...order, payment_method: change.payment_method, card_id: change.card_id, payment: change.payment }
+              setOrder(updated)
+              onOrderUpdated?.(updated)
+            }}
+          />
         </div>
 
         {/* Actions */}
