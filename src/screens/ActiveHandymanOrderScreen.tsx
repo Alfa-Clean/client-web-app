@@ -12,6 +12,7 @@ import type { OrderAttachment } from '../api/attachments'
 import { getOrderAttachments, uploadOrderAttachment } from '../api/attachments'
 import { getOrCreateConversation, sendConversationMedia } from '../api/conversations'
 import { useLocale } from '../i18n'
+import { ACCEPT_TEXTS, CANCEL_TEXTS, withRetryDialog } from '../utils/withRetryDialog'
 import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -117,13 +118,9 @@ export function ActiveHandymanOrderScreen({
     const ok = await confirm(t('confirm_accept_work_handyman'), { title: t('confirm_accept_work_title'), confirmVariant: 'normal' })
     if (!ok) return
     setLoading(true)
-    try {
-      await acceptHandymanOrder(order.id)
-      setLoading(false)
-      setShowRating(true)
-    } catch {
-      setLoading(false)
-    }
+    const accepted = await withRetryDialog(() => acceptHandymanOrder(order.id), confirm, t, ACCEPT_TEXTS)
+    setLoading(false)
+    if (accepted) setShowRating(true)
   }
 
   async function handleDisputeSubmit(reason: string, files: File[]) {
@@ -146,13 +143,12 @@ export function ActiveHandymanOrderScreen({
     const ok = await confirm(t('confirm_cancel_new_order'), { confirmVariant: 'normal' })
     if (!ok) return
     setLoading(true)
-    try {
-      const updated = await cancelHandymanOrder(order.id)
-      setOrder(updated)
-      onOrderCancelled()
-    } catch {
-      setLoading(false)
-    }
+    const cancelled = await withRetryDialog(() => cancelHandymanOrder(order.id), confirm, t, CANCEL_TEXTS)
+    setLoading(false)
+    if (!cancelled) return // ошибка показана, заказ активен — остаёмся
+    // Ответ отмены — только `{ id, status }`, не заказ целиком.
+    setOrder({ ...order, status: cancelled.status })
+    onOrderCancelled()
   }
 
   return (

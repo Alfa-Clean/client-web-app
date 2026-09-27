@@ -5,6 +5,7 @@ import type { Order } from '../api/orders'
 import { confirmPrice, rejectPrice, cancelOrder, acceptOrder, disputeOrder } from '../api/orders'
 import { getOrCreateConversation, sendConversationMedia } from '../api/conversations'
 import { useLocale } from '../i18n'
+import { ACCEPT_TEXTS, CANCEL_TEXTS, withRetryDialog } from '../utils/withRetryDialog'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
 import { BottomSheet } from '../components/BottomSheet'
@@ -93,18 +94,19 @@ export function HouseOrderStatusScreen({
     const ok = await confirm(t('confirm_cancel_new_order'), { confirmVariant: 'danger' })
     if (!ok) return
     setLoading(true)
-    await cancelOrder(order.id).catch(() => {})
+    const cancelled = await withRetryDialog(() => cancelOrder(order.id), confirm, t, CANCEL_TEXTS)
     setLoading(false)
-    onOrderCancelled()
+    // Не отменили (ошибка, клиент закрыл диалог) — заказ активен, остаёмся.
+    if (cancelled) onOrderCancelled()
   }
 
   async function handleAcceptWork() {
     const ok = await confirm(t('confirm_accept_work_house'), { confirmVariant: 'primary' })
     if (!ok) return
     setLoading(true)
-    await acceptOrder(order.id).catch(() => {})
+    const accepted = await withRetryDialog(() => acceptOrder(order.id), confirm, t, ACCEPT_TEXTS)
     setLoading(false)
-    onOrderAccepted()
+    if (accepted) onOrderAccepted()
   }
 
   async function handleDisputeSubmit(reason: string, files: File[]) {

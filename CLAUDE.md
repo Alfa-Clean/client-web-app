@@ -42,12 +42,14 @@ app.tsx
 |---|---|
 | `api/client.ts` | `apiFetch`, токен (localStorage, TTL), `ApiError` |
 | `api/auth.ts` | `loginWithTelegram` → JWT |
+| `api/idempotency.ts` | Ключ намерения для создания заказа: тот же, пока тело не изменилось, переживает перезапуск WebView; ретрай на 409 `request_in_progress` |
 | `api/otp.ts` | Запрос и ввод кода, формат номера |
 | `components/PhoneVerifyForm.tsx` | Два шага подтверждения: номер → код |
 | `screens/PhoneVerifyScreen.tsx` | Полноэкранный вход по номеру (вне Telegram) |
 | `api/pricing.ts` | `getQuote` → `POST /pricing/quote`, типы расчёта |
 | `hooks/useQuote.ts` | Дебаунс + кеш расчёта цены, ретрай на 429 |
 | `hooks/useConfirm.ts` | Promise-based confirm — возвращает `{ confirm, dialogProps }` |
+| `utils/withRetryDialog.ts` | Отмена и подтверждение заказа без проглоченной ошибки: диалог «Повторить» (повтор безопасен — бэкенд на повторный переход отвечает 200), на 409 — почему нельзя |
 | `components/ConfirmDialog.tsx` | iOS-style модалка подтверждения, спред `dialogProps` |
 | `components/CalendarPicker.tsx` | Bottom sheet с grid по месяцам, только доступные даты |
 | `components/WorkPickerSheet.tsx` | Drill-down по дереву разделов handyman + `SelectedWorksList` |

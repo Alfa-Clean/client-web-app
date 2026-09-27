@@ -14,6 +14,7 @@ import type { OrderAttachment } from '../api/attachments'
 import { getOrderAttachments, uploadOrderAttachment } from '../api/attachments'
 import { getOrCreateConversation, sendConversationMedia } from '../api/conversations'
 import { useLocale } from '../i18n'
+import { ACCEPT_TEXTS, CANCEL_TEXTS, withRetryDialog } from '../utils/withRetryDialog'
 import type { Lang } from '../i18n/locales'
 import { useExitBack } from '../hooks/useExitBack'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -144,9 +145,10 @@ export function ActiveOrderScreen({
     )
     if (!ok) return
     setLoading(true)
-    await cancelOrder(order.id).catch(() => {})
+    const cancelled = await withRetryDialog(() => cancelOrder(order.id), confirm, t, CANCEL_TEXTS)
     setLoading(false)
-    onOrderCancelled()
+    // Не отменили (ошибка, клиент закрыл диалог) — заказ активен, остаёмся.
+    if (cancelled) onOrderCancelled()
   }
 
   async function handleAccept() {
@@ -156,9 +158,10 @@ export function ActiveOrderScreen({
     })
     if (!ok) return
     setLoading(true)
-    await acceptOrder(order.id).catch(() => {})
+    const accepted = await withRetryDialog(() => acceptOrder(order.id), confirm, t, ACCEPT_TEXTS)
     setLoading(false)
-    setShowRating(true)
+    // Не подтвердили — работа не принята, к оценке не переходим.
+    if (accepted) setShowRating(true)
   }
 
   async function handleDisputeSubmit(reason: string, files: File[]) {
