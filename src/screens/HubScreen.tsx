@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState, type Dispatch, type StateUpdater } from 'preact/hooks'
 import { Sparkles, User as UserIcon, Sun, Moon, MessageCircle, ChevronRight, Shirt, Pencil, Trash2, Plus, Wrench } from 'lucide-react'
 import type { User } from '../types'
 import type { Order, HandymanOrder } from '../api/orders'
@@ -351,10 +351,12 @@ function ProfileAvatar({ firstName, lastName, photoUrl }: { firstName: string; l
   )
 }
 
-function MenuScreen({ user, onBack, onSupportClick, onStartOnboarding, onStartCleaningOnboarding, onStartHandymanOnboarding }: { user: User; onBack: () => void; onSupportClick: () => void; onStartOnboarding: () => void; onStartCleaningOnboarding: () => void; onStartHandymanOnboarding: () => void }) {
+// Список адресов живёт в HubScreen: по нему хаб решает, спрашивать ли адрес
+// перед заказом. Своя копия в меню расходилась с ним — адрес, заведённый в
+// настройках, хаб не видел и снова открывал форму адреса.
+function MenuScreen({ user, addresses, setAddresses, onBack, onSupportClick, onStartOnboarding, onStartCleaningOnboarding, onStartHandymanOnboarding }: { user: User; addresses: Address[]; setAddresses: Dispatch<StateUpdater<Address[]>>; onBack: () => void; onSupportClick: () => void; onStartOnboarding: () => void; onStartCleaningOnboarding: () => void; onStartHandymanOnboarding: () => void }) {
   const { t, lang, setLang } = useLocale()
   const [theme, setThemeState] = useState(getTheme())
-  const [addresses, setAddresses] = useState<Address[]>([])
   const [addressSheet, setAddressSheet] = useState<null | 'new' | Address>(null)
   const [loggingOut, setLoggingOut] = useState(false)
   const { confirm, dialogProps } = useConfirm()
@@ -1103,6 +1105,8 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
     return (
       <MenuScreen
         user={user}
+        addresses={addresses}
+        setAddresses={setAddresses}
         onBack={() => setView('hub')}
         onSupportClick={() => setView({ name: 'support', backView: 'menu' })}
         onStartOnboarding={() => { resetOnboarding('hub'); setView('hub'); setShowOnboarding(true) }}
