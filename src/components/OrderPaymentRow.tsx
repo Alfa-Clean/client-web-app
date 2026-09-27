@@ -48,7 +48,9 @@ export function OrderPaymentRow({ vertical, order, cardNote, onChanged }: Props)
   const card = cards.find(c => c.id === order.card_id)
   const title = method === 'card' ? (card ? cardLabel(card) : t('payment_method_title')) : t('payment_cash')
   const status = order.payment?.status
-  const statusText = method === 'card' && status ? t(`payment_status_${status}`) : null
+  // Запрос ушёл в банк, ответа ещё нет — клиенту это одно «обрабатывается».
+  const statusKey = status && ['authorizing', 'capturing', 'voiding'].includes(status) ? 'pending' : status
+  const statusText = method === 'card' && statusKey ? t(`payment_status_${statusKey}`) : null
 
   function startEdit() {
     setChoice({ method, cardId: order.card_id ?? null })
