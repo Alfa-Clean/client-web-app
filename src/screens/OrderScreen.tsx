@@ -2,6 +2,7 @@ import type { JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Info, MapPin, CalendarDays, Sparkles, MessageCircle, Banknote } from 'lucide-react'
 import { uploadOrderAttachment } from '../api/attachments'
+import { ApiError } from '../api/client'
 
 /** Кем подписано вложение. У клиента без Telegram `telegram_id` равен нулю —
  *  подписываем его UUID, иначе все такие вложения были бы от «0». */
@@ -495,7 +496,11 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         comment: draft.comment.trim() || null,
       })
     } catch (e: unknown) {
-      if (e instanceof Error && e.message.includes('422') && promoCode) {
+      if (e instanceof ApiError && e.reason === 'request_in_progress') {
+        // Первая попытка с этим ключом так и не закончилась за время ретраев.
+        // Второго заказа не будет: повторное нажатие отправит тот же ключ.
+        setSubmitError(t('confirm_in_progress'))
+      } else if (e instanceof Error && e.message.includes('422') && promoCode) {
         setPromoCode(null)
         setPromoInput('')
         setSubmitError(t('promo_error_on_submit'))

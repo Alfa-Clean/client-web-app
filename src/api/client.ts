@@ -87,13 +87,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
   let res: Response
   try {
+    // `...init` — первым: иначе его `headers` целиком заменили бы собранные
+    // ниже, и запрос с собственным заголовком ушёл бы без токена.
     res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
-      ...init,
     })
   } catch (e) {
     throw new NetworkError(e instanceof Error ? e.message : undefined)

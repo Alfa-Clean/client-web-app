@@ -6,6 +6,7 @@ import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
 import type { HandymanWork, HandymanWorkCategoryNode } from '../api/addons'
 import { getHandymanWorks, getHandymanWorkCategoryTree } from '../api/addons'
+import { ApiError } from '../api/client'
 import { createHandymanOrder } from '../api/orders'
 import type { HandymanOrder, WorkItem } from '../api/orders'
 import { uploadOrderAttachment } from '../api/attachments'
@@ -441,7 +442,11 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
       clearDraft()
       setDone(true)
     } catch (e: unknown) {
-      if (e instanceof Error && e.message.includes('422') && promoCode) {
+      if (e instanceof ApiError && e.reason === 'request_in_progress') {
+        // Первая попытка с этим ключом так и не закончилась за время ретраев.
+        // Второго заказа не будет: повторное нажатие отправит тот же ключ.
+        setSubmitError(t('confirm_in_progress'))
+      } else if (e instanceof Error && e.message.includes('422') && promoCode) {
         setPromoCode(null)
         setPromoDiscountPct(null)
         setPromoInput('')

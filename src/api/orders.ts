@@ -1,4 +1,5 @@
 import { apiFetch, getToken } from './client'
+import { handymanOrderIntent, orderIntent, withInProgressRetry } from './idempotency'
 import { clearQuoteCache } from './pricing'
 
 export interface OrderRating {
@@ -79,11 +80,23 @@ export interface OrderPayload {
   utm_campaign?: string
 }
 
+/**
+ * Оформить заказ уборки. Ключ идемпотентности берётся из намерения формы:
+ * повторная отправка того же заказа (двойное нажатие, ретрай после ошибки
+ * сети, перезапуск WebView) вернёт первый заказ, а не создаст второй. После
+ * успеха намерение сбрасывается: следующий заказ — новое намерение, даже с
+ * тем же составом.
+ */
 export async function createOrder(data: OrderPayload): Promise<Order> {
-  const result = await apiFetch<Order>('/cleaning/orders', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+  const key = orderIntent.keyFor(data)
+  const result = await withInProgressRetry(() =>
+    apiFetch<Order>('/cleaning/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Idempotency-Key': key },
+    }),
+  )
+  orderIntent.reset()
   // Заказ сжигает или возвращает скидку новичка и промокод — старые расчёты неверны.
   clearQuoteCache()
   return result
@@ -111,11 +124,17 @@ export interface HandymanOrderResponse {
   created_at: string
 }
 
+/** Оформить заказ мастеру. Ключ идемпотентности — как у `createOrder`. */
 export async function createHandymanOrder(data: HandymanOrderPayload): Promise<HandymanOrderResponse> {
-  const result = await apiFetch<HandymanOrderResponse>('/handyman/orders', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+  const key = handymanOrderIntent.keyFor(data)
+  const result = await withInProgressRetry(() =>
+    apiFetch<HandymanOrderResponse>('/handyman/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Idempotency-Key': key },
+    }),
+  )
+  handymanOrderIntent.reset()
   // Заказ сжигает или возвращает скидку новичка и промокод — старые расчёты неверны.
   clearQuoteCache()
   return result
