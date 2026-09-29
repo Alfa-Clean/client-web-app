@@ -1168,6 +1168,9 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
         : activeEntries.map(e => renderBanner(e, setView))
       }
 
+      {/* Анонс подписки — заглушка, нажатие ничего не делает */}
+      <SubscriptionTeaser />
+
       {/* Service tiles — boxes и лейблы разделены чтобы высоты совпадали */}
       <div class="px-4 pb-6">
         <div class="flex gap-3">
@@ -1204,9 +1207,6 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
           */}
         </div>
       </div>
-
-      {/* Анонс подписки — заглушка, нажатие ничего не делает */}
-      <SubscriptionTeaser />
 
       {/* Order history */}
       <div class="px-4 mt-6 pb-8 flex flex-col gap-2">
