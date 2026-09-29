@@ -156,14 +156,14 @@ export function MapPicker({ onLocationPick, initialLat, initialLon, address, geo
               type="button"
               onClick={() => setExpanded(false)}
               aria-label="Свернуть карту"
-              class={btnClass}
+              class={btnClass.replace('top-3', 'top-safe-3')}
             >
               {collapseIcon}
             </button>
 
             {/* В полноэкранном режиме поле адреса из формы не видно — дублируем его здесь.
                 Боковые отступы симметричные, чтобы кнопка сворачивания не сдвигала центр. */}
-            <div class="absolute top-3 inset-x-0 z-[1000] flex justify-center px-16 pointer-events-none">
+            <div class="absolute top-safe-3 inset-x-0 z-[1000] flex justify-center px-16 pointer-events-none">
               <div class="rounded-xl bg-white/95 backdrop-blur shadow-md border border-gray-200 px-4 py-2.5">
                 <p class={`text-sm leading-snug text-center line-clamp-2 ${addressText.muted ? 'text-gray-400' : 'text-gray-900'}`}>
                   {addressText.value}

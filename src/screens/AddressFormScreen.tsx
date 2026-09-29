@@ -157,7 +157,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
 
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
-      <div class="bg-white px-4 py-5 border-b border-gray-100 relative flex items-center justify-center">
+      <div class="bg-white px-4 pt-safe-5 pb-5 border-b border-gray-100 relative flex items-center justify-center">
         <button type="button" onClick={onBack} class="absolute left-4 w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 text-lg font-light active:bg-gray-200 transition-colors">
           ‹
         </button>
@@ -327,7 +327,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
         {error && <p class="text-red-500 text-sm">{error}</p>}
 
       </form>
-      <div class="sticky bottom-0 px-4 pt-3 pb-8 bg-gray-50 border-t border-gray-100">
+      <div class="sticky bottom-0 px-4 pt-3 pb-safe-8 bg-gray-50 border-t border-gray-100">
         <button
           type="button"
           disabled={loading}

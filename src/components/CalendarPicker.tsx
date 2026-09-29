@@ -45,7 +45,7 @@ export function CalendarPicker({ availableDates, value, lang, cancelLabel, onSel
     <div class="fixed inset-0 z-50 flex items-end" onClick={onClose}>
       <div class="absolute inset-0 bg-black/40 animate-fade-in" />
       <div
-        class="relative w-full bg-white rounded-t-3xl animate-slide-up"
+        class="relative w-full bg-white rounded-t-3xl animate-slide-up pb-safe-0"
         onClick={e => e.stopPropagation()}
       >
         <div class="flex justify-center pt-3 pb-1">

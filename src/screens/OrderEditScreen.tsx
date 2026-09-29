@@ -359,7 +359,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
       </BottomSheet>
 
       {/* Header */}
-      <div class="bg-white px-4 pt-12 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
+      <div class="bg-white px-4 pt-safe-4 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
         <button
           type="button"
           onClick={handleBack}
@@ -646,7 +646,7 @@ export function OrderEditScreen({ order, telegramId, onBack, onSaved }: Props) {
       </div>
 
       {/* Bottom bar */}
-      <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-2">
+      <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-4 pb-safe-4 flex flex-col gap-2">
         {error && (
           <p class="text-xs text-red-500 text-center">{error}</p>
         )}

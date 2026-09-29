@@ -183,7 +183,7 @@ export function ActiveHandymanOrderScreen({
       )}
 
       {/* Header */}
-      <div class="bg-white px-5 pt-12 pb-4 flex items-center border-b border-gray-100 relative">
+      <div class="bg-white px-5 pt-safe-4 pb-4 flex items-center border-b border-gray-100 relative">
         <button
           type="button"
           onClick={handleBack}

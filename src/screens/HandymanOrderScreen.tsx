@@ -473,7 +473,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   return (
     <div class="h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div class="bg-white px-5 pt-12 pb-4 flex items-center justify-between border-b border-gray-100">
+      <div class="bg-white px-5 pt-safe-4 pb-4 flex items-center justify-between border-b border-gray-100">
         <button
           type="button"
           onClick={onBack}

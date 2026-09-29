@@ -47,7 +47,7 @@ export function ExecutorScreen({ executorId, onBack }: Props) {
   return (
     <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
       {/* Header */}
-      <div class="bg-white px-4 py-4 border-b border-gray-100 flex items-center gap-3">
+      <div class="bg-white px-4 pt-safe-4 pb-4 border-b border-gray-100 flex items-center gap-3">
         <button type="button" onClick={handleBack} class="text-blue-600 text-sm font-medium shrink-0">
           {t('back')}
         </button>

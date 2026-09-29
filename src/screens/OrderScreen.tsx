@@ -537,7 +537,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div class="bg-white px-5 pt-12 pb-4 flex items-center justify-between border-b border-gray-100">
+      <div class="bg-white px-5 pt-safe-4 pb-4 flex items-center justify-between border-b border-gray-100">
         <button
           type="button"
           onClick={onBack}
@@ -1124,7 +1124,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
       </BottomSheet>
 
       {/* Sticky CTA */}
-      <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
+      <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-4 pb-safe-4">
         {user.phone && (
           <p class="text-xs text-gray-400 text-center mb-2.5">
             {t('order_phone_note', { phone: formatDisplayPhone(user.phone) })}

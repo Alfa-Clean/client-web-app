@@ -67,7 +67,7 @@ export function ActiveChistomatyScreen({ order, onBack, onSupportClick }: Props)
     <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
 
       {/* Header */}
-      <div class="bg-white px-4 pt-12 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
+      <div class="bg-white px-4 pt-safe-4 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
         <button
           type="button"
           onClick={handleBack}

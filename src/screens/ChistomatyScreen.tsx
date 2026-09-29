@@ -131,7 +131,7 @@ export function ChistomatyScreen({ onBack }: Props) {
     <div class="min-h-screen bg-white flex flex-col">
 
       {/* Header */}
-      <div class="px-5 pt-12 pb-4 flex items-center shrink-0 bg-white relative">
+      <div class="px-5 pt-safe-4 pb-4 flex items-center shrink-0 bg-white relative">
         <button
           type="button"
           onClick={onBack}

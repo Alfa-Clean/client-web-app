@@ -217,7 +217,7 @@ export function ActiveOrderScreen({
       )}
 
       {/* Header */}
-      <div class="bg-white px-4 pt-12 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
+      <div class="bg-white px-4 pt-safe-4 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
         <button
           type="button"
           onClick={handleBack}
@@ -388,7 +388,7 @@ export function ActiveOrderScreen({
 
       {/* Accept / Cancel / Edit / Repeat — вне скролла, не двигается при прокрутке контента */}
       {(onRepeat || order.status === 'awaiting_confirmation' || order.status === 'new' || order.status === 'assigned' || CANCEL_ALLOWED.has(order.status)) && (
-        <div class="bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-2 shrink-0">
+        <div class="bg-white border-t border-gray-100 px-4 pt-4 pb-safe-4 flex flex-col gap-2 shrink-0">
           {onRepeat && (
             <button
               type="button"

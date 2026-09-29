@@ -341,7 +341,7 @@ export function ChatScreen({
   return (
     <div class={`h-screen bg-gray-50 flex flex-col ${exiting ? "animate-slide-out-right" : "animate-slide-in-right"}`}>
       {/* Header */}
-      <div class="bg-white border-b border-gray-100 px-4 pt-4 pb-3 flex items-center gap-3 shrink-0">
+      <div class="bg-white border-b border-gray-100 px-4 pt-safe-4 pb-3 flex items-center gap-3 shrink-0">
         <button
           type="button"
           onClick={handleBack}
@@ -481,7 +481,7 @@ export function ChatScreen({
 
       {/* Input */}
       {!isReadonly && (
-        <div class="bg-white border-t border-gray-100 px-4 py-3 flex flex-col gap-2 shrink-0">
+        <div class="bg-white border-t border-gray-100 px-4 pt-3 pb-safe-3 flex flex-col gap-2 shrink-0">
           {mediaPreviewUrl && (
             <div class="relative w-20 h-20">
               <img src={mediaPreviewUrl} alt="" class="w-full h-full object-cover rounded-xl" />
@@ -545,7 +545,7 @@ export function ChatScreen({
       )}
 
       {isReadonly && (
-        <div class="bg-gray-100 px-4 py-3 text-center shrink-0">
+        <div class="bg-gray-100 px-4 pt-3 pb-safe-3 text-center shrink-0">
           <p class="text-xs text-gray-400">{t("chat_readonly_hint")}</p>
         </div>
       )}
@@ -564,7 +564,7 @@ export function ChatScreen({
           <button
             type="button"
             onClick={() => setLightboxUrl(null)}
-            class="absolute top-4 right-4 w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full text-white text-xl transition-colors"
+            class="absolute top-safe-4 right-4 w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full text-white text-xl transition-colors"
           >
             ×
           </button>

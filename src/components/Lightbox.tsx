@@ -51,7 +51,7 @@ export function Lightbox({ attachments, initialIdx, onClose }: Props) {
       <button
         type="button"
         onClick={onClose}
-        class="absolute top-4 right-4 z-10 w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white active:bg-black/70"
+        class="absolute top-safe-4 right-4 z-10 w-12 h-12 rounded-full bg-black/50 flex items-center justify-center text-white active:bg-black/70"
       >
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <path d="M18 6L6 18M6 6l12 12" />
@@ -60,7 +60,7 @@ export function Lightbox({ attachments, initialIdx, onClose }: Props) {
 
       {/* Counter */}
       {attachments.length > 1 && (
-        <div class="absolute top-5 left-1/2 -translate-x-1/2 z-10 text-white text-sm font-medium bg-black/40 px-3 py-1 rounded-full">
+        <div class="absolute top-safe-5 left-1/2 -translate-x-1/2 z-10 text-white text-sm font-medium bg-black/40 px-3 py-1 rounded-full">
           {idx + 1} / {attachments.length}
         </div>
       )}

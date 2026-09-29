@@ -64,7 +64,7 @@ export function RatingSheet({ title, onSubmit, onClose }: Props) {
   return createPortal(
     <div class="fixed inset-0 z-50 flex items-end">
       <div class="absolute inset-0 bg-black/40 animate-fade-in" />
-      <div class="relative w-full bg-white rounded-t-3xl px-6 pt-6 pb-10 flex flex-col gap-5 animate-slide-up">
+      <div class="relative w-full bg-white rounded-t-3xl px-6 pt-6 pb-safe-10 flex flex-col gap-5 animate-slide-up">
         <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
 
         {phase === 'thanks' ? (

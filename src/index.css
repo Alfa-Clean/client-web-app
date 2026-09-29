@@ -16,6 +16,38 @@
   --color-green-900: #114A45;
 }
 
+
+/* ─── Безопасные отступы: Telegram Mini App и PWA ───────────────────────────
+   Одна переменная на две среды:
+   - PWA (viewport-fit=cover) рисуется от края экрана, вырез и полоску «домой»
+     даёт env(safe-area-inset-*);
+   - Telegram на весь экран рисует поверх страницы свои кнопки (закрыть, «…»):
+     --tg-safe-area-inset-* — вырез устройства, --tg-content-safe-area-inset-* —
+     строка кнопок Telegram. Их ставит и обновляет telegram-web-app.js; вне
+     Telegram переменных нет — остаётся env().
+   Telegram со своей шапкой даёт нули: страница и так начинается под ней. */
+:root {
+  --safe-top: max(
+    env(safe-area-inset-top, 0px),
+    calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px))
+  );
+  --safe-bottom: max(
+    env(safe-area-inset-bottom, 0px),
+    calc(var(--tg-safe-area-inset-bottom, 0px) + var(--tg-content-safe-area-inset-bottom, 0px))
+  );
+}
+
+/* pt-safe-4 = безопасный отступ сверху + 1rem; то же для низа и top у оверлеев */
+@utility pt-safe-* {
+  padding-top: calc(var(--safe-top) + --spacing(--value(number)));
+}
+@utility pb-safe-* {
+  padding-bottom: calc(var(--safe-bottom) + --spacing(--value(number)));
+}
+@utility top-safe-* {
+  top: calc(var(--safe-top) + --spacing(--value(number)));
+}
+
 * {
   box-sizing: border-box;
 }

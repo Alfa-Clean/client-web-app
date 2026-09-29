@@ -312,7 +312,7 @@ export function WorkPickerSheet({ open, onClose, tree, works, selected, onChange
         </div>
 
         {/* Footer */}
-        <div class="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-3">
+        <div class="sticky bottom-0 bg-white border-t border-gray-100 px-4 pt-3 pb-safe-3">
           <button
             type="button"
             onClick={onClose}

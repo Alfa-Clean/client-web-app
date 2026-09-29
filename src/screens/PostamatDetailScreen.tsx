@@ -161,7 +161,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
     <div class="min-h-screen bg-white flex flex-col">
 
       {/* Header */}
-      <div class="px-5 pt-12 pb-4 flex items-center gap-4 shrink-0 bg-white border-b border-gray-100">
+      <div class="px-5 pt-safe-4 pb-4 flex items-center gap-4 shrink-0 bg-white border-b border-gray-100">
         <button
           type="button"
           onClick={onBack}
@@ -225,7 +225,7 @@ export function PostamatDetailScreen({ postamat, onBack }: Props) {
       </div>
 
       {/* Sticky bottom bar */}
-      <div class="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 bg-white border-t border-gray-100">
+      <div class="fixed bottom-0 left-0 right-0 px-4 pb-safe-8 pt-4 bg-white border-t border-gray-100">
         {booked ? (
           <div class="w-full py-4 rounded-2xl bg-[#F3F9F9] flex items-center justify-center gap-2">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F847B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

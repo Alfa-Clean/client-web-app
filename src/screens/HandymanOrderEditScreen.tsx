@@ -199,7 +199,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
       <div class={`min-h-screen bg-gray-50 flex flex-col ${exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
 
         {/* Header */}
-        <div class="bg-white px-4 pt-12 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
+        <div class="bg-white px-4 pt-safe-4 pb-4 flex items-center gap-3 border-b border-gray-100 shrink-0">
           <button
             type="button"
             onClick={handleBack}
@@ -386,7 +386,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
         </div>
 
         {/* Bottom bar */}
-        <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
+        <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 pt-4 pb-safe-4">
           <button
             type="button"
             disabled={saving || selectedWorks.length === 0 || (!isAssigned && (!date || !slot))}

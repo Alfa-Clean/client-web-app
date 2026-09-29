@@ -432,7 +432,7 @@ function MenuScreen({ user, addresses, setAddresses, onBack, onSupportClick, onS
       </BottomSheet>
 
       {/* Header */}
-      <div class="bg-white px-5 pt-8 pb-5 flex items-center gap-4 border-b border-gray-100">
+      <div class="bg-white px-5 pt-safe-6 pb-5 flex items-center gap-4 border-b border-gray-100">
         <button
           type="button"
           onClick={onBack}
@@ -1147,7 +1147,7 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
     <div class="min-h-screen bg-white flex flex-col">
 
       {/* Header */}
-      <div class="px-5 pt-12 pb-5 flex items-center justify-between">
+      <div class="px-5 pt-safe-4 pb-5 flex items-center justify-between">
         <button
           ref={menuBtnRef}
           type="button"

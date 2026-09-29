@@ -15,7 +15,7 @@ export function SupportScreen({ onBack, onOpenChat }: Props) {
 
   return (
     <div class="min-h-screen bg-gray-50 flex flex-col">
-      <div class="bg-white px-4 py-5 border-b border-gray-100 relative flex items-center justify-center">
+      <div class="bg-white px-4 pt-safe-5 pb-5 border-b border-gray-100 relative flex items-center justify-center">
         <button
           type="button"
           onClick={onBack}

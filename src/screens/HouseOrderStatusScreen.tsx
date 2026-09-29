@@ -181,7 +181,7 @@ export function HouseOrderStatusScreen({
       }
 
       {/* Header */}
-      <div class="bg-white px-4 pt-12 pb-4 flex items-center border-b border-gray-100 shrink-0">
+      <div class="bg-white px-4 pt-safe-4 pb-4 flex items-center border-b border-gray-100 shrink-0">
         <button
           type="button"
           onClick={handleBack}
