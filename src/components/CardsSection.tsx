@@ -55,7 +55,10 @@ export function CardsSection({ confirm }: Props) {
         cards.map(card => (
           <div key={card.id} class="flex items-center gap-3 px-4 py-3 border-t border-gray-50">
             <CreditCard size={16} class="text-gray-400 shrink-0" />
-            <p class="flex-1 text-sm font-medium text-gray-900 tabular-nums">{cardLabel(card)}</p>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 tabular-nums">{cardLabel(card)}</p>
+              {card.mock_balance != null && <MockBalance balance={card.mock_balance} available={card.mock_available ?? card.mock_balance} />}
+            </div>
             <button
               type="button"
               onClick={() => remove(card)}
@@ -75,5 +78,18 @@ export function CardsSection({ confirm }: Props) {
         }}
       />
     </div>
+  )
+}
+
+/** Остаток тестовой карты — только на бете, для проверки холдов и списаний. */
+function MockBalance({ balance, available }: { balance: number; available: number }) {
+  const { t } = useLocale()
+  const money = (n: number) => `${n.toLocaleString('ru-RU')} ${t('currency')}`
+  const held = balance - available
+  return (
+    <p class="text-xs text-gray-400 tabular-nums mt-0.5">
+      {t('card_mock_balance', { amount: money(balance) })}
+      {held > 0 && ` · ${t('card_mock_held', { amount: money(held) })}`}
+    </p>
   )
 }

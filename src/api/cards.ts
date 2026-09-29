@@ -14,6 +14,10 @@ export interface Card {
   pan_mask: string
   is_active: boolean
   created_at: string
+  /** Только у карт тестового банка на бете — **эмуляция** для проверки оплат.
+   *  У настоящего банка остатка карты мы не знаем, полей нет. */
+  mock_balance?: number
+  mock_available?: number
 }
 
 export const BRAND_LABELS: Record<string, string> = {
