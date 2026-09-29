@@ -37,6 +37,7 @@ import { OrderEditScreen } from './OrderEditScreen'
 import { HandymanOrderEditScreen } from './HandymanOrderEditScreen'
 import { SupportScreen } from './SupportScreen'
 import { CardsSection } from '../components/CardsSection'
+import { SubscriptionTeaser } from '../components/SubscriptionTeaser'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL_KEYS } from './ActiveChistomatyScreen'
 import { Logo } from '../components/Logo'
@@ -1203,6 +1204,9 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
           */}
         </div>
       </div>
+
+      {/* Анонс подписки — заглушка, нажатие ничего не делает */}
+      <SubscriptionTeaser />
 
       {/* Order history */}
       <div class="px-4 mt-6 pb-8 flex flex-col gap-2">
