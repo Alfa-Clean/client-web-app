@@ -683,17 +683,6 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
           )}
         </div>
 
-        {/* Оплата */}
-        <div>
-          <SectionLabel>{t('payment_label')}</SectionLabel>
-          <PaymentMethodPicker
-            value={payment}
-            onChange={setPayment}
-            canBind={Boolean(user.phone)}
-            cardNote={t('payment_hold_note')}
-          />
-        </div>
-
         {/* Комментарий + вложения */}
         <div>
           <SectionLabel>{t('handyman_comment_label')}</SectionLabel>
@@ -765,6 +754,17 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
             multiple
             class="hidden"
             onChange={handleFilesSelected}
+          />
+        </div>
+
+        {/* Оплата */}
+        <div>
+          <SectionLabel>{t('payment_label')}</SectionLabel>
+          <PaymentMethodPicker
+            value={payment}
+            onChange={setPayment}
+            canBind={Boolean(user.phone)}
+            cardNote={t('payment_hold_note')}
           />
         </div>
 

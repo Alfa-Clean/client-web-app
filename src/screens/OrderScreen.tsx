@@ -876,6 +876,51 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
           )
         })()}
 
+        {/* Разбивка стоимости */}
+        <div>
+          <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
+          <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            {quoteError && !quote ? (
+              <p class="px-4 py-3 text-sm text-red-500">{t('price_error')}</p>
+            ) : !quote ? (
+              <p class="px-4 py-3 text-sm text-gray-400">{t('price_calculating')}</p>
+            ) : (
+              <>
+                <div class={`divide-y divide-gray-50 transition-opacity ${quoteLoading ? 'opacity-50' : ''}`}>
+                  {priceLines.map(line => (
+                    <div key={`${line.code}-${line.kind}`} class="flex items-start justify-between gap-3 px-4 py-2.5">
+                      <span class="text-sm text-gray-700 min-w-0">
+                        {line.label}
+                        {line.qty > 1 && <span class="text-gray-400"> × {line.qty}</span>}
+                      </span>
+                      <span
+                        class={`text-sm shrink-0 ${
+                          line.kind === 'discount' || line.kind === 'promo'
+                            ? 'text-[#1F847B]'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {line.amount < 0 ? '−' : ''}{fmtPrice(Math.abs(line.amount), t('currency'))}
+                      </span>
+                    </div>
+                  ))}
+                  <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
+                    <span class="text-sm font-medium text-gray-700">{t('confirm_total')}</span>
+                    <span class="text-sm font-bold text-gray-900">
+                      {fmtPrice(quote.total, t('currency'))}
+                    </span>
+                  </div>
+                </div>
+                {priceIncomplete && (
+                  <p class="px-4 py-2.5 text-xs text-amber-600 bg-amber-50 border-t border-amber-100">
+                    {t('price_warning')}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Промокод */}
         <div>
           <SectionLabel>{t('promo_label')}</SectionLabel>
@@ -927,62 +972,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
           {promoErrorText && (
             <p class="text-xs text-red-500 mt-1.5 px-1">{promoErrorText}</p>
           )}
-        </div>
-
-        {/* Разбивка стоимости */}
-        <div>
-          <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
-          <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            {quoteError && !quote ? (
-              <p class="px-4 py-3 text-sm text-red-500">{t('price_error')}</p>
-            ) : !quote ? (
-              <p class="px-4 py-3 text-sm text-gray-400">{t('price_calculating')}</p>
-            ) : (
-              <>
-                <div class={`divide-y divide-gray-50 transition-opacity ${quoteLoading ? 'opacity-50' : ''}`}>
-                  {priceLines.map(line => (
-                    <div key={`${line.code}-${line.kind}`} class="flex items-start justify-between gap-3 px-4 py-2.5">
-                      <span class="text-sm text-gray-700 min-w-0">
-                        {line.label}
-                        {line.qty > 1 && <span class="text-gray-400"> × {line.qty}</span>}
-                      </span>
-                      <span
-                        class={`text-sm shrink-0 ${
-                          line.kind === 'discount' || line.kind === 'promo'
-                            ? 'text-[#1F847B]'
-                            : 'text-gray-900'
-                        }`}
-                      >
-                        {line.amount < 0 ? '−' : ''}{fmtPrice(Math.abs(line.amount), t('currency'))}
-                      </span>
-                    </div>
-                  ))}
-                  <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
-                    <span class="text-sm font-medium text-gray-700">{t('confirm_total')}</span>
-                    <span class="text-sm font-bold text-gray-900">
-                      {fmtPrice(quote.total, t('currency'))}
-                    </span>
-                  </div>
-                </div>
-                {priceIncomplete && (
-                  <p class="px-4 py-2.5 text-xs text-amber-600 bg-amber-50 border-t border-amber-100">
-                    {t('price_warning')}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Оплата */}
-        <div>
-          <SectionLabel>{t('payment_label')}</SectionLabel>
-          <PaymentMethodPicker
-            value={payment}
-            onChange={setPayment}
-            canBind={Boolean(user.phone)}
-            cardNote={draft.housingType === 'house' ? t('payment_house_note') : t('payment_hold_note')}
-          />
         </div>
 
         {/* Комментарии к заказу */}
@@ -1056,6 +1045,17 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
             multiple
             class="hidden"
             onChange={handleFilesSelected}
+          />
+        </div>
+
+        {/* Оплата */}
+        <div>
+          <SectionLabel>{t('payment_label')}</SectionLabel>
+          <PaymentMethodPicker
+            value={payment}
+            onChange={setPayment}
+            canBind={Boolean(user.phone)}
+            cardNote={draft.housingType === 'house' ? t('payment_house_note') : t('payment_hold_note')}
           />
         </div>
 
