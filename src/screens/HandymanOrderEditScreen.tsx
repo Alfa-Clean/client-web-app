@@ -143,10 +143,10 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
     if (slot && !next.includes(slot)) setSlot(next[0] ?? '')
   }
 
-  const localPrice = selectedWorks.reduce((s, { id, qty }) => {
-    const work = worksList.find(w => w.id === id)
-    return s + (work ? work.price * qty : 0)
-  }, 0) + 50000
+  // Цену после правки считает сервер «как при оформлении»: с той же
+  // срочностью, скидкой новичка и промокодом. Публичный расчёт их не
+  // воспроизведёт (заказ уже сжёг и скидку, и код), поэтому суммы на кнопке
+  // нет — новая цена приходит в ответе сохранения.
 
   async function handleSave() {
     if (selectedWorks.length === 0) return
@@ -395,7 +395,7 @@ export function HandymanOrderEditScreen({ order, telegramId, onBack, onSaved }: 
           >
             {saving
               ? t('edit_order_saving')
-              : `${t('edit_order_save')} · ${localPrice.toLocaleString('ru-RU')} ${t('currency')}`
+              : t('edit_order_save')
             }
           </button>
         </div>

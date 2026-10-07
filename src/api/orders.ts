@@ -65,6 +65,8 @@ export interface Order {
   payment_method?: PaymentMethod
   card_id?: string | null
   payment?: OrderPayment | null
+  /** Срочный заказ (+15%, плашка у исполнителя). Нет у ответов до 07.10. */
+  urgent?: boolean
 }
 
 export interface AddonItem {
@@ -100,6 +102,8 @@ export interface OrderPayload {
   utm_campaign?: string
   payment_method?: PaymentMethod
   card_id?: string | null
+  /** Срочный заказ: сервер добавит +15% к квартире. */
+  urgent?: boolean
 }
 
 /**
@@ -138,6 +142,8 @@ export interface HandymanOrderPayload {
   utm_campaign?: string
   payment_method?: PaymentMethod
   card_id?: string | null
+  /** Срочный заказ: сервер добавит +15%. */
+  urgent?: boolean
 }
 
 export interface HandymanOrderResponse {
@@ -273,6 +279,8 @@ export interface HandymanOrder {
   payment_method?: PaymentMethod
   card_id?: string | null
   payment?: OrderPayment | null
+  /** Срочный заказ (+15%, плашка у исполнителя). Нет у ответов до 07.10. */
+  urgent?: boolean
 }
 
 export interface HandymanOrderPatchPayload {

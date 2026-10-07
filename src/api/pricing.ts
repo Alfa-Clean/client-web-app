@@ -25,9 +25,9 @@ export interface QuantityItem {
 export interface CleaningQuoteRequest {
   vertical: 'cleaning'
   service_type: QuoteServiceType
-  /** 1..10 */
+  /** 1..9 */
   rooms: number
-  /** 1..5 */
+  /** 1..3 */
   bathrooms: number
   housing_type?: QuoteHousingType
   urgent?: boolean

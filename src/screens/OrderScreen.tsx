@@ -17,11 +17,13 @@ import type { Addon, AddonCategory } from '../api/addons'
 import { getAddons, getAddonCategories } from '../api/addons'
 import type { ServiceType, AddonItem, Order } from '../api/orders'
 import { createOrder, cancelOrder } from '../api/orders'
-import type { PriceLine, PromoReason, QuoteRequest } from '../api/pricing'
+import type { PromoReason, QuoteRequest } from '../api/pricing'
 import { useQuote } from '../hooks/useQuote'
 import { useLocale } from '../i18n'
 import type { Lang } from '../i18n/locales'
 import { CalendarPicker } from '../components/CalendarPicker'
+import { PriceBreakdown, fmtPrice } from '../components/PriceBreakdown'
+import { UrgentToggle } from '../components/UrgentToggle'
 import { BottomSheet } from '../components/BottomSheet'
 import { AddressOption } from '../components/AddressOption'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -79,14 +81,7 @@ const EMPTY_DRAFT: Draft = {
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
 // Цена считается только на сервере (POST /pricing/quote) — тарифы живут в БД.
-// Строки округления в разбивке не показываем.
-function visibleLines(lines: PriceLine[]): PriceLine[] {
-  return lines.filter(l => l.kind !== 'rounding' && l.amount !== 0)
-}
-
-function fmtPrice(p: number, currency: string): string {
-  return p.toLocaleString('ru-RU') + ' ' + currency
-}
+// Разбивку показывает `PriceBreakdown`.
 
 // ─── Date / Slot helpers ──────────────────────────────────────────────────────
 
@@ -257,6 +252,9 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [payment, setPayment] = useState<PaymentChoice>({ method: 'cash', cardId: null })
+  // Срочный заказ: +15% к квартире (модификатор `urgent` на сервере), плашка
+  // у исполнителя. В черновик не пишется — выбирается заново на каждый заказ.
+  const [urgent, setUrgent] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showAddressSheet, setShowAddressSheet] = useState(false)
@@ -378,6 +376,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
     rooms: draft.rooms,
     bathrooms: draft.bathrooms,
     housing_type: draft.housingType,
+    urgent,
     addons: draft.addons.map(a => ({ id: a.id, qty: a.qty ?? 1 })),
     promo_code: promoCode,
     telegram_id: user.telegram_id,
@@ -385,9 +384,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest, lang)
 
   const price = quote?.total ?? null
-  const priceLines = quote ? visibleLines(quote.lines) : []
-  // Непустой warnings = тариф не заведён, цена неполная.
-  const priceIncomplete = (quote?.warnings.length ?? 0) > 0
 
   // Статус промокода приходит вместе с расчётом: невалидный код — это 200, а не ошибка.
   const promoResult =
@@ -467,6 +463,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
         payment_method: payment.method,
         card_id: payment.cardId,
+        urgent,
       })
       // Вложения грузятся после создания заказа, отдельными запросами. Ошибку
       // здесь раньше глотал `.catch(() => {})`: заказ создавался, фото не
@@ -740,6 +737,13 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
           )}
         </div>
 
+        {/* Срочность */}
+        <UrgentToggle
+          value={urgent}
+          onChange={setUrgent}
+          note={draft.housingType === 'house' ? t('urgent_note_house') : undefined}
+        />
+
         {/* Дополнения */}
         {addons.length > 0 && (() => {
           const isVisible = draft.serviceType !== 'general'
@@ -879,46 +883,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         {/* Разбивка стоимости */}
         <div>
           <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
-          <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            {quoteError && !quote ? (
-              <p class="px-4 py-3 text-sm text-red-500">{t('price_error')}</p>
-            ) : !quote ? (
-              <p class="px-4 py-3 text-sm text-gray-400">{t('price_calculating')}</p>
-            ) : (
-              <>
-                <div class={`divide-y divide-gray-50 transition-opacity ${quoteLoading ? 'opacity-50' : ''}`}>
-                  {priceLines.map(line => (
-                    <div key={`${line.code}-${line.kind}`} class="flex items-start justify-between gap-3 px-4 py-2.5">
-                      <span class="text-sm text-gray-700 min-w-0">
-                        {line.label}
-                        {line.qty > 1 && <span class="text-gray-400"> × {line.qty}</span>}
-                      </span>
-                      <span
-                        class={`text-sm shrink-0 ${
-                          line.kind === 'discount' || line.kind === 'promo'
-                            ? 'text-[#1F847B]'
-                            : 'text-gray-900'
-                        }`}
-                      >
-                        {line.amount < 0 ? '−' : ''}{fmtPrice(Math.abs(line.amount), t('currency'))}
-                      </span>
-                    </div>
-                  ))}
-                  <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
-                    <span class="text-sm font-medium text-gray-700">{t('confirm_total')}</span>
-                    <span class="text-sm font-bold text-gray-900">
-                      {fmtPrice(quote.total, t('currency'))}
-                    </span>
-                  </div>
-                </div>
-                {priceIncomplete && (
-                  <p class="px-4 py-2.5 text-xs text-amber-600 bg-amber-50 border-t border-amber-100">
-                    {t('price_warning')}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
+          <PriceBreakdown quote={quote} loading={quoteLoading} error={quoteError} />
         </div>
 
         {/* Промокод */}

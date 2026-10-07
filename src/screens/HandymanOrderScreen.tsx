@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import type { PromoInvalidReason } from '../api/promos'
-import { validatePromo } from '../api/promos'
+import type { PromoReason, QuoteRequest } from '../api/pricing'
+import { useQuote } from '../hooks/useQuote'
+import { PriceBreakdown, fmtPrice } from '../components/PriceBreakdown'
+import { UrgentToggle } from '../components/UrgentToggle'
 import type { User } from '../types'
 import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
@@ -46,7 +48,6 @@ interface Draft {
 
 const TZ_OFFSET = 5
 const DRAFT_KEY = 'chaqqon_handyman_draft'
-const BASE_PRICE = 50000
 
 const EMPTY_DRAFT: Draft = {
   addressId: '',
@@ -60,18 +61,11 @@ const EMPTY_DRAFT: Draft = {
 }
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
-
-function calcPrice(addonsList: HandymanWork[], works: WorkItem[]): number {
-  const addonsTotal = works.reduce((s, { id, qty }) => {
-    const addon = addonsList.find(a => a.id === id)
-    return s + (addon ? addon.price * qty : 0)
-  }, 0)
-  return BASE_PRICE + addonsTotal
-}
-
-function fmtPrice(p: number, currency: string): string {
-  return p.toLocaleString('ru-RU') + ' ' + currency
-}
+//
+// Цену считает сервер (POST /pricing/quote) — тем же калькулятором, что и
+// заказ. До 07.10 экран складывал её сам («выезд» 50 000 + работы, промокод
+// вычитал локально), а сервер считал иначе: клиент видел одну сумму, в заказ
+// и в холд карты уходила другая.
 
 // ─── Date / Slot helpers ──────────────────────────────────────────────────────
 
@@ -243,10 +237,10 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [promoInput, setPromoInput] = useState('')
-  const [promoValidating, setPromoValidating] = useState(false)
   const [promoCode, setPromoCode] = useState<string | null>(null)
-  const [promoDiscountPct, setPromoDiscountPct] = useState<number | null>(null)
-  const [promoError, setPromoError] = useState<string | null>(null)
+  // Срочный заказ: +15% (модификатор `urgent_handyman` на сервере), плашка у
+  // мастера. В черновик не пишется — выбирается заново на каждый заказ.
+  const [urgent, setUrgent] = useState(false)
   const promoInputRef = useRef<HTMLInputElement>(null)
 
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -271,46 +265,27 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
     getAddresses().catch(() => []).then(a => setSavedAddresses(Array.isArray(a) ? a : []))
   }, [user.telegram_id])
 
-  function promoReasonText(reason: PromoInvalidReason): string {
-    const map: Record<PromoInvalidReason, string> = {
+  function promoReasonText(reason: PromoReason): string {
+    const map: Record<PromoReason, string> = {
       not_found: t('promo_invalid_not_found'),
       inactive: t('promo_invalid_inactive'),
       not_started: t('promo_invalid_not_started'),
       expired: t('promo_invalid_expired'),
-      wrong_service_type: t('promo_invalid_wrong_service_type'),
+      wrong_vertical: t('promo_invalid_wrong_vertical'),
       already_used: t('promo_invalid_already_used'),
     }
     return map[reason] ?? reason
   }
 
-  async function handleApplyPromo() {
+  // Промокод не валидируем отдельным запросом — его статус приходит в расчёте.
+  function handleApplyPromo() {
     const code = promoInput.trim().toUpperCase()
-    if (!code || promoValidating) return
-    setPromoValidating(true)
-    setPromoError(null)
-    try {
-      const result = await validatePromo(code, user.telegram_id, 'handyman')
-      if (result.valid && result.discount_pct != null) {
-        setPromoCode(code)
-        setPromoDiscountPct(result.discount_pct)
-      } else {
-        setPromoCode(null)
-        setPromoDiscountPct(null)
-        setPromoError(result.reason ? promoReasonText(result.reason) : t('promo_invalid_not_found'))
-      }
-    } catch {
-      setPromoCode(null)
-      setPromoDiscountPct(null)
-      setPromoError(t('confirm_error'))
-    } finally {
-      setPromoValidating(false)
-    }
+    if (!code || code === promoCode) return
+    setPromoCode(code)
   }
 
   function handleRemovePromo() {
     setPromoCode(null)
-    setPromoDiscountPct(null)
-    setPromoError(null)
     setPromoInput('')
     promoInputRef.current?.focus()
   }
@@ -374,10 +349,31 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
     setShowAddressSheet(false)
   }
 
-  const price = calcPrice(addons, draft.works)
-  const discountedPrice = promoDiscountPct != null
-    ? Math.floor(price - price * promoDiscountPct / 100)
-    : price
+  // Без работ считать нечего: сервер требует хотя бы одну.
+  const quoteRequest: QuoteRequest | null = draft.works.length > 0
+    ? {
+        vertical: 'handyman',
+        works: draft.works.map(w => ({ id: w.id, qty: w.qty ?? 1 })),
+        urgent,
+        promo_code: promoCode,
+        telegram_id: user.telegram_id,
+      }
+    : null
+  const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest, lang)
+  const price = quoteRequest ? quote?.total ?? null : null
+
+  // Статус промокода приходит вместе с расчётом: невалидный код — это 200, а не ошибка.
+  const promoResult =
+    promoCode && quote?.promo && quote.promo.code.toUpperCase() === promoCode
+      ? quote.promo
+      : null
+  const promoApplied = promoResult?.valid === true
+  const promoChecking = promoCode !== null && !promoResult && quoteLoading
+  const promoErrorText = promoResult && !promoResult.valid
+    ? promoReasonText(promoResult.reason ?? 'not_found')
+    : promoCode !== null && quoteError
+      ? t('confirm_error')
+      : null
 
   const tz = nowInTashkent()
   const todayIso = toISO(tz)
@@ -387,8 +383,9 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   const slots = draft.orderDate ? availableSlots(draft.orderDate) : []
   const isOtherDate = !!draft.orderDate && draft.orderDate !== todayIso && draft.orderDate !== tomorrowIso
 
+  // Без актуального расчёта не оформляем — иначе цена разъедется с сервером.
   const canSubmit = !!draft.addressId && !!draft.orderDate && !!draft.orderSlot &&
-                    draft.works.length > 0
+                    draft.works.length > 0 && price !== null && !quoteLoading
 
   /**
    * Оформление доступно только с подтверждённым номером: у анонима Mini App его
@@ -425,12 +422,13 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
         order_date: draft.orderDate,
         order_slot: draft.orderSlot,
         source: 'bot',
-        ...(promoCode && { promo_code: promoCode }),
+        ...(promoApplied && promoCode ? { promo_code: promoCode } : {}),
         ...(utmParams.get('utm_source') && { utm_source: utmParams.get('utm_source')! }),
         ...(utmParams.get('utm_medium') && { utm_medium: utmParams.get('utm_medium')! }),
         ...(utmParams.get('utm_campaign') && { utm_campaign: utmParams.get('utm_campaign')! }),
         payment_method: payment.method,
         card_id: payment.cardId,
+        urgent,
       })
       // Ошибку загрузки раньше глотал `.catch(() => {})` — заказ создавался
       // без фото, и никто об этом не узнавал.
@@ -455,7 +453,6 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
         setSubmitError(t('confirm_in_progress'))
       } else if (e instanceof Error && e.message.includes('422') && promoCode) {
         setPromoCode(null)
-        setPromoDiscountPct(null)
         setPromoInput('')
         setSubmitError(t('promo_error_on_submit'))
       } else {
@@ -613,6 +610,9 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
           )}
         </div>
 
+        {/* Срочность */}
+        <UrgentToggle value={urgent} onChange={setUrgent} />
+
         {/* Работы */}
         {addons.length > 0 && (
           <div ref={worksRef}>
@@ -632,15 +632,25 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
           </div>
         )}
 
+        {/* Разбивка стоимости */}
+        {quoteRequest && (
+          <div>
+            <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
+            <PriceBreakdown quote={quote} loading={quoteLoading} error={quoteError} />
+          </div>
+        )}
+
         {/* Промокод */}
         <div>
           <SectionLabel>{t('promo_label')}</SectionLabel>
-          {promoCode ? (
+          {promoApplied ? (
             <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
               <div>
                 <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
                 <p class="text-xs text-[#1F847B] mt-0.5">
-                  {t('promo_valid', { pct: String(promoDiscountPct) })}
+                  {promoResult?.discount_pct != null
+                    ? t('promo_valid', { pct: String(promoResult.discount_pct) })
+                    : fmtPrice(Math.abs(promoResult?.amount ?? 0), t('currency'))}
                 </p>
               </div>
               <button
@@ -659,27 +669,27 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
                 value={promoInput}
                 onInput={e => {
                   setPromoInput((e.target as HTMLInputElement).value)
-                  setPromoError(null)
+                  if (promoCode) setPromoCode(null)
                 }}
                 onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
                 placeholder={t('promo_placeholder')}
                 class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
-                  promoError ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
+                  promoErrorText ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
                 }`}
               />
               <button
                 type="button"
                 onClick={handleApplyPromo}
-                disabled={!promoInput.trim() || promoValidating}
+                disabled={!promoInput.trim() || promoChecking}
                 class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
                 style="background:#1F847B"
               >
-                {promoValidating ? t('promo_applying') : t('promo_apply')}
+                {promoChecking ? t('promo_applying') : t('promo_apply')}
               </button>
             </div>
           )}
-          {promoError && (
-            <p class="text-xs text-red-500 mt-1.5 px-1">{promoError}</p>
+          {promoErrorText && (
+            <p class="text-xs text-red-500 mt-1.5 px-1">{promoErrorText}</p>
           )}
         </div>
 
@@ -825,8 +835,8 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
         >
           {submitting
             ? t('confirm_submitting')
-            : promoDiscountPct != null
-              ? `${t('confirm_submit')} · ${fmtPrice(discountedPrice, t('currency'))}`
+            : price === null
+              ? t('confirm_submit')
               : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
           }
         </button>
