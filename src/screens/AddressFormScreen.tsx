@@ -303,7 +303,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
             label={t('addr_rooms_label')}
             value={form.rooms ?? null}
             min={1}
-            max={10}
+            max={9}
             invalid={invalidFields.has('rooms')}
             onChange={v => setCount('rooms', v)}
           />
@@ -311,7 +311,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
             label={t('addr_bathrooms_label')}
             value={form.bathrooms ?? null}
             min={1}
-            max={5}
+            max={3}
             invalid={invalidFields.has('bathrooms')}
             onChange={v => setCount('bathrooms', v)}
           />

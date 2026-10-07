@@ -36,6 +36,7 @@ import { ActiveHandymanOrderScreen } from './ActiveHandymanOrderScreen'
 import { OrderEditScreen } from './OrderEditScreen'
 import { HandymanOrderEditScreen } from './HandymanOrderEditScreen'
 import { SupportScreen } from './SupportScreen'
+import { SubscriptionScreen } from './SubscriptionScreen'
 import { CardsSection } from '../components/CardsSection'
 import { SubscriptionTeaser } from '../components/SubscriptionTeaser'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
@@ -652,11 +653,11 @@ function parseDeepLink(param: string): DeepLink | null {
 
 // ─── Hub Screen ───────────────────────────────────────────────────────────────
 
-type SupportBackView = 'hub' | 'menu' | 'active_order' | 'active_handyman' | 'active_chistomaty'
+type SupportBackView = 'hub' | 'menu' | 'active_order' | 'active_handyman' | 'active_chistomaty' | 'subscription'
 type SupportView = { name: 'support'; backView: SupportBackView }
 
 type View =
-  | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman' | 'order_edit' | 'handyman_order_edit'
+  | 'hub' | 'cleaning' | 'handyman' | 'chistomaty' | 'subscription' | 'menu' | 'active_order' | 'active_chistomaty' | 'active_handyman' | 'order_edit' | 'handyman_order_edit'
   | { name: 'chat'; orderId: string; contextType: 'cleaning_order' | 'handyman_order' | 'support' | 'cleaning_dispute' | 'handyman_dispute'; executorId: string | null; executorName: string; senderId: string; backView: 'active_order' | 'active_handyman' | SupportView }
   | SupportView
 
@@ -1102,6 +1103,17 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
     return <ChistomatyScreen onBack={() => setView('hub')} />
   }
 
+  if (view === 'subscription') {
+    return (
+      <SubscriptionScreen
+        addresses={addresses}
+        setAddresses={setAddresses}
+        onBack={() => setView('hub')}
+        onContactSupport={() => setView({ name: 'support', backView: 'subscription' })}
+      />
+    )
+  }
+
   if (view === 'menu') {
     return (
       <MenuScreen
@@ -1168,8 +1180,8 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
         : activeEntries.map(e => renderBanner(e, setView))
       }
 
-      {/* Анонс подписки — заглушка, нажатие ничего не делает */}
-      <SubscriptionTeaser />
+      {/* Анонс подписки — открывает paywall с ценой по адресу */}
+      <SubscriptionTeaser onClick={() => setView('subscription')} />
 
       {/* Service tiles — boxes и лейблы разделены чтобы высоты совпадали */}
       <div class="px-4 pb-6">
