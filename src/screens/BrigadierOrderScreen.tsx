@@ -148,7 +148,7 @@ function OrderMetaCard({ order }: { order: Order }) {
         </div>
         <span class="text-gray-200">·</span>
         <span class="text-xs text-gray-500">
-          {t('brigadier_order_meta', { rooms: String(order.rooms), bath: String(order.bathrooms) })}
+          {t('brigadier_order_meta', { rooms: String(order.rooms) })}
         </span>
       </div>
       {order.comment && (
@@ -434,7 +434,7 @@ function B5_InProgress({ order, loading, onFinish, onChat }: StatusViewProps) {
         </div>
         <div class="px-4 py-3 flex items-center justify-between">
           <span class="text-xs text-gray-500">
-            {t('brigadier_order_meta', { rooms: String(order.rooms), bath: String(order.bathrooms) })}
+            {t('brigadier_order_meta', { rooms: String(order.rooms) })}
           </span>
           <span class="text-sm font-semibold text-gray-900">
             {(order.submitted_price ?? order.price).toLocaleString()} {t('currency')}

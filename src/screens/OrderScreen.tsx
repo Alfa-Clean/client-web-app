@@ -49,9 +49,7 @@ interface Draft {
   addressLabel?: string | null
   addressDetails: string
   rooms: number
-  bathrooms: number
   totalRooms?: number
-  totalBathrooms?: number
   orderDate: string
   orderSlot: string
   addons: AddonItem[]
@@ -71,7 +69,6 @@ const EMPTY_DRAFT: Draft = {
   address: '',
   addressDetails: '',
   rooms: 1,
-  bathrooms: 1,
   orderDate: '',
   orderSlot: '',
   addons: [],
@@ -173,7 +170,6 @@ function draftFromOrder(o: Order): Draft {
     addressLabel: null,
     addressDetails: '',
     rooms: o.rooms,
-    bathrooms: o.bathrooms,
     orderDate: '',
     orderSlot: '',
     addons: (o.addons ?? []).map(a => ({ id: a.id, qty: a.qty ?? 1 })),
@@ -190,9 +186,7 @@ function draftFromAddress(a: Address): Draft {
     addressLabel: a.label ?? null,
     addressDetails: a.notes ?? '',
     rooms: a.rooms ?? EMPTY_DRAFT.rooms,
-    bathrooms: a.bathrooms ?? EMPTY_DRAFT.bathrooms,
     totalRooms: a.rooms ?? undefined,
-    totalBathrooms: a.bathrooms ?? undefined,
     housingType: a.housing_type ?? EMPTY_DRAFT.housingType,
   }
 }
@@ -362,9 +356,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
       addressLabel: newAddr.label ?? null,
       addressDetails: newAddr.notes ?? '',
       rooms: newAddr.rooms ?? draft.rooms,
-      bathrooms: newAddr.bathrooms ?? draft.bathrooms,
       totalRooms: newAddr.rooms ?? undefined,
-      totalBathrooms: newAddr.bathrooms ?? undefined,
       housingType: newAddr.housing_type ?? 'apt',
     })
     setShowAddressSheet(false)
@@ -374,7 +366,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
     vertical: 'cleaning',
     service_type: draft.serviceType,
     rooms: draft.rooms,
-    bathrooms: draft.bathrooms,
     housing_type: draft.housingType,
     urgent,
     addons: draft.addons.map(a => ({ id: a.id, qty: a.qty ?? 1 })),
@@ -448,7 +439,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         service_type: draft.serviceType,
         housing_type: draft.housingType,
         rooms: draft.rooms,
-        bathrooms: draft.bathrooms,
         price,
         address,
         ...(draft.addressId && { address_id: draft.addressId }),
@@ -488,7 +478,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         service_type: draft.serviceType,
         housing_type: draft.housingType,
         rooms: draft.rooms,
-        bathrooms: draft.bathrooms,
         price,
         address,
         order_date: draft.orderDate,
@@ -633,9 +622,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
                         addressLabel: addr.label ?? null,
                         addressDetails: addr.notes ?? '',
                         rooms: addr.rooms ?? draft.rooms,
-                        bathrooms: addr.bathrooms ?? draft.bathrooms,
                         totalRooms: addr.rooms ?? undefined,
-                        totalBathrooms: addr.bathrooms ?? undefined,
                         housingType: addr.housing_type ?? draft.housingType,
                       })
                       setShowAddressDropdown(false)

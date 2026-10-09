@@ -21,7 +21,6 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
     intercom: initial?.intercom ?? '',
     notes: initial?.notes ?? '',
     rooms: initial?.rooms ?? undefined,
-    bathrooms: initial?.bathrooms ?? undefined,
     housing_type: initial?.housing_type ?? undefined,
     latitude: initial?.latitude ?? undefined,
     longitude: initial?.longitude ?? undefined,
@@ -96,10 +95,6 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
     }
   }
 
-  function setCount(field: 'rooms' | 'bathrooms', value: number) {
-    setForm(prev => ({ ...prev, [field]: value }))
-  }
-
   async function handleSubmit(e: Event) {
     e.preventDefault()
     const invalid = new Set<string>()
@@ -110,9 +105,8 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
       if (!form.floor?.trim()) invalid.add('floor')
       if (!form.apartment?.trim()) invalid.add('apartment')
     }
-    // Комнаты и санузлы нужны расчёту цены — без них заказ по адресу не оформить.
+    // Комнаты нужны расчёту цены — без них заказ по адресу не оформить.
     if (form.rooms == null) invalid.add('rooms')
-    if (form.bathrooms == null) invalid.add('bathrooms')
     if (invalid.size > 0) {
       setInvalidFields(invalid)
       setError(
@@ -121,8 +115,7 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
           : invalid.has('entrance') ? t('addr_entrance_required')
           : invalid.has('floor') ? t('addr_floor_required')
           : invalid.has('apartment') ? t('addr_apt_required')
-          : form.rooms == null ? t('addr_rooms_required')
-          : t('addr_bathrooms_required')
+          : t('addr_rooms_required')
       )
       return
     }
@@ -139,7 +132,6 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
         ...(form.intercom?.trim() && { intercom: form.intercom.trim() }),
         ...(form.notes?.trim() && { notes: form.notes.trim() }),
         ...(form.rooms != null && { rooms: form.rooms }),
-        ...(form.bathrooms != null && { bathrooms: form.bathrooms }),
         ...(form.housing_type && { housing_type: form.housing_type }),
         ...(form.latitude != null && { latitude: form.latitude }),
         ...(form.longitude != null && { longitude: form.longitude }),
@@ -298,24 +290,14 @@ export function AddressFormScreen({ initial, onSubmit, onBack }: Props) {
           </>
         )}
 
-        <div class="flex flex-col gap-3">
-          <CounterField
-            label={t('addr_rooms_label')}
-            value={form.rooms ?? null}
-            min={1}
-            max={9}
-            invalid={invalidFields.has('rooms')}
-            onChange={v => setCount('rooms', v)}
-          />
-          <CounterField
-            label={t('addr_bathrooms_label')}
-            value={form.bathrooms ?? null}
-            min={1}
-            max={3}
-            invalid={invalidFields.has('bathrooms')}
-            onChange={v => setCount('bathrooms', v)}
-          />
-        </div>
+        <CounterField
+          label={t('addr_rooms_label')}
+          value={form.rooms ?? null}
+          min={1}
+          max={9}
+          invalid={invalidFields.has('rooms')}
+          onChange={v => setForm(prev => ({ ...prev, rooms: v }))}
+        />
 
         <Field
           label={t('addr_notes_label')}

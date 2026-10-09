@@ -27,8 +27,6 @@ export interface CleaningQuoteRequest {
   service_type: QuoteServiceType
   /** 1..9 */
   rooms: number
-  /** 1..3 */
-  bathrooms: number
   housing_type?: QuoteHousingType
   urgent?: boolean
   addons?: QuantityItem[]

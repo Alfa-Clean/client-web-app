@@ -13,7 +13,6 @@ export interface Address {
   intercom?: string | null
   notes?: string | null
   rooms?: number | null
-  bathrooms?: number | null
   housing_type?: HousingType | null
   latitude?: number | null
   longitude?: number | null
@@ -30,7 +29,6 @@ export interface AddressPayload {
   intercom?: string
   notes?: string
   rooms?: number
-  bathrooms?: number
   housing_type?: HousingType
   latitude?: number
   longitude?: number

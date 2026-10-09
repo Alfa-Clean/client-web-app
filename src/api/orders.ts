@@ -38,7 +38,6 @@ export interface Order {
   service_type: string
   housing_type?: 'apt' | 'house'
   rooms: number
-  bathrooms: number
   price: number
   address: string
   address_id?: string | null
@@ -82,7 +81,6 @@ export interface OrderPayload {
   service_type: ServiceType
   housing_type?: 'apt' | 'house'
   rooms: number
-  bathrooms: number
   price: number
   address: string
   address_id?: string

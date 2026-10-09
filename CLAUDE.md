@@ -105,14 +105,12 @@ const ok = await confirm(t('some_message'), { confirmVariant: 'danger' })
 if (!ok) return
 ```
 
-## OrderScreen — шаги
+## OrderScreen
 
-```
-service_type → address → rooms → bathrooms → date → addons → confirm → done
-```
-
-- Навигация: `nextStep` / `prevStep` с учётом `housingType` (house пропускает rooms/bathrooms/addons)
-- Draft сохраняется в `localStorage` (`alfaclean_order_draft`) после каждого изменения
+- Одна форма: адрес → услуга → дата и слот → допуслуги → цена, промокод, комментарий, оплата
+- Число комнат берётся из выбранного адреса — отдельного выбора в заказе нет.
+  Санузлов нет вовсе (с 09.10.2026): цена уборки зависит только от комнат
+- Draft сохраняется в `localStorage` (`chaqqon_order_draft`) после каждого изменения
 - Цены: только сервер — `useQuote(...)` → `POST /pricing/quote`. Локально цену не считать
 
 ## Расчёт цены (pricing)
