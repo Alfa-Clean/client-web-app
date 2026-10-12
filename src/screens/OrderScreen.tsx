@@ -1,8 +1,10 @@
-import type { JSX } from 'preact'
+import type { ComponentChildren, JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { Info, MapPin, CalendarDays, Sparkles, MessageCircle, Banknote } from 'lucide-react'
+import { Plus, MapPin, CalendarDays, Sparkles, MessageCircle, Banknote } from 'lucide-react'
 import { uploadOrderAttachment } from '../api/attachments'
 import { PaymentMethodPicker, type PaymentChoice } from '../components/PaymentMethodPicker'
+import { ServiceTypePicker } from '../components/ServiceTypePicker'
+import { WorkPickerSheet, SelectedWorksList } from '../components/WorkPickerSheet'
 import { ApiError } from '../api/client'
 
 /** Кем подписано вложение. У клиента без Telegram `telegram_id` равен нулю —
@@ -14,6 +16,7 @@ import type { User } from '../types'
 import type { Address } from '../api/addresses'
 import { createAddress, getAddresses } from '../api/addresses'
 import type { Addon, AddonCategory } from '../api/addons'
+import { addonLabel } from '../api/addons'
 import { getAddons, getAddonCategories } from '../api/addons'
 import type { ServiceType, AddonItem, Order } from '../api/orders'
 import { createOrder, cancelOrder } from '../api/orders'
@@ -39,7 +42,8 @@ import { AddressFormScreen } from './AddressFormScreen'
 type HousingType = 'apt' | 'house'
 
 interface Draft {
-  serviceType: ServiceType
+  /** null — тип ещё не выбран, дальше формы не видно. */
+  serviceType: ServiceType | null
   housingType: HousingType
   address: string
   // Ссылка на адрес из книги. Без неё бэкенд заводит снимок из одной строки,
@@ -64,7 +68,7 @@ const MAX_ATTACH_SIZE = 20 * 1024 * 1024
 const MAX_ATTACH_COUNT = 10
 
 const EMPTY_DRAFT: Draft = {
-  serviceType: 'standard',
+  serviceType: null,
   housingType: 'apt',
   address: '',
   addressDetails: '',
@@ -225,6 +229,31 @@ function Chip({
   )
 }
 
+/**
+ * Шаг формы заказа: проявляется и докручивает экран к себе. Шаг, видимый
+ * с первого рендера (черновик, повтор заказа), экран не крутит.
+ */
+function Reveal({ show, children }: { show: boolean; children: ComponentChildren }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const quiet = useRef(show)
+
+  useEffect(() => {
+    if (!show || quiet.current) {
+      quiet.current = false
+      return
+    }
+    // Кадр на монтирование, иначе высота блока ещё не учтена
+    const id = requestAnimationFrame(() =>
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }),
+    )
+    return () => cancelAnimationFrame(id)
+  }, [show])
+
+  if (!show) return null
+  // scroll-mb — место под закреплённую кнопку внизу
+  return <div ref={ref} class="animate-reveal scroll-mb-40 flex flex-col gap-6">{children}</div>
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
@@ -253,9 +282,10 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   const [showCalendar, setShowCalendar] = useState(false)
   const [showAddressSheet, setShowAddressSheet] = useState(false)
   const [showAddressDropdown, setShowAddressDropdown] = useState(false)
-  const [infoSheet, setInfoSheet] = useState<ServiceType | null>(null)
-  const [infoAddon, setInfoAddon] = useState<Addon | null>(null)
-  const [addonsOpen, setAddonsOpen] = useState(false)
+  const [showWorkPicker, setShowWorkPicker] = useState(false)
+  // Оплата открывается кнопкой «К оплате»: работы и комментарий необязательны,
+  // выбора, который открыл бы её сам, там нет.
+  const [paymentOpen, setPaymentOpen] = useState(false)
   const [doneOrder, setDoneOrder] = useState<Order | null>(null)
   const [failedAttachments, setFailedAttachments] = useState(0)
   const [phoneGate, setPhoneGate] = useState<'submit' | 'edit' | null>(null)
@@ -362,7 +392,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
     setShowAddressSheet(false)
   }
 
-  const quoteRequest: QuoteRequest = {
+  const quoteRequest: QuoteRequest | null = draft.serviceType && {
     vertical: 'cleaning',
     service_type: draft.serviceType,
     rooms: draft.rooms,
@@ -389,6 +419,13 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
       ? t('confirm_error')
       : null
 
+  const selectedWorks = draft.addons.map(a => ({ id: a.id, qty: a.qty ?? 1 }))
+  const workTree = addonCategories.map(c => ({ ...c, children: [] }))
+  const addonsHint = addons
+    .slice(0, 4)
+    .map((a, i) => (i === 0 ? addonLabel(a, lang) : addonLabel(a, lang).toLowerCase()))
+    .join(', ') + (addons.length > 4 ? '…' : '')
+
   const tz = nowInTashkent()
   const todayIso = toISO(tz)
   const tomorrowIso = toISO(new Date(tz.getTime() + 86400000))
@@ -399,8 +436,24 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
 
   // Без актуального расчёта заказ не оформляем — иначе цена разъедется с прайсом.
   const canSubmit =
-    draft.address.trim() !== '' && !!draft.orderDate && !!draft.orderSlot
+    draft.address.trim() !== '' && !!draft.serviceType && !!draft.orderDate && !!draft.orderSlot
     && price !== null && !quoteLoading
+
+  // Форма раскрывается по шагам: тип → дата → время → работы и комментарий.
+  // Открытый шаг назад не прячется — сменили дату, слот сбросился, а уже
+  // написанный комментарий остаётся на месте.
+  const reached = !draft.serviceType ? 0 : !draft.orderDate ? 1 : !draft.orderSlot ? 2 : 3
+  const [maxStep, setMaxStep] = useState(reached)
+  useEffect(() => { if (reached > maxStep) setMaxStep(reached) }, [reached, maxStep])
+  const step = Math.max(maxStep, reached)
+
+  // Кнопка внизу говорит, чего не хватает, пока заказ нельзя отправить.
+  const ctaHint =
+    !draft.address.trim() ? t('order_cta_address')
+    : !draft.serviceType ? t('order_cta_type')
+    : !draft.orderDate ? t('order_cta_date')
+    : !draft.orderSlot ? t('order_cta_slot')
+    : null
 
   /**
    * Оформление доступно только с подтверждённым номером: у анонима Mini App его
@@ -425,7 +478,8 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
   }
 
   async function submitOrder(actor: User) {
-    if (price === null) return
+    const serviceType = draft.serviceType
+    if (price === null || !serviceType) return
     setSubmitting(true)
     setSubmitError(null)
     try {
@@ -436,7 +490,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
       const order = await createOrder({
         telegram_id: actor.telegram_id,
         phone: actor.phone,
-        service_type: draft.serviceType,
+        service_type: serviceType,
         housing_type: draft.housingType,
         rooms: draft.rooms,
         price,
@@ -475,7 +529,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         order_num: order.order_num,
         status: order.status,
         created_at: order.created_at,
-        service_type: draft.serviceType,
+        service_type: serviceType,
         housing_type: draft.housingType,
         rooms: draft.rooms,
         price,
@@ -651,365 +705,240 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
 
         {/* Тип уборки */}
         <div ref={serviceTypeRef}>
-          <div class="flex gap-2">
-            {(['standard', 'general'] as ServiceType[]).map(type => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => patch({ serviceType: type })}
-                class={`flex-1 relative flex flex-col justify-start py-3 px-4 rounded-2xl border-2 text-left transition-colors ${
-                  draft.serviceType === type
-                    ? 'border-[#1F847B] bg-[#F3F9F9]'
-                    : 'border-gray-200 bg-white'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); setInfoSheet(type) }}
-                  class="absolute top-2.5 right-2.5 text-gray-300 hover:text-gray-500 transition-colors"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M8 7v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <circle cx="8" cy="4.5" r="0.75" fill="currentColor"/>
-                  </svg>
-                </button>
-                <p class={`text-sm font-semibold pr-5 ${draft.serviceType === type ? 'text-[#186760]' : 'text-gray-900'}`}>
-                  {t(`svc_${type}`)}
-                </p>
-                <p class="text-xs text-gray-400 mt-0.5">{t(`svc_${type}_desc`)}</p>
-              </button>
-            ))}
-          </div>
+          <SectionLabel>{t('step_service_type')}</SectionLabel>
+          <ServiceTypePicker
+            value={draft.serviceType}
+            onSelect={type => patch(
+              // У генеральной блока доп. работ нет — выбранные раньше ушли бы
+              // в расчёт и в заказ, хотя клиент их уже не видит.
+              type === 'general' ? { serviceType: type, addons: [] } : { serviceType: type },
+            )}
+          />
         </div>
 
         {/* Дата и время */}
-        <div ref={dateRef}>
-          <SectionLabel>{t('step_datetime')}</SectionLabel>
-          <div class="flex gap-2 mb-3">
-            {availableSet.has(todayIso) && (
-              <Chip
-                label={t('today')}
-                active={draft.orderDate === todayIso}
-                onClick={() => patch({ orderDate: todayIso, orderSlot: '' })}
-              />
-            )}
-            {availableSet.has(tomorrowIso) && (
-              <Chip
-                label={t('tomorrow')}
-                active={draft.orderDate === tomorrowIso}
-                onClick={() => patch({ orderDate: tomorrowIso, orderSlot: '' })}
-              />
-            )}
-            <Chip
-              label={isOtherDate ? formatShortDate(draft.orderDate, lang) : t('date_pick_other')}
-              active={isOtherDate}
-              onClick={() => setShowCalendar(true)}
-            />
-          </div>
-          {draft.orderDate && slots.length > 0 && (
-            <div class="flex gap-2 flex-wrap">
-              {slots.map(slot => (
+        <Reveal show={step >= 1}>
+          <div ref={dateRef}>
+            <SectionLabel>{t('step_datetime')}</SectionLabel>
+            <div class="flex gap-2">
+              {availableSet.has(todayIso) && (
                 <Chip
-                  key={slot}
-                  label={slot}
-                  active={draft.orderSlot === slot}
-                  onClick={() => patch({ orderSlot: slot })}
+                  label={t('today')}
+                  active={draft.orderDate === todayIso}
+                  onClick={() => patch({ orderDate: todayIso, orderSlot: '' })}
                 />
-              ))}
+              )}
+              {availableSet.has(tomorrowIso) && (
+                <Chip
+                  label={t('tomorrow')}
+                  active={draft.orderDate === tomorrowIso}
+                  onClick={() => patch({ orderDate: tomorrowIso, orderSlot: '' })}
+                />
+              )}
+              <Chip
+                label={isOtherDate ? formatShortDate(draft.orderDate, lang) : t('date_pick_other')}
+                active={isOtherDate}
+                onClick={() => setShowCalendar(true)}
+              />
+            </div>
+            <Reveal show={!!draft.orderDate}>
+              {/* Линия отделяет время от дней — иначе два ряда чипов сливаются в один */}
+              <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col gap-4">
+                {slots.length > 0 ? (
+                  <div class="flex gap-2 flex-wrap">
+                    {slots.map(slot => (
+                      <Chip
+                        key={slot}
+                        label={slot}
+                        active={draft.orderSlot === slot}
+                        onClick={() => patch({ orderSlot: slot })}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p class="text-xs text-gray-400">{t('no_slots')}</p>
+                )}
+                <UrgentToggle
+                  value={urgent}
+                  onChange={setUrgent}
+                  note={draft.housingType === 'house' ? t('urgent_note_house') : undefined}
+                />
+              </div>
+            </Reveal>
+          </div>
+        </Reveal>
+
+        {/* Работы и комментарий открываются вместе: работы необязательны,
+            и без них клиент всё равно видит, куда идти дальше */}
+        <Reveal show={step >= 3}>
+          {addons.length > 0 && draft.serviceType !== 'general' && (
+            <div>
+              <SectionLabel>{t('step_addons')}</SectionLabel>
+              <SelectedWorksList
+                works={addons}
+                selected={selectedWorks}
+                onChange={works => patch({ addons: works })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowWorkPicker(true)}
+                class={`${draft.addons.length > 0 ? 'mt-2 ' : ''}w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 active:bg-gray-100 transition-colors`}
+              >
+                <Plus size={16} />
+                {draft.addons.length > 0 ? t('works_pick_more') : t('works_add_button')}
+              </button>
+              {draft.addons.length === 0 && (
+                <p class="text-xs text-gray-400 mt-2 px-1 truncate">{addonsHint}</p>
+              )}
             </div>
           )}
-          {draft.orderDate && slots.length === 0 && (
-            <p class="text-xs text-gray-400">{t('no_slots')}</p>
-          )}
-        </div>
 
-        {/* Срочность */}
-        <UrgentToggle
-          value={urgent}
-          onChange={setUrgent}
-          note={draft.housingType === 'house' ? t('urgent_note_house') : undefined}
-        />
-
-        {/* Дополнения */}
-        {addons.length > 0 && (() => {
-          const isVisible = draft.serviceType !== 'general'
-          const uncategorized = addons.filter(a => !a.category_id)
-          const groups: Array<{ category: AddonCategory; items: Addon[] }> = addonCategories
-            .map(cat => ({ category: cat, items: addons.filter(a => a.category_id === cat.id) }))
-            .filter(g => g.items.length > 0)
-          const selectedCount = draft.addons.length
-
-          function AddonRow({ addon }: { addon: Addon }) {
-            const item = draft.addons.find(x => x.id === addon.id)
-            const qty = item?.qty ?? 0
-            const on = qty > 0
-
-            function setQty(next: number) {
-              if (next <= 0) {
-                patch({ addons: draft.addons.filter(x => x.id !== addon.id) })
-              } else if (item) {
-                patch({ addons: draft.addons.map(x => x.id === addon.id ? { ...x, qty: next } : x) })
-              } else {
-                patch({ addons: [...draft.addons, { id: addon.id, qty: next }] })
-              }
-            }
-
-            const description = addon.description_translations?.[lang] ?? addon.description_translations?.['ru']
-
-            return (
-              <div class="w-full flex items-center justify-between px-4 py-3 gap-3">
-                <span class={`text-sm font-medium truncate flex-1 min-w-0 ${on ? 'text-[#186760]' : 'text-gray-900'}`}>
-                  {addon.translations[lang] ?? addon.translations['ru'] ?? addon.id}
-                </span>
-                <div class="flex items-center gap-2 shrink-0">
-                  {description && (
-                    <button
-                      type="button"
-                      onClick={() => setInfoAddon(addon)}
-                      class="w-5 h-5 flex items-center justify-center text-gray-300 active:text-gray-500 transition-colors"
-                    >
-                      <Info size={14} />
-                    </button>
-                  )}
-                  {on ? (
-                    <>
-                      <span class="text-xs text-gray-400">
-                        +{(addon.price * qty).toLocaleString('ru-RU')}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setQty(qty - 1)}
-                        class="w-7 h-7 rounded-full bg-gray-100 text-gray-700 text-base font-light flex items-center justify-center active:bg-gray-200 transition-colors"
-                      >
-                        −
-                      </button>
-                      <span class="text-sm font-semibold text-gray-900 w-5 text-center">{qty}</span>
-                      <button
-                        type="button"
-                        onClick={() => setQty(qty + 1)}
-                        class="w-7 h-7 rounded-full bg-[#1F847B] text-white text-base font-light flex items-center justify-center active:opacity-80 transition-colors"
-                      >
-                        +
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span class="text-xs text-gray-400">+{addon.price.toLocaleString('ru-RU')}</span>
-                      <button
-                        type="button"
-                        onClick={() => setQty(1)}
-                        class="w-7 h-7 rounded-full bg-gray-100 text-gray-500 text-base font-light flex items-center justify-center active:bg-gray-200 transition-colors"
-                      >
-                        +
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )
-          }
-
-          return (
-            <div class={`grid transition-all duration-300 ease-in-out ${isVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-              <div class="overflow-hidden">
-                <div class="bg-[#F3F9F9] rounded-2xl border border-[#BFE8E4] overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setAddonsOpen(v => !v)}
-                    class="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-[#e4f4df] transition-colors"
-                  >
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-[#186760]">{t('edit_order_addons_label')}</span>
-                      {selectedCount > 0 && (
-                        <span class="text-xs font-semibold text-white bg-[#1F847B] rounded-full w-5 h-5 flex items-center justify-center">
-                          {selectedCount}
-                        </span>
-                      )}
-                    </div>
-                    <svg
-                      width="20" height="20" viewBox="0 0 20 20" fill="none"
-                      class={`shrink-0 text-[#1F847B] transition-transform ${addonsOpen ? 'rotate-45' : ''}`}
-                    >
-                      <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                  </button>
-
-                  <div class={`grid transition-all duration-300 ease-in-out ${addonsOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                    <div class="overflow-hidden">
-                      <div class="border-t border-[#BFE8E4] bg-white flex flex-col gap-4 py-4">
-                        {groups.map(({ category, items }) => (
-                          <div key={category.id}>
-                            <div class="px-4">
-                              <SectionLabel>
-                                {category.translations[lang] ?? category.translations['ru'] ?? category.id}
-                              </SectionLabel>
-                            </div>
-                            <div class="divide-y divide-gray-50">
-                              {items.map(addon => <AddonRow key={addon.id} addon={addon} />)}
-                            </div>
-                          </div>
-                        ))}
-                        {uncategorized.length > 0 && (
-                          <div>
-                            {groups.length > 0 && <div class="px-4"><SectionLabel>{t('addons_group_label')}</SectionLabel></div>}
-                            <div class="divide-y divide-gray-50">
-                              {uncategorized.map(addon => <AddonRow key={addon.id} addon={addon} />)}
-                            </div>
+          {/* Комментарии к заказу */}
+          <div>
+            <SectionLabel>{t('order_comment_label')}</SectionLabel>
+            <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#1F847B] transition-colors">
+              <textarea
+                rows={3}
+                placeholder={t('order_comment_placeholder')}
+                value={draft.comment}
+                onInput={e => patch({ comment: (e.target as HTMLTextAreaElement).value })}
+                class="w-full px-4 pt-3 pb-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none bg-transparent"
+              />
+              {previewUrls.length > 0 && (
+                <div class="flex gap-2 overflow-x-auto px-3 pb-2">
+                  {previewUrls.map((url, idx) => {
+                    const isVideo = attachments[idx]?.type.startsWith('video/')
+                    return (
+                      <div key={url} class="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                        {isVideo ? (
+                          <video src={url} muted preload="metadata" class="w-full h-full object-cover" />
+                        ) : (
+                          <img src={url} alt="" class="w-full h-full object-cover" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(idx)}
+                          class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center"
+                        >
+                          <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
+                            <path d="M1 1l6 6M7 1L1 7" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                        {isVideo && (
+                          <div class="absolute bottom-0.5 left-0.5 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center">
+                            <svg width="6" height="7" viewBox="0 0 8 9" fill="none">
+                              <path d="M1.5 1.5l5 3-5 3V1.5z" fill="white"/>
+                            </svg>
                           </div>
                         )}
                       </div>
-                    </div>
-                  </div>
+                    )
+                  })}
                 </div>
-              </div>
-            </div>
-          )
-        })()}
-
-        {/* Разбивка стоимости */}
-        <div>
-          <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
-          <PriceBreakdown quote={quote} loading={quoteLoading} error={quoteError} />
-        </div>
-
-        {/* Промокод */}
-        <div>
-          <SectionLabel>{t('promo_label')}</SectionLabel>
-          {promoApplied ? (
-            <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
-              <div>
-                <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
-                <p class="text-xs text-[#1F847B] mt-0.5">
-                  {promoResult?.discount_pct != null
-                    ? t('promo_valid', { pct: String(promoResult.discount_pct) })
-                    : fmtPrice(Math.abs(promoResult?.amount ?? 0), t('currency'))}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleRemovePromo}
-                class="text-xs text-gray-400 active:text-gray-600 transition-colors"
-              >
-                {t('promo_remove')}
-              </button>
-            </div>
-          ) : (
-            <div class="flex gap-2">
-              <input
-                ref={promoInputRef}
-                type="text"
-                value={promoInput}
-                onInput={e => {
-                  setPromoInput((e.target as HTMLInputElement).value)
-                  if (promoCode) setPromoCode(null)
-                }}
-                onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
-                placeholder={t('promo_placeholder')}
-                class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
-                  promoErrorText ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={handleApplyPromo}
-                disabled={!promoInput.trim() || promoChecking}
-                class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
-                style="background:#1F847B"
-              >
-                {promoChecking ? t('promo_applying') : t('promo_apply')}
-              </button>
-            </div>
-          )}
-          {promoErrorText && (
-            <p class="text-xs text-red-500 mt-1.5 px-1">{promoErrorText}</p>
-          )}
-        </div>
-
-        {/* Комментарии к заказу */}
-        <div>
-          <SectionLabel>{t('order_comment_label')}</SectionLabel>
-          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#1F847B] transition-colors">
-            <textarea
-              rows={3}
-              placeholder={t('order_comment_placeholder')}
-              value={draft.comment}
-              onInput={e => patch({ comment: (e.target as HTMLTextAreaElement).value })}
-              class="w-full px-4 pt-3 pb-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none resize-none bg-transparent"
-            />
-            {previewUrls.length > 0 && (
-              <div class="flex gap-2 overflow-x-auto px-3 pb-2">
-                {previewUrls.map((url, idx) => {
-                  const isVideo = attachments[idx]?.type.startsWith('video/')
-                  return (
-                    <div key={url} class="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
-                      {isVideo ? (
-                        <video src={url} muted preload="metadata" class="w-full h-full object-cover" />
-                      ) : (
-                        <img src={url} alt="" class="w-full h-full object-cover" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(idx)}
-                        class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center"
-                      >
-                        <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
-                          <path d="M1 1l6 6M7 1L1 7" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                      </button>
-                      {isVideo && (
-                        <div class="absolute bottom-0.5 left-0.5 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center">
-                          <svg width="6" height="7" viewBox="0 0 8 9" fill="none">
-                            <path d="M1.5 1.5l5 3-5 3V1.5z" fill="white"/>
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            <div class="flex items-center justify-between px-3 pb-2 pt-1 border-t border-gray-100">
-              {mediaError ? (
-                <p class="text-xs text-red-500">{mediaError}</p>
-              ) : (
-                <span class="text-xs text-gray-300">
-                  {attachments.length > 0 ? `${attachments.length} / ${MAX_ATTACH_COUNT}` : ''}
-                </span>
               )}
-              {attachments.length < MAX_ATTACH_COUNT && (
+              <div class="flex items-center justify-between px-3 pb-2 pt-1 border-t border-gray-100">
+                {mediaError ? (
+                  <p class="text-xs text-red-500">{mediaError}</p>
+                ) : (
+                  <span class="text-xs text-gray-300">
+                    {attachments.length > 0 ? `${attachments.length} / ${MAX_ATTACH_COUNT}` : ''}
+                  </span>
+                )}
+                {attachments.length < MAX_ATTACH_COUNT && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    class="w-8 h-8 flex items-center justify-center rounded-full active:bg-gray-100 transition-colors text-gray-400 active:text-gray-600"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              class="hidden"
+              onChange={handleFilesSelected}
+            />
+          </div>
+        </Reveal>
+
+        {/* Оплата и итог — после «К оплате» */}
+        <Reveal show={paymentOpen}>
+          <div>
+            <SectionLabel>{t('payment_label')}</SectionLabel>
+            <PaymentMethodPicker
+              value={payment}
+              onChange={setPayment}
+              canBind={Boolean(user.phone)}
+              cardNote={draft.housingType === 'house' ? t('payment_house_note') : t('payment_hold_note')}
+            />
+          </div>
+
+          {/* Разбивка стоимости */}
+          <div>
+            <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
+            <PriceBreakdown quote={quote} loading={quoteLoading} error={quoteError} />
+          </div>
+
+          {/* Промокод */}
+          <div>
+            <SectionLabel>{t('promo_label')}</SectionLabel>
+            {promoApplied ? (
+              <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
+                <div>
+                  <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
+                  <p class="text-xs text-[#1F847B] mt-0.5">
+                    {promoResult?.discount_pct != null
+                      ? t('promo_valid', { pct: String(promoResult.discount_pct) })
+                      : fmtPrice(Math.abs(promoResult?.amount ?? 0), t('currency'))}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  class="w-8 h-8 flex items-center justify-center rounded-full active:bg-gray-100 transition-colors text-gray-400 active:text-gray-600"
+                  onClick={handleRemovePromo}
+                  class="text-xs text-gray-400 active:text-gray-600 transition-colors"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  {t('promo_remove')}
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div class="flex gap-2">
+                <input
+                  ref={promoInputRef}
+                  type="text"
+                  value={promoInput}
+                  onInput={e => {
+                    setPromoInput((e.target as HTMLInputElement).value)
+                    if (promoCode) setPromoCode(null)
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
+                  placeholder={t('promo_placeholder')}
+                  class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
+                    promoErrorText ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={!promoInput.trim() || promoChecking}
+                  class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
+                  style="background:#1F847B"
+                >
+                  {promoChecking ? t('promo_applying') : t('promo_apply')}
+                </button>
+              </div>
+            )}
+            {promoErrorText && (
+              <p class="text-xs text-red-500 mt-1.5 px-1">{promoErrorText}</p>
+            )}
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            class="hidden"
-            onChange={handleFilesSelected}
-          />
-        </div>
-
-        {/* Оплата */}
-        <div>
-          <SectionLabel>{t('payment_label')}</SectionLabel>
-          <PaymentMethodPicker
-            value={payment}
-            onChange={setPayment}
-            canBind={Boolean(user.phone)}
-            cardNote={draft.housingType === 'house' ? t('payment_house_note') : t('payment_hold_note')}
-          />
-        </div>
+        </Reveal>
 
         {submitError && (
           <p class="text-red-500 text-sm text-center">{submitError}</p>
@@ -1018,26 +947,6 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         <div class="h-4" />
       </div>
 
-      <BottomSheet open={infoSheet !== null} onClose={() => setInfoSheet(null)}>
-        {infoSheet && (
-          <div class="px-5 pt-2 pb-6">
-            <p class="text-base font-bold text-gray-900 mb-1">{t(`svc_${infoSheet}`)}</p>
-            <p class="text-xs text-gray-400 mb-4">{t(`svc_${infoSheet}_desc`)}</p>
-            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-line mb-6">
-              {t(`svc_${infoSheet}_info`)}
-            </div>
-            <button
-              type="button"
-              onClick={() => setInfoSheet(null)}
-              class="w-full py-4 rounded-2xl text-sm font-semibold text-white"
-              style="background:#1F847B"
-            >
-              {t('dialog_got_it')}
-            </button>
-          </div>
-        )}
-      </BottomSheet>
-
       <BottomSheet open={showAddressSheet} onClose={() => setShowAddressSheet(false)}>
         <AddressFormScreen
           onSubmit={handleAddressCreated}
@@ -1045,26 +954,14 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         />
       </BottomSheet>
 
-      <BottomSheet open={!!infoAddon} onClose={() => setInfoAddon(null)}>
-        {infoAddon && (
-          <div class="px-5 pt-2 pb-6">
-            <p class="text-base font-semibold text-gray-900 mb-3">
-              {infoAddon.translations[lang] ?? infoAddon.translations['ru'] ?? infoAddon.id}
-            </p>
-            <p class="text-sm text-gray-600 leading-relaxed mb-5">
-              {infoAddon.description_translations[lang] ?? infoAddon.description_translations['ru']}
-            </p>
-            <button
-              type="button"
-              onClick={() => setInfoAddon(null)}
-              class="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-colors"
-              style="background:#1F847B"
-            >
-              {t('dialog_got_it')}
-            </button>
-          </div>
-        )}
-      </BottomSheet>
+      <WorkPickerSheet
+        open={showWorkPicker}
+        onClose={() => setShowWorkPicker(false)}
+        tree={workTree}
+        works={addons}
+        selected={selectedWorks}
+        onChange={works => patch({ addons: works })}
+      />
 
       <BottomSheet open={phoneGate !== null} onClose={() => setPhoneGate(null)}>
         <div class="px-5 pt-2 pb-8">
@@ -1090,21 +987,42 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
             </button>
           </p>
         )}
-        <button
-          ref={submitRef}
-          type="button"
-          onClick={handleSubmit}
-          disabled={!canSubmit || submitting}
-          class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
-          style="background:#1F847B"
-        >
-          {submitting
-            ? t('confirm_submitting')
-            : price === null
-              ? t('confirm_submit')
-              : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
-          }
-        </button>
+        {ctaHint ? (
+          <button
+            ref={submitRef}
+            type="button"
+            disabled
+            class="w-full py-4 rounded-2xl text-sm font-semibold bg-gray-200 text-gray-500"
+          >
+            {ctaHint}
+          </button>
+        ) : !paymentOpen ? (
+          <button
+            ref={submitRef}
+            type="button"
+            onClick={() => setPaymentOpen(true)}
+            class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors active:opacity-90"
+            style="background:#1F847B"
+          >
+            {t('order_cta_payment')}
+          </button>
+        ) : (
+          <button
+            ref={submitRef}
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit || submitting}
+            class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
+            style="background:#1F847B"
+          >
+            {submitting
+              ? t('confirm_submitting')
+              : price === null
+                ? t('confirm_submit')
+                : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
+            }
+          </button>
+        )}
       </div>
 
       {showOnboarding && (

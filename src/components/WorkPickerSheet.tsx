@@ -1,13 +1,33 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { ChevronRight, Info, Trash2 } from 'lucide-react'
 import { BottomSheet } from './BottomSheet'
-import type { HandymanWork, HandymanWorkCategoryNode } from '../api/addons'
 import type { WorkItem } from '../api/orders'
 import { useLocale } from '../i18n'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Работа в каталоге — то, что шторке нужно от позиции. Так её открывают и
+ * работы мастера (`HandymanWork`), и доп. работы уборки (`Addon`).
+ */
+export interface PickerWork {
+  id: string
+  translations: Record<string, string>
+  description_translations: Record<string, string>
+  price: number
+  category_id?: string | null
+}
+
+/** Раздел каталога. У доп. работ уборки разделы плоские — `children` пустой. */
+export interface PickerCategory {
+  id: string
+  translations: Record<string, string>
+  children: PickerCategory[]
+}
+
 // ─── Labels ───────────────────────────────────────────────────────────────────
 
-export function workLabel(work: HandymanWork, lang: string): string {
+export function workLabel(work: PickerWork, lang: string): string {
   return work.translations[lang] ?? work.translations['ru'] ?? work.id
 }
 
@@ -15,14 +35,14 @@ export function categoryLabel(cat: { id: string; translations: Record<string, st
   return cat.translations[lang] ?? cat.translations['ru'] ?? cat.id
 }
 
-function workDescription(work: HandymanWork, lang: string): string | null {
+function workDescription(work: PickerWork, lang: string): string | null {
   return work.description_translations[lang] ?? work.description_translations['ru'] ?? null
 }
 
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
 
 /** id узла и всех его потомков — для подсчётов по поддереву. */
-function subtreeIds(node: HandymanWorkCategoryNode): string[] {
+function subtreeIds(node: PickerCategory): string[] {
   return [node.id, ...node.children.flatMap(subtreeIds)]
 }
 
@@ -36,7 +56,7 @@ function subtreeIds(node: HandymanWorkCategoryNode): string[] {
 export function SelectedWorksList({
   works, selected, onChange,
 }: {
-  works: HandymanWork[]
+  works: PickerWork[]
   selected: WorkItem[]
   onChange: (next: WorkItem[]) => void
 }) {
@@ -101,15 +121,15 @@ export function SelectedWorksList({
 interface Props {
   open: boolean
   onClose: () => void
-  tree: HandymanWorkCategoryNode[]
-  works: HandymanWork[]
+  tree: PickerCategory[]
+  works: PickerWork[]
   selected: WorkItem[]
   onChange: (next: WorkItem[]) => void
 }
 
 export function WorkPickerSheet({ open, onClose, tree, works, selected, onChange }: Props) {
   const { t, lang } = useLocale()
-  const [path, setPath] = useState<HandymanWorkCategoryNode[]>([])
+  const [path, setPath] = useState<PickerCategory[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   // Направление последнего перехода — вглубь или назад; задаёт сторону анимации.
   const [dir, setDir] = useState<'forward' | 'back'>('forward')
@@ -120,7 +140,7 @@ export function WorkPickerSheet({ open, onClose, tree, works, selected, onChange
     if (open) { setPath([]); setExpandedId(null); setDir('forward') }
   }, [open])
 
-  function goInto(cat: HandymanWorkCategoryNode) {
+  function goInto(cat: PickerCategory) {
     setDir('forward')
     setPath(prev => [...prev, cat])
     setExpandedId(null)
@@ -133,7 +153,7 @@ export function WorkPickerSheet({ open, onClose, tree, works, selected, onChange
   }
 
   const worksByCategory = useMemo(() => {
-    const map = new Map<string, HandymanWork[]>()
+    const map = new Map<string, PickerWork[]>()
     for (const w of works) {
       const key = w.category_id ?? ''
       const list = map.get(key)
@@ -147,11 +167,11 @@ export function WorkPickerSheet({ open, onClose, tree, works, selected, onChange
   const children = current ? current.children : tree
   const directWorks = worksByCategory.get(current ? current.id : '') ?? []
 
-  function countWorksIn(node: HandymanWorkCategoryNode): number {
+  function countWorksIn(node: PickerCategory): number {
     return subtreeIds(node).reduce((s, id) => s + (worksByCategory.get(id)?.length ?? 0), 0)
   }
 
-  function countSelectedIn(node: HandymanWorkCategoryNode): number {
+  function countSelectedIn(node: PickerCategory): number {
     const ids = new Set(subtreeIds(node))
     return selected.filter(sel => {
       const w = works.find(x => x.id === sel.id)

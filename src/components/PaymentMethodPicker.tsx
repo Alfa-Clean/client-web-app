@@ -23,7 +23,7 @@ interface Props {
  * Способ оплаты: наличные исполнителю или привязанная карта. Картой — холд:
  * деньги замораживаются и списываются после работы, при отмене возвращаются.
  */
-export function PaymentMethodPicker({ value, onChange, cardNote, canBind }: Props) {
+export function PaymentMethodPicker({ value, onChange, canBind }: Props) {
   const { t } = useLocale()
   const [cards, setCards] = useState<Card[]>([])
   const [binding, setBinding] = useState(false)
@@ -58,14 +58,11 @@ export function PaymentMethodPicker({ value, onChange, cardNote, canBind }: Prop
         <button
           type="button"
           onClick={() => setBinding(true)}
-          class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#1F847B] active:opacity-70"
+          class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-dashed border-[#2EC4B6]/60 text-sm font-semibold text-[#1F847B] active:bg-[#F3F9F9] transition-colors"
         >
           <Plus size={16} />
           {t('payment_card_add')}
         </button>
-      )}
-      {value.method === 'card' && cardNote && (
-        <p class="text-xs text-gray-400 leading-relaxed px-1">{cardNote}</p>
       )}
       <BindCardSheet
         open={binding}
