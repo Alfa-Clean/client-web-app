@@ -26,7 +26,12 @@ interface Props {
   initialPhone?: string
 }
 
-type Step = 'phone' | 'code'
+/**
+ * `taken` — номер уже подтверждён другим аккаунтом. Тупик: ни повтор кода,
+ * ни новый код не помогут, поэтому форма уступает место двум выходам —
+ * поддержка или другой номер.
+ */
+type Step = 'phone' | 'code' | 'taken'
 
 interface FormError {
   message: string
@@ -34,7 +39,7 @@ interface FormError {
   support: boolean
 }
 
-const SUPPORT_REASONS = new Set(['phone_taken', 'delivery_failed'])
+const SUPPORT_REASONS = new Set(['delivery_failed'])
 
 const BRAND = 'background:#1F847B'
 
@@ -143,13 +148,21 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
         return t('otp_error_expired')
       case 'delivery_failed':
         return t('otp_error_delivery')
-      case 'phone_taken':
-        return t('otp_error_phone_taken')
     }
 
     if (e.status === 422) return t('otp_error_phone_invalid')
     if (e.status === 429) return t('otp_error_rate_limited')
     return t('otp_error_generic')
+  }
+
+  /** Занятый номер уводит с формы целиком — см. `Step`. */
+  function handleTaken(e: unknown): boolean {
+    if (!(e instanceof ApiError) || e.reason !== 'phone_taken') return false
+    clearPendingOtp()
+    setCode('')
+    setError(null)
+    setStep('taken')
+    return true
   }
 
   async function sendCode() {
@@ -163,6 +176,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
       setCode('')
       setStep('code')
     } catch (e) {
+      if (handleTaken(e)) return
       setError(toFormError(e))
       // Отказ по паузе тоже сообщает, сколько ждать — заводим тот же счётчик.
       if (e instanceof ApiError && e.status === 429) {
@@ -183,6 +197,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
       clearPendingOtp()
       await onVerified(normalizeUser(res.client), res)
     } catch (e) {
+      if (handleTaken(e)) return
       setError(toFormError(e))
       setCode('')
       // Код сгорел (истёк или кончились попытки) — новый шанс только через новый код.
@@ -193,6 +208,36 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (step === 'taken') {
+    return (
+      <div class="flex flex-col gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">{t('otp_taken_title')}</h2>
+          <p class="text-sm text-gray-400 mt-1 leading-relaxed">
+            {t('otp_taken_text', { phone: `+998 ${formatNationalPhone(phone)}` })}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openSupportChat}
+          class="w-full flex items-center justify-center text-white font-semibold py-4 px-6 rounded-2xl transition-colors text-base"
+          style={BRAND}
+        >
+          {t('otp_contact_support')}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStep('phone')}
+          class="text-sm text-gray-400 text-center transition-colors"
+        >
+          {t('otp_taken_other_phone')}
+        </button>
+      </div>
+    )
   }
 
   if (step === 'phone') {
