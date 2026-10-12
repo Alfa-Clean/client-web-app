@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { Plus } from 'lucide-react'
 import type { PromoReason, QuoteRequest } from '../api/pricing'
 import { useQuote } from '../hooks/useQuote'
 import { PriceBreakdown, fmtPrice } from '../components/PriceBreakdown'
@@ -28,6 +29,7 @@ import { OnboardingOverlay } from '../components/OnboardingOverlay'
 import { hasSeenOnboarding, markOnboardingSeen } from '../hooks/useOnboarding'
 import { AddressFormScreen } from './AddressFormScreen'
 import { WorkPickerSheet, SelectedWorksList } from '../components/WorkPickerSheet'
+import { Reveal } from '../components/Reveal'
 import { PhoneVerifyForm } from '../components/PhoneVerifyForm'
 import { formatDisplayPhone } from '../api/otp'
 
@@ -231,6 +233,10 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   const [done, setDone] = useState(false)
   const [failedAttachments, setFailedAttachments] = useState(0)
   const [phoneGate, setPhoneGate] = useState<'submit' | 'edit' | null>(null)
+  // Описание задачи подтверждают кнопкой «Далее»: открывать работы на первой
+  // букве нельзя — экран уедет из-под пальцев, пока клиент печатает.
+  const [descDone, setDescDone] = useState(() => draft.comment.trim() !== '' || draft.works.length > 0)
+  const [paymentOpen, setPaymentOpen] = useState(false)
   const [attachments, setAttachments] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -386,6 +392,23 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   // Без актуального расчёта не оформляем — иначе цена разъедется с сервером.
   const canSubmit = !!draft.addressId && !!draft.orderDate && !!draft.orderSlot &&
                     draft.works.length > 0 && price !== null && !quoteLoading
+
+  // Форма раскрывается по шагам: описание → работы → дата → время. Открытый
+  // шаг назад не прячется — сменили дату, слот сбросился, а остальное на месте.
+  const hasDescription = draft.comment.trim() !== '' || attachments.length > 0
+  const reached = !descDone ? 0 : draft.works.length === 0 ? 1 : !draft.orderDate ? 2 : !draft.orderSlot ? 3 : 4
+  const [maxStep, setMaxStep] = useState(reached)
+  useEffect(() => { if (reached > maxStep) setMaxStep(reached) }, [reached, maxStep])
+  const step = Math.max(maxStep, reached)
+
+  // Кнопка внизу говорит, чего не хватает, пока заказ нельзя отправить.
+  const ctaHint =
+    !draft.addressId ? t('order_cta_address')
+    : !descDone ? (hasDescription ? null : t('order_cta_describe'))
+    : draft.works.length === 0 ? t('order_cta_works')
+    : !draft.orderDate ? t('order_cta_date')
+    : !draft.orderSlot ? t('order_cta_slot')
+    : null
 
   /**
    * Оформление доступно только с подтверждённым номером: у анонима Mini App его
@@ -569,131 +592,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
           )}
         </div>
 
-        {/* Дата и время */}
-        <div ref={dateRef}>
-          <SectionLabel>{t('step_datetime')}</SectionLabel>
-          <div class="flex gap-2 mb-3">
-            {availableSet.has(todayIso) && (
-              <Chip
-                label={t('today')}
-                active={draft.orderDate === todayIso}
-                onClick={() => patch({ orderDate: todayIso, orderSlot: '' })}
-              />
-            )}
-            {availableSet.has(tomorrowIso) && (
-              <Chip
-                label={t('tomorrow')}
-                active={draft.orderDate === tomorrowIso}
-                onClick={() => patch({ orderDate: tomorrowIso, orderSlot: '' })}
-              />
-            )}
-            <Chip
-              label={isOtherDate ? formatShortDate(draft.orderDate, lang) : t('date_pick_other')}
-              active={isOtherDate}
-              onClick={() => setShowCalendar(true)}
-            />
-          </div>
-          {draft.orderDate && slots.length > 0 && (
-            <div class="flex gap-2 flex-wrap">
-              {slots.map(slot => (
-                <Chip
-                  key={slot}
-                  label={slot}
-                  active={draft.orderSlot === slot}
-                  onClick={() => patch({ orderSlot: slot })}
-                />
-              ))}
-            </div>
-          )}
-          {draft.orderDate && slots.length === 0 && (
-            <p class="text-xs text-gray-400">{t('no_slots')}</p>
-          )}
-        </div>
-
-        {/* Срочность */}
-        <UrgentToggle value={urgent} onChange={setUrgent} />
-
-        {/* Работы */}
-        {addons.length > 0 && (
-          <div ref={worksRef}>
-            <SectionLabel>{t('step_addons')}</SectionLabel>
-            <SelectedWorksList
-              works={addons}
-              selected={draft.works}
-              onChange={works => patch({ works })}
-            />
-            <button
-              type="button"
-              onClick={() => setShowWorkPicker(true)}
-              class="mt-2 w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 active:bg-gray-100 transition-colors"
-            >
-              {draft.works.length > 0 ? t('works_pick_more') : t('works_pick_button')}
-            </button>
-          </div>
-        )}
-
-        {/* Разбивка стоимости */}
-        {quoteRequest && (
-          <div>
-            <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
-            <PriceBreakdown quote={quote} loading={quoteLoading} error={quoteError} />
-          </div>
-        )}
-
-        {/* Промокод */}
-        <div>
-          <SectionLabel>{t('promo_label')}</SectionLabel>
-          {promoApplied ? (
-            <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
-              <div>
-                <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
-                <p class="text-xs text-[#1F847B] mt-0.5">
-                  {promoResult?.discount_pct != null
-                    ? t('promo_valid', { pct: String(promoResult.discount_pct) })
-                    : fmtPrice(Math.abs(promoResult?.amount ?? 0), t('currency'))}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleRemovePromo}
-                class="text-xs text-gray-400 active:text-gray-600 transition-colors"
-              >
-                {t('promo_remove')}
-              </button>
-            </div>
-          ) : (
-            <div class="flex gap-2">
-              <input
-                ref={promoInputRef}
-                type="text"
-                value={promoInput}
-                onInput={e => {
-                  setPromoInput((e.target as HTMLInputElement).value)
-                  if (promoCode) setPromoCode(null)
-                }}
-                onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
-                placeholder={t('promo_placeholder')}
-                class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
-                  promoErrorText ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={handleApplyPromo}
-                disabled={!promoInput.trim() || promoChecking}
-                class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
-                style="background:#1F847B"
-              >
-                {promoChecking ? t('promo_applying') : t('promo_apply')}
-              </button>
-            </div>
-          )}
-          {promoErrorText && (
-            <p class="text-xs text-red-500 mt-1.5 px-1">{promoErrorText}</p>
-          )}
-        </div>
-
-        {/* Комментарий + вложения */}
+        {/* Описание задачи + вложения — первый шаг */}
         <div>
           <SectionLabel>{t('handyman_comment_label')}</SectionLabel>
           <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden focus-within:border-[#1F847B] transition-colors">
@@ -767,16 +666,147 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
           />
         </div>
 
-        {/* Оплата */}
-        <div>
-          <SectionLabel>{t('payment_label')}</SectionLabel>
-          <PaymentMethodPicker
-            value={payment}
-            onChange={setPayment}
-            canBind={Boolean(user.phone)}
-            cardNote={t('payment_hold_note')}
-          />
-        </div>
+        {/* Работы — после описания: сначала своими словами, потом конкретные услуги */}
+        <Reveal show={step >= 1}>
+          {addons.length > 0 && (
+            <div ref={worksRef}>
+              <SectionLabel>{t('step_addons')}</SectionLabel>
+              <SelectedWorksList
+                works={addons}
+                selected={draft.works}
+                onChange={works => patch({ works })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowWorkPicker(true)}
+                class={`${draft.works.length > 0 ? 'mt-2 ' : ''}w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 active:bg-gray-100 transition-colors`}
+              >
+                <Plus size={16} />
+                {draft.works.length > 0 ? t('works_pick_more') : t('works_add_button')}
+              </button>
+            </div>
+          )}
+        </Reveal>
+
+        {/* Дата и время */}
+        <Reveal show={step >= 2}>
+          <div ref={dateRef}>
+            <SectionLabel>{t('step_datetime')}</SectionLabel>
+            <div class="flex gap-2">
+              {availableSet.has(todayIso) && (
+                <Chip
+                  label={t('today')}
+                  active={draft.orderDate === todayIso}
+                  onClick={() => patch({ orderDate: todayIso, orderSlot: '' })}
+                />
+              )}
+              {availableSet.has(tomorrowIso) && (
+                <Chip
+                  label={t('tomorrow')}
+                  active={draft.orderDate === tomorrowIso}
+                  onClick={() => patch({ orderDate: tomorrowIso, orderSlot: '' })}
+                />
+              )}
+              <Chip
+                label={isOtherDate ? formatShortDate(draft.orderDate, lang) : t('date_pick_other')}
+                active={isOtherDate}
+                onClick={() => setShowCalendar(true)}
+              />
+            </div>
+            <Reveal show={!!draft.orderDate}>
+              {/* Линия отделяет время от дней — иначе два ряда чипов сливаются в один */}
+              <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col gap-4">
+                {slots.length > 0 ? (
+                  <div class="flex gap-2 flex-wrap">
+                    {slots.map(slot => (
+                      <Chip
+                        key={slot}
+                        label={slot}
+                        active={draft.orderSlot === slot}
+                        onClick={() => patch({ orderSlot: slot })}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p class="text-xs text-gray-400">{t('no_slots')}</p>
+                )}
+                <UrgentToggle value={urgent} onChange={setUrgent} />
+              </div>
+            </Reveal>
+          </div>
+        </Reveal>
+
+        {/* Оплата и итог — после «К оплате» */}
+        <Reveal show={paymentOpen}>
+          <div>
+            <SectionLabel>{t('payment_label')}</SectionLabel>
+            <PaymentMethodPicker
+              value={payment}
+              onChange={setPayment}
+              canBind={Boolean(user.phone)}
+              cardNote={t('payment_hold_note')}
+            />
+          </div>
+
+          {/* Разбивка стоимости */}
+          <div>
+            <SectionLabel>{t('price_breakdown_label')}</SectionLabel>
+            <PriceBreakdown quote={quote} loading={quoteLoading} error={quoteError} />
+          </div>
+
+          {/* Промокод */}
+          <div>
+            <SectionLabel>{t('promo_label')}</SectionLabel>
+            {promoApplied ? (
+              <div class="flex items-center justify-between px-4 py-3 bg-[#F3F9F9] rounded-2xl border-2 border-[#1F847B]">
+                <div>
+                  <p class="text-sm font-semibold text-[#186760]">{promoCode}</p>
+                  <p class="text-xs text-[#1F847B] mt-0.5">
+                    {promoResult?.discount_pct != null
+                      ? t('promo_valid', { pct: String(promoResult.discount_pct) })
+                      : fmtPrice(Math.abs(promoResult?.amount ?? 0), t('currency'))}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemovePromo}
+                  class="text-xs text-gray-400 active:text-gray-600 transition-colors"
+                >
+                  {t('promo_remove')}
+                </button>
+              </div>
+            ) : (
+              <div class="flex gap-2">
+                <input
+                  ref={promoInputRef}
+                  type="text"
+                  value={promoInput}
+                  onInput={e => {
+                    setPromoInput((e.target as HTMLInputElement).value)
+                    if (promoCode) setPromoCode(null)
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleApplyPromo() }}
+                  placeholder={t('promo_placeholder')}
+                  class={`flex-1 bg-white border rounded-2xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none transition-colors ${
+                    promoErrorText ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#1F847B]'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={!promoInput.trim() || promoChecking}
+                  class="px-4 py-3 rounded-2xl text-sm font-semibold text-white disabled:opacity-40 transition-colors shrink-0"
+                  style="background:#1F847B"
+                >
+                  {promoChecking ? t('promo_applying') : t('promo_apply')}
+                </button>
+              </div>
+            )}
+            {promoErrorText && (
+              <p class="text-xs text-red-500 mt-1.5 px-1">{promoErrorText}</p>
+            )}
+          </div>
+        </Reveal>
 
         {submitError && (
           <p class="text-red-500 text-sm text-center">{submitError}</p>
@@ -825,29 +855,50 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
             </button>
           </p>
         )}
-        <button
-          ref={submitRef}
-          type="button"
-          onClick={handleSubmit}
-          disabled={!canSubmit || submitting}
-          class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
-          style="background:#1F847B"
-        >
-          {submitting
-            ? t('confirm_submitting')
-            : price === null
-              ? t('confirm_submit')
-              : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
-          }
-        </button>
+        {ctaHint ? (
+          <button
+            ref={submitRef}
+            type="button"
+            disabled
+            class="w-full py-4 rounded-2xl text-sm font-semibold bg-gray-200 text-gray-500"
+          >
+            {ctaHint}
+          </button>
+        ) : !descDone || !paymentOpen ? (
+          <button
+            ref={submitRef}
+            type="button"
+            onClick={() => (descDone ? setPaymentOpen(true) : setDescDone(true))}
+            class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors active:opacity-90"
+            style="background:#1F847B"
+          >
+            {descDone ? t('order_cta_payment') : t('order_cta_next')}
+          </button>
+        ) : (
+          <button
+            ref={submitRef}
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit || submitting}
+            class="w-full py-4 rounded-2xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
+            style="background:#1F847B"
+          >
+            {submitting
+              ? t('confirm_submitting')
+              : price === null
+                ? t('confirm_submit')
+                : `${t('confirm_submit')} · ${fmtPrice(price, t('currency'))}`
+            }
+          </button>
+        )}
       </div>
 
       {showOnboarding && (
         <OnboardingOverlay
           steps={[
             { ref: addressRef, title: t('onboarding_handyman_address_title'), description: t('onboarding_handyman_address_desc') },
-            { ref: dateRef, title: t('onboarding_handyman_date_title'), description: t('onboarding_handyman_date_desc') },
             { ref: worksRef, title: t('onboarding_handyman_works_title'), description: t('onboarding_handyman_works_desc') },
+            { ref: dateRef, title: t('onboarding_handyman_date_title'), description: t('onboarding_handyman_date_desc') },
             { ref: submitRef, title: t('onboarding_handyman_submit_title'), description: t('onboarding_handyman_submit_desc') },
           ]}
           skipLabel={t('onboarding_skip')}

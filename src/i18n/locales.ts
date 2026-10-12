@@ -142,6 +142,9 @@ const ru: Strings = {
   order_cta_slot: 'Выберите время',
   order_cta_payment: 'К оплате',
   works_add_button: 'Добавить работы',
+  order_cta_describe: 'Опишите задачу',
+  order_cta_next: 'Далее',
+  order_cta_works: 'Выберите работы',
 
   // Housing types
   housing_apt: 'Квартира',
@@ -720,6 +723,9 @@ const uz: Strings = {
   order_cta_slot: 'Vaqtni tanlang',
   order_cta_payment: "To'lovga o'tish",
   works_add_button: "Xizmat qo'shish",
+  order_cta_describe: 'Vazifani tavsiflang',
+  order_cta_next: 'Davom etish',
+  order_cta_works: 'Ishlarni tanlang',
 
   housing_apt: 'Kvartira',
   housing_apt_desc: 'Apartament, studiya, xona',
@@ -1287,6 +1293,9 @@ const en: Strings = {
   order_cta_slot: 'Choose a time',
   order_cta_payment: 'Continue to payment',
   works_add_button: 'Add services',
+  order_cta_describe: 'Describe the task',
+  order_cta_next: 'Continue',
+  order_cta_works: 'Choose services',
 
   housing_apt: 'Apartment',
   housing_apt_desc: 'Apartment, studio, room',

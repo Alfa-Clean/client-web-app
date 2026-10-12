@@ -1,10 +1,11 @@
-import type { ComponentChildren, JSX } from 'preact'
+import type { JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Plus, MapPin, CalendarDays, Sparkles, MessageCircle, Banknote } from 'lucide-react'
 import { uploadOrderAttachment } from '../api/attachments'
 import { PaymentMethodPicker, type PaymentChoice } from '../components/PaymentMethodPicker'
 import { ServiceTypePicker } from '../components/ServiceTypePicker'
 import { WorkPickerSheet, SelectedWorksList } from '../components/WorkPickerSheet'
+import { Reveal } from '../components/Reveal'
 import { ApiError } from '../api/client'
 
 /** Кем подписано вложение. У клиента без Telegram `telegram_id` равен нулю —
@@ -227,31 +228,6 @@ function Chip({
       {label}
     </button>
   )
-}
-
-/**
- * Шаг формы заказа: проявляется и докручивает экран к себе. Шаг, видимый
- * с первого рендера (черновик, повтор заказа), экран не крутит.
- */
-function Reveal({ show, children }: { show: boolean; children: ComponentChildren }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const quiet = useRef(show)
-
-  useEffect(() => {
-    if (!show || quiet.current) {
-      quiet.current = false
-      return
-    }
-    // Кадр на монтирование, иначе высота блока ещё не учтена
-    const id = requestAnimationFrame(() =>
-      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }),
-    )
-    return () => cancelAnimationFrame(id)
-  }, [show])
-
-  if (!show) return null
-  // scroll-mb — место под закреплённую кнопку внизу
-  return <div ref={ref} class="animate-reveal scroll-mb-40 flex flex-col gap-6">{children}</div>
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
