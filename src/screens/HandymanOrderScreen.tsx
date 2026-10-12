@@ -355,18 +355,16 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
     setShowAddressSheet(false)
   }
 
-  // Без работ считать нечего: сервер требует хотя бы одну.
-  const quoteRequest: QuoteRequest | null = draft.works.length > 0
-    ? {
-        vertical: 'handyman',
-        works: draft.works.map(w => ({ id: w.id, qty: w.qty ?? 1 })),
-        urgent,
-        promo_code: promoCode,
-        telegram_id: user.telegram_id,
-      }
-    : null
+  // Работы необязательны: без них сервер считает выезд мастера на осмотр.
+  const quoteRequest: QuoteRequest = {
+    vertical: 'handyman',
+    works: draft.works.map(w => ({ id: w.id, qty: w.qty ?? 1 })),
+    urgent,
+    promo_code: promoCode,
+    telegram_id: user.telegram_id,
+  }
   const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest, lang)
-  const price = quoteRequest ? quote?.total ?? null : null
+  const price = quote?.total ?? null
 
   // Статус промокода приходит вместе с расчётом: невалидный код — это 200, а не ошибка.
   const promoResult =
@@ -391,12 +389,13 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
 
   // Без актуального расчёта не оформляем — иначе цена разъедется с сервером.
   const canSubmit = !!draft.addressId && !!draft.orderDate && !!draft.orderSlot &&
-                    draft.works.length > 0 && price !== null && !quoteLoading
+                    price !== null && !quoteLoading
 
-  // Форма раскрывается по шагам: описание → работы → дата → время. Открытый
-  // шаг назад не прячется — сменили дату, слот сбросился, а остальное на месте.
+  // Форма раскрывается по шагам: описание → работы и дата → время. Работы
+  // необязательны, поэтому дата открывается вместе с ними. Открытый шаг назад
+  // не прячется — сменили дату, слот сбросился, а остальное на месте.
   const hasDescription = draft.comment.trim() !== '' || attachments.length > 0
-  const reached = !descDone ? 0 : draft.works.length === 0 ? 1 : !draft.orderDate ? 2 : !draft.orderSlot ? 3 : 4
+  const reached = !descDone ? 0 : !draft.orderDate ? 1 : !draft.orderSlot ? 2 : 3
   const [maxStep, setMaxStep] = useState(reached)
   useEffect(() => { if (reached > maxStep) setMaxStep(reached) }, [reached, maxStep])
   const step = Math.max(maxStep, reached)
@@ -405,7 +404,6 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
   const ctaHint =
     !draft.addressId ? t('order_cta_address')
     : !descDone ? (hasDescription ? null : t('order_cta_describe'))
-    : draft.works.length === 0 ? t('order_cta_works')
     : !draft.orderDate ? t('order_cta_date')
     : !draft.orderSlot ? t('order_cta_slot')
     : null
@@ -666,7 +664,8 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
           />
         </div>
 
-        {/* Работы — после описания: сначала своими словами, потом конкретные услуги */}
+        {/* Работы и дата — после описания, вместе: работы необязательны,
+            и без них клиент всё равно видит, куда идти дальше */}
         <Reveal show={step >= 1}>
           {addons.length > 0 && (
             <div ref={worksRef}>
@@ -684,12 +683,13 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
                 <Plus size={16} />
                 {draft.works.length > 0 ? t('works_pick_more') : t('works_add_button')}
               </button>
+              {draft.works.length === 0 && (
+                <p class="text-xs text-gray-400 mt-2 px-1 leading-relaxed">{t('handyman_works_optional_hint')}</p>
+              )}
             </div>
           )}
-        </Reveal>
 
-        {/* Дата и время */}
-        <Reveal show={step >= 2}>
+          {/* Дата и время */}
           <div ref={dateRef}>
             <SectionLabel>{t('step_datetime')}</SectionLabel>
             <div class="flex gap-2">
