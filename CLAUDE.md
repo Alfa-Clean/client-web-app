@@ -46,6 +46,7 @@ app.tsx
 | `api/otp.ts` | Запрос и ввод кода, формат номера |
 | `components/PhoneVerifyForm.tsx` | Два шага подтверждения: номер → код |
 | `screens/PhoneVerifyScreen.tsx` | Полноэкранный вход по номеру (вне Telegram) |
+| `utils/support.ts` | Адрес поддержки в Telegram (`t.me/chaqqon_support`, вшит в клиент) и `openSupportChat` — в Mini App через `openTelegramLink` |
 | `api/cards.ts` | Карты клиента: список, привязка, отвязка (`/me/cards`), тестовые номера мок-банка |
 | `components/PaymentMethodPicker.tsx` | Выбор оплаты: наличные / привязанная карта / «Привязать карту» |
 | `components/BindCardSheet.tsx` | Шторка привязки карты по номеру (на бете — эмуляция банка) |

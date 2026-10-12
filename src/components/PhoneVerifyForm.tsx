@@ -14,6 +14,7 @@ import type { OtpVerifyResponse } from '../api/otp'
 import { normalizeUser } from '../types'
 import type { User } from '../types'
 import { Spinner } from './Spinner'
+import { openSupportChat } from '../utils/support'
 
 interface Props {
   /**
@@ -26,6 +27,14 @@ interface Props {
 }
 
 type Step = 'phone' | 'code'
+
+interface FormError {
+  message: string
+  /** Повтором не исправить — под текстом кнопка «Написать в поддержку». */
+  support: boolean
+}
+
+const SUPPORT_REASONS = new Set(['phone_taken', 'delivery_failed'])
 
 const BRAND = 'background:#1F847B'
 
@@ -81,7 +90,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
   const [phone, setPhone] = useState(pending?.phone ?? normalizePhoneInput(initialPhone))
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<FormError | null>(null)
   const [resendAt, setResendAt] = useState(pending?.resendAt ?? 0)
   const [now, setNow] = useState(Date.now)
   const cooldown = Math.max(0, Math.ceil((resendAt - now) / 1000))
@@ -112,6 +121,11 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
   useEffect(() => {
     if (step === 'code') codeInputRef.current?.focus()
   }, [step])
+
+  function toFormError(e: unknown): FormError {
+    const support = e instanceof ApiError && SUPPORT_REASONS.has(e.reason ?? '')
+    return { message: describe(e), support }
+  }
 
   function describe(e: unknown): string {
     if (e instanceof NetworkError) return t('error_no_connection')
@@ -149,7 +163,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
       setCode('')
       setStep('code')
     } catch (e) {
-      setError(describe(e))
+      setError(toFormError(e))
       // Отказ по паузе тоже сообщает, сколько ждать — заводим тот же счётчик.
       if (e instanceof ApiError && e.status === 429) {
         const seconds = Number(e.context.retry_after)
@@ -169,7 +183,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
       clearPendingOtp()
       await onVerified(normalizeUser(res.client), res)
     } catch (e) {
-      setError(describe(e))
+      setError(toFormError(e))
       setCode('')
       // Код сгорел (истёк или кончились попытки) — новый шанс только через новый код.
       if (e instanceof ApiError && e.status === 410) {
@@ -227,7 +241,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
               : t('otp_send_code')}
         </button>
 
-        {error && <p class="text-red-500 text-sm text-center">{error}</p>}
+        {error && <ErrorMessage error={error} />}
       </div>
     )
   }
@@ -273,7 +287,7 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
         {busy ? t('otp_loading') : t('otp_confirm')}
       </button>
 
-      {error && <p class="text-red-500 text-sm text-center">{error}</p>}
+      {error && <ErrorMessage error={error} />}
 
       <button
         type="button"
@@ -291,6 +305,24 @@ export function PhoneVerifyForm({ onVerified, initialPhone = '' }: Props) {
       >
         {t('otp_change_phone')}
       </button>
+    </div>
+  )
+}
+
+function ErrorMessage({ error }: { error: FormError }) {
+  const { t } = useLocale()
+  return (
+    <div class="flex flex-col items-center gap-2">
+      <p class="text-red-500 text-sm text-center">{error.message}</p>
+      {error.support && (
+        <button
+          type="button"
+          onClick={openSupportChat}
+          class="text-sm font-semibold text-[#1F847B]"
+        >
+          {t('otp_contact_support')}
+        </button>
+      )}
     </div>
   )
 }
