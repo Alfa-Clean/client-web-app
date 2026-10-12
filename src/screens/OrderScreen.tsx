@@ -376,7 +376,8 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
     urgent,
     addons: draft.addons.map(a => ({ id: a.id, qty: a.qty ?? 1 })),
     promo_code: promoCode,
-    telegram_id: user.telegram_id,
+    // 0 — клиент без Telegram: на бэкенд уходит null, владельца он берёт из токена.
+    telegram_id: user.telegram_id || null,
   }
   const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest, lang)
 
@@ -464,7 +465,7 @@ export function OrderScreen({ user, onBack, repeatFrom, initialAddress, onUserUp
         : draft.address
       const utmParams = new URLSearchParams(window.location.search)
       const order = await createOrder({
-        telegram_id: actor.telegram_id,
+        telegram_id: actor.telegram_id || null,
         phone: actor.phone,
         service_type: serviceType,
         housing_type: draft.housingType,

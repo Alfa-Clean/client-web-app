@@ -361,7 +361,8 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
     works: draft.works.map(w => ({ id: w.id, qty: w.qty ?? 1 })),
     urgent,
     promo_code: promoCode,
-    telegram_id: user.telegram_id,
+    // 0 — клиент без Telegram: на бэкенд уходит null, владельца он берёт из токена.
+    telegram_id: user.telegram_id || null,
   }
   const { quote, loading: quoteLoading, error: quoteError } = useQuote(quoteRequest, lang)
   const price = quote?.total ?? null
@@ -436,7 +437,7 @@ export function HandymanOrderScreen({ user, onBack, repeatFrom, initialAddress, 
     try {
       const utmParams = new URLSearchParams(window.location.search)
       const order = await createHandymanOrder({
-        telegram_id: actor.telegram_id,
+        telegram_id: actor.telegram_id || null,
         ...(draft.comment.trim() && { description: draft.comment.trim() }),
         works: draft.works,
         address_id: draft.addressId,
