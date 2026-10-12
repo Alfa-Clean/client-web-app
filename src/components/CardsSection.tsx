@@ -13,6 +13,9 @@ export function CardsSection({ confirm }: Props) {
   const { t } = useLocale()
   const [cards, setCards] = useState<Card[] | null>(null)
   const [binding, setBinding] = useState(false)
+  // Двойной тап слал два DELETE, второй падал и показывал ошибку на уже
+  // отвязанной карте — пока идёт отвязка, кнопки неактивны.
+  const [removing, setRemoving] = useState<string | null>(null)
 
   useEffect(() => {
     listCards().then(setCards).catch(() => setCards(null))
@@ -22,6 +25,16 @@ export function CardsSection({ confirm }: Props) {
   if (cards === null) return null
 
   async function remove(card: Card) {
+    if (removing) return
+    setRemoving(card.id)
+    try {
+      await removeConfirmed(card)
+    } finally {
+      setRemoving(null)
+    }
+  }
+
+  async function removeConfirmed(card: Card) {
     const ok = await confirm(t('card_unbind_confirm', { card: cardLabel(card) }), {
       confirmVariant: 'danger',
       confirmLabel: t('card_unbind'),
@@ -62,7 +75,8 @@ export function CardsSection({ confirm }: Props) {
             <button
               type="button"
               onClick={() => remove(card)}
-              class="w-8 h-8 flex items-center justify-center rounded-xl text-red-400 active:bg-red-50 transition-colors shrink-0"
+              disabled={removing !== null}
+              class="w-8 h-8 flex items-center justify-center rounded-xl text-red-400 active:bg-red-50 transition-colors shrink-0 disabled:opacity-40"
             >
               <Trash2 size={15} />
             </button>
