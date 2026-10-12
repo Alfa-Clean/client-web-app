@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type StateUpdater } from 'p
 import { Sparkles, User as UserIcon, Sun, Moon, MessageCircle, ChevronRight, Shirt, Pencil, Trash2, Plus, Wrench } from 'lucide-react'
 import type { User } from '../types'
 import type { Order, HandymanOrder } from '../api/orders'
-import { getUserOrders, getActiveHandymanOrders, getHandymanOrderHistory } from '../api/orders'
+import { getUserOrders, getActiveHandymanOrders, getHandymanOrderHistory, getOrder, getHandymanOrder } from '../api/orders'
 import { getAddresses, createAddress, updateAddress, deleteAddress } from '../api/addresses'
 import type { Address, AddressPayload } from '../api/addresses'
 
@@ -14,6 +14,7 @@ import { getTheme, setTheme } from '../hooks/useTheme'
 import { hasSeenOnboarding, markOnboardingSeen, resetOnboarding } from '../hooks/useOnboarding'
 import { clearAllUserData } from '../api/client'
 import { updateLanguage } from '../api/clients'
+import { detachPushOnLogout, syncPushSubscription } from '../api/push'
 import { BottomSheet } from '../components/BottomSheet'
 import { OnboardingOverlay } from '../components/OnboardingOverlay'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -38,6 +39,8 @@ import { HandymanOrderEditScreen } from './HandymanOrderEditScreen'
 import { SupportScreen } from './SupportScreen'
 import { SubscriptionScreen } from './SubscriptionScreen'
 import { CardsSection } from '../components/CardsSection'
+import { PushSection } from '../components/PushSection'
+import { PushPrompt } from '../components/PushPrompt'
 import { SubscriptionTeaser } from '../components/SubscriptionTeaser'
 import type { ChistomatyOrder } from './ActiveChistomatyScreen'
 import { CHISTOMATY_STATUS_LABEL_KEYS } from './ActiveChistomatyScreen'
@@ -410,6 +413,8 @@ function MenuScreen({ user, addresses, setAddresses, onBack, onSupportClick, onS
     })
     if (!ok) return
     setLoggingOut(true)
+    // До удаления токена: иначе следующий на устройстве получит чужие push.
+    await detachPushOnLogout()
     clearAllUserData()
     window.location.reload()
   }
@@ -508,6 +513,9 @@ function MenuScreen({ user, addresses, setAddresses, onBack, onSupportClick, onS
 
         {/* Cards */}
         <CardsSection confirm={confirm} />
+
+        {/* Push-уведомления (только вне Telegram) */}
+        <PushSection />
 
         {/* Theme */}
         <div class="bg-white rounded-2xl px-4 py-4 border border-gray-100">
@@ -638,12 +646,14 @@ type DeepLink =
   | { type: 'handyman_order'; id: string }
   | { type: 'chat_cleaning'; id: string }
   | { type: 'chat_handyman'; id: string }
+  | { type: 'support' }
 
 function parseDeepLink(param: string): DeepLink | null {
   if (!param) return null
   if (param === 'cleaning')  return { type: 'wizard', target: 'cleaning' }
   if (param === 'handyman')  return { type: 'wizard', target: 'handyman' }
   if (param === 'chistomaty') return { type: 'wizard', target: 'chistomaty' }
+  if (param === 'support') return { type: 'support' }
   if (param.startsWith('cleaning_chat_')) return { type: 'chat_cleaning', id: param.slice(14) }
   if (param.startsWith('handyman_chat_')) return { type: 'chat_handyman', id: param.slice(14) }
   if (param.startsWith('cleaning_')) return { type: 'order', id: param.slice(9) }
@@ -671,7 +681,20 @@ interface Props {
 export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
   const { t, lang } = useLocale()
   const deepLink = parseDeepLink(startParam)
-  const initialView: View = deepLink?.type === 'wizard' ? deepLink.target : 'hub'
+  // Push «Поддержка ответила» ведёт сразу в чат, назад — на экран поддержки.
+  const initialView: View = deepLink?.type === 'wizard'
+    ? deepLink.target
+    : deepLink?.type === 'support'
+      ? {
+          name: 'chat',
+          orderId: 'support',
+          contextType: 'support',
+          executorId: null,
+          executorName: t('support_title'),
+          senderId: String(user.telegram_id),
+          backView: { name: 'support', backView: 'hub' },
+        }
+      : 'hub'
 
   const [view, setView] = useState<View>(initialView)
   const [activeOrders, setActiveOrders] = useState<Order[] | 'loading'>('loading')
@@ -711,6 +734,12 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
       .catch(() => {})
   }, [user.id, user.language_code, lang])
 
+  // Подписка на push есть — подтверждаем её за этим аккаунтом: браузер мог
+  // тихо её сменить, а сервер — ключ VAPID.
+  useEffect(() => {
+    syncPushSubscription().catch(e => console.error('[push] sync failed:', e))
+  }, [user.id])
+
   // Открытый чат = сообщения увидены. Серверную отметку шлёт ChatScreen, здесь
   // гасим бейдж локально, чтобы он не висел до следующего опроса.
   useEffect(() => {
@@ -730,56 +759,12 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
         setActiveOrders(actives)
         setHistoryOrders(res.items.filter(o => HISTORY_STATUSES.has(o.status)))
         if (actives.length > 0) startPolling()
-
-        if (!deepLinkHandled.current && deepLink?.type === 'order') {
-          deepLinkHandled.current = true
-          const target = actives.find(o => o.id === deepLink.id)
-          if (target) { setFocusedOrder(target); setView('active_order') }
-        }
-        if (!deepLinkHandled.current && deepLink?.type === 'chat_cleaning') {
-          deepLinkHandled.current = true
-          const target = actives.find(o => o.id === deepLink.id)
-          if (target) {
-            setFocusedOrder(target)
-            setView({
-              name: 'chat',
-              orderId: target.id,
-              contextType: 'cleaning_order',
-              executorId: target.foreman_id ?? target.executor_id ?? null,
-              executorName: target.foreman_name ?? target.executor_name ?? t('history_executor'),
-              senderId: String(user.telegram_id),
-              backView: 'active_order',
-            })
-          }
-        }
       })
       .catch(() => setActiveOrders([]))
     getActiveHandymanOrders()
       .then(res => {
         const items = Array.isArray(res.items) ? res.items : []
         setActiveHandymanOrders(items)
-
-        if (!deepLinkHandled.current && deepLink?.type === 'handyman_order') {
-          deepLinkHandled.current = true
-          const target = items.find(o => o.id === deepLink.id)
-          if (target) { setFocusedHandymanOrder(target); setView('active_handyman') }
-        }
-        if (!deepLinkHandled.current && deepLink?.type === 'chat_handyman') {
-          deepLinkHandled.current = true
-          const target = items.find(o => o.id === deepLink.id)
-          if (target) {
-            setFocusedHandymanOrder(target)
-            setView({
-              name: 'chat',
-              orderId: target.id,
-              contextType: 'handyman_order',
-              executorId: target.executor_id ?? null,
-              executorName: target.executor_name ?? t('handyman_master_label'),
-              senderId: String(user.telegram_id),
-              backView: 'active_handyman',
-            })
-          }
-        }
       })
       .catch(() => setActiveHandymanOrders([]))
     getHandymanOrderHistory()
@@ -787,6 +772,93 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
       .catch(() => setHistoryHandymanOrders([]))
     return stopPolling
   }, [user.telegram_id])
+
+  // Диплинк на заказ или его чат (push, start_param бота). Заказ берём по id:
+  // в списке только первые 20, а push приходит и по завершённым заказам.
+  // Завершённый или отменённый — карточка из истории: чат у него закрыт.
+  useEffect(() => {
+    if (deepLinkHandled.current || !deepLink) return
+    deepLinkHandled.current = true
+    const link = deepLink
+
+    if (link.type === 'order' || link.type === 'chat_cleaning') {
+      getOrder(link.id)
+        .then(order => {
+          setFocusedOrder(order)
+          if (HISTORY_STATUSES.has(order.status)) {
+            setDetailFromHistory(true)
+            setView('active_order')
+          } else {
+            setView(link.type === 'chat_cleaning' ? cleaningChatView(order) : 'active_order')
+          }
+        })
+        .catch(e => console.error('[deeplink] order not opened:', e))
+    }
+
+    if (link.type === 'handyman_order' || link.type === 'chat_handyman') {
+      getHandymanOrder(link.id)
+        .then(order => {
+          setFocusedHandymanOrder(order)
+          if (HISTORY_STATUSES.has(order.status)) {
+            setDetailFromHistory(true)
+            setView('active_handyman')
+          } else {
+            setView(link.type === 'chat_handyman' ? handymanChatView(order) : 'active_handyman')
+          }
+        })
+        .catch(e => console.error('[deeplink] handyman order not opened:', e))
+    }
+  }, [])
+
+  // Чат заказа так же, как по кнопке «Чат» в карточке: в споре чат заказа
+  // закрыт, сообщения идут в тред спора.
+  function cleaningChatView(order: Order): View {
+    if (order.status === 'disputed') {
+      return {
+        name: 'chat',
+        orderId: order.id,
+        contextType: 'cleaning_dispute',
+        executorId: null,
+        executorName: t('status_disputed'),
+        senderId: String(user.telegram_id),
+        backView: 'active_order',
+      }
+    }
+    const house = order.housing_type === 'house'
+    return {
+      name: 'chat',
+      orderId: order.id,
+      contextType: 'cleaning_order',
+      executorId: (house ? order.foreman_id : order.executor_id) ?? null,
+      executorName: (house ? order.foreman_name : order.executor_name)
+        ?? t(house ? 'house_foreman_badge' : 'history_executor'),
+      senderId: String(user.telegram_id),
+      backView: 'active_order',
+    }
+  }
+
+  function handymanChatView(order: HandymanOrder): View {
+    if (order.status === 'disputed') {
+      return {
+        name: 'chat',
+        orderId: order.id,
+        contextType: 'handyman_dispute',
+        executorId: null,
+        executorName: t('status_disputed'),
+        senderId: String(user.telegram_id),
+        backView: 'active_handyman',
+      }
+    }
+    return {
+      name: 'chat',
+      orderId: order.id,
+      contextType: 'handyman_order',
+      executorId: order.executor_id ?? null,
+      executorName: order.executor_name ?? t('handyman_master_label'),
+      senderId: String(user.telegram_id),
+      backView: 'active_handyman',
+    }
+  }
 
   function startPolling() {
     if (pollRef.current) return
@@ -1253,6 +1325,8 @@ export function HubScreen({ user, startParam = '', onUserUpdated }: Props) {
           {activeEntries.map(e => renderBanner(e, v => { setShowActiveSheet(false); setView(v) }))}
         </div>
       </BottomSheet>
+
+      <PushPrompt ready={!showOnboarding} />
 
       {showOnboarding && (
         <OnboardingOverlay

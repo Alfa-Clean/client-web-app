@@ -46,6 +46,25 @@ const tg = (window as any).Telegram?.WebApp
 /** Открыто внутри Telegram: initData подписан, клиента можно опознать без номера. */
 const IS_TELEGRAM = MOCK_ENABLED || !!tg?.initData
 
+/**
+ * Куда открыть приложение: `start_param` Telegram или `?open=` из ссылки
+ * web push (тот же формат, плюс `support`). Параметр убираем из адреса,
+ * чтобы перезагрузка не открывала тот же экран заново.
+ */
+function readStartParam(): string {
+  const fromTelegram: string = tg?.initDataUnsafe?.start_param ?? ''
+  if (fromTelegram) return fromTelegram
+  const url = new URL(window.location.href)
+  const open = url.searchParams.get('open') ?? ''
+  if (open) {
+    url.searchParams.delete('open')
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
+  }
+  return open
+}
+
+const START_PARAM = readStartParam()
+
 export function App() {
   const { user, saveUser, clearUser } = useUser()
   const [booting, setBooting] = useState(true)
@@ -90,12 +109,10 @@ export function App() {
       .finally(() => setBooting(false))
   }, [])
 
-  const startParam: string = tg?.initDataUnsafe?.start_param ?? ''
-
   return (
     <LocaleProvider telegramLang={telegramLang}>
       {user
-        ? <HubScreen user={user} startParam={startParam} onUserUpdated={saveUser} />
+        ? <HubScreen user={user} startParam={START_PARAM} onUserUpdated={saveUser} />
         : booting
           ? <div class="min-h-screen bg-white flex items-center justify-center">
               <Spinner size={28} class="border-gray-300" />

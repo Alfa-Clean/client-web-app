@@ -47,6 +47,9 @@ app.tsx
 | `components/PhoneVerifyForm.tsx` | Два шага подтверждения: номер → код |
 | `screens/PhoneVerifyScreen.tsx` | Полноэкранный вход по номеру (вне Telegram) |
 | `utils/support.ts` | Адрес поддержки в Telegram (`t.me/chaqqon_support`, вшит в клиент) и `openSupportChat` — в Mini App через `openTelegramLink` |
+| `api/push.ts` | Web push: `config`, подписка / сверка / отписка, ключ VAPID; `public/sw.js` — показ и клик |
+| `components/PushSection.tsx` | Блок «Уведомления» в профиле: переключатель, подсказки iPhone / `denied` / dev без HTTPS |
+| `components/PushPrompt.tsx` | Шторка «Включить уведомления?» на хабе, пока клиент не решил |
 | `api/cards.ts` | Карты клиента: список, привязка, отвязка (`/me/cards`), тестовые номера мок-банка |
 | `components/PaymentMethodPicker.tsx` | Выбор оплаты: наличные / привязанная карта / «Привязать карту» |
 | `components/BindCardSheet.tsx` | Шторка привязки карты по номеру (на бете — эмуляция банка) |
@@ -185,6 +188,29 @@ if (!ok) return
   перезаписывает
 - Клиент, заведённый до внедрения OTP, считается подтверждённым: наличие записи
   в `/clients/me` и есть признак подтверждённого номера, отдельного флага нет
+
+## Web push и диплинки
+
+Push получает только клиент **без Telegram** — с Telegram всё идёт в бота
+(`telegram_linked` в `config`). Контракт — `backend/.claude/docs/ai/web-push/api-handoff-v3.md`.
+
+- В Mini App блока нет: Push API в WebView Telegram нет. На iPhone — только PWA
+  с экрана «Домой»; по `http` не с `localhost` браузер прячет Push API
+- Шторка не спрашивает повторно после `denied`, «Не сейчас» и выключения в профиле.
+  «Разрешение есть, подписки нет» — **не** отказ: Safari переносит разрешение в приложение из Dock
+- Выход из аккаунта: `DELETE` подписки до удаления токена
+
+Клик по push → `sw.js` переводит окно на `url` → `app.tsx` читает `?open=` (или
+`start_param` в Telegram) и убирает его из адреса → `HubScreen` открывает экран:
+
+| `open` | Экран |
+|---|---|
+| `cleaning_<id>` / `handyman_<id>` | Карточка заказа; завершённый или отменённый — карточка из истории |
+| `cleaning_chat_<id>` / `handyman_chat_<id>` | Чат заказа; в статусе `disputed` — тред спора; завершённый — карточка из истории |
+| `support` | Чат поддержки |
+| `cleaning` / `handyman` / `chistomaty` | Мастер нового заказа |
+
+Заказ берётся по id (`GET /{vertical}/orders/{id}`), а не из списка — в списке только первые 20.
 
 ## Соглашения
 

@@ -14,6 +14,10 @@
 /telegram-web-app.js
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
+# Service worker браузер сверяет с сервером при каждой проверке обновления.
+/sw.js
+  Cache-Control: no-cache
+
 # HTML всегда свежий, иначе клиенты застрянут на старой сборке.
 /index.html
   Cache-Control: public, max-age=0, must-revalidate

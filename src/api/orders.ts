@@ -227,6 +227,15 @@ export function getUserOrders(): Promise<{ items: Order[]; total: number }> {
   )
 }
 
+/** Свой заказ по id в любом статусе — для диплинка из push. Чужой — 403, нет такого — 404. */
+export function getOrder(orderId: string): Promise<Order> {
+  return apiFetch<Order>(`/cleaning/orders/${orderId}`)
+}
+
+export function getHandymanOrder(orderId: string): Promise<HandymanOrder> {
+  return apiFetch<HandymanOrder>(`/handyman/orders/${orderId}`)
+}
+
 export function submitPrice(orderId: string, price: number, description: string): Promise<Order> {
   return apiFetch<Order>(`/cleaning/orders/${orderId}/submit-price`, {
     method: 'POST',
