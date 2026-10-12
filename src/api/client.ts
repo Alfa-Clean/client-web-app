@@ -118,5 +118,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     throw new ApiError(res.status, `${res.status} ${res.statusText}`, detail, body)
   }
 
+  // 204 без тела (DELETE): `res.json()` на пустом теле бросает SyntaxError,
+  // и успешный запрос выглядел бы как ошибка.
+  if (res.status === 204) return undefined as T
+
   return res.json() as Promise<T>
 }
